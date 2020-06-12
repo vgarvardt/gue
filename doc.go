@@ -101,4 +101,4 @@ Here is a complete example showing worker setup and two jobs enqueued, one with 
     workers.Shutdown()
 
 */
-package que
+package gue

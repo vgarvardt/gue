@@ -1,4 +1,4 @@
-package que
+package gue
 
 import (
 	"testing"

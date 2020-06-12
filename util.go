@@ -1,4 +1,4 @@
-package que
+package gue
 
 // intPow returns x**y, the base-x exponential of y.
 func intPow(x, y int) (r int) {
