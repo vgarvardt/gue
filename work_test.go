@@ -230,7 +230,7 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 
 	// helper functions
 	newConn := func() *pgx.Conn {
-		conn, err := pgx.Connect(testConnConfig)
+		conn, err := pgx.Connect(testConnConfig(t))
 		if err != nil {
 			panic(err)
 		}
@@ -288,7 +288,11 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 
 	go func() {
 		conn := newConn()
-		defer conn.Close()
+		defer func() {
+			if err := conn.Close(); err != nil {
+				t.Error(err)
+			}
+		}()
 
 		tx, err := conn.Begin()
 		if err != nil {
@@ -315,7 +319,11 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 
 	go func() {
 		conn := newConn()
-		defer conn.Close()
+		defer func() {
+			if err := conn.Close(); err != nil {
+				t.Error(err)
+			}
+		}()
 
 		// synchronization point
 		secondAccessExclusiveBackendIDChan <- getBackendPID(conn)

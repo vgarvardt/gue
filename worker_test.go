@@ -125,7 +125,11 @@ func TestWorkerWorkReturnsError(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			t.Error(err)
+		}
+	}()
 
 	j, err := findOneJob(tx)
 	if err != nil {
@@ -151,7 +155,6 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 		"MyJob": func(j *Job) error {
 			called++
 			panic("the panic msg")
-			return nil
 		},
 	}
 	w := NewWorker(c, wm)
@@ -169,7 +172,11 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			t.Error(err)
+		}
+	}()
 
 	j, err := findOneJob(tx)
 	if err != nil {
@@ -232,7 +239,11 @@ func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback()
+	defer func() {
+		if err := tx.Rollback(); err != nil {
+			t.Error(err)
+		}
+	}()
 
 	j, err := findOneJob(tx)
 	if err != nil {

@@ -1,0 +1,57 @@
+name: Testing
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v1
+        with:
+          version: v1.27
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: [lint]
+
+    services:
+      postgres:
+        image: postgres:9.6-alpine
+        ports:
+          - "5432"
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Set up Go
+        uses: actions/setup-go@v2
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: Run tests
+        if: success()
+        run: go test -cover ./... -coverprofile=coverage.txt -covermode=atomic
+        env:
+          TEST_POSTGRES: postgres://test:test@localhost:${{ job.services.postgres.ports[5432] }}/test?sslmode=disable
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v1
+        if: success()
+        with:
+          file: ./coverage.txt
+          fail_ci_if_error: false
