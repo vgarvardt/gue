@@ -6,5 +6,5 @@ test:
 	@echo "$(OK_COLOR)==> Running tests using docker-compose deps$(NO_COLOR)"
 	@docker-compose up -d
 	@sleep 3 && \
-		TEST_PG="postgres://test:test@`docker-compose port pg 5432`/test?sslmode=disable" \
+		TEST_POSTGRES="postgres://test:test@`docker-compose port postgres 5432`/test?sslmode=disable" \
 		go test -cover -coverprofile=coverage.txt -covermode=atomic ./...

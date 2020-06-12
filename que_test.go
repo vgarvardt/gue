@@ -1,19 +1,26 @@
 package gue
 
 import (
+	"database/sql"
+	"io/ioutil"
 	"os"
 	"testing"
 
 	"github.com/jackc/pgx"
+	_ "github.com/jackc/pgx/stdlib"
 )
 
-func testConnConfig(t testing.TB) pgx.ConnConfig {
-	testPgConnString := os.Getenv("TEST_PG")
+func testConnDSN(t testing.TB) string {
+	testPgConnString := os.Getenv("TEST_POSTGRES")
 	if testPgConnString == "" {
 		t.Fatal("TEST_PG env var is not set")
 	}
 
-	cfg, err := pgx.ParseConnectionString(testPgConnString)
+	return testPgConnString
+}
+
+func testConnConfig(t testing.TB) pgx.ConnConfig {
+	cfg, err := pgx.ParseConnectionString(testConnDSN(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,6 +29,24 @@ func testConnConfig(t testing.TB) pgx.ConnConfig {
 }
 
 func openTestClientMaxConns(t testing.TB, maxConnections int) *Client {
+	migrationsConn, err := sql.Open("pgx", testConnDSN(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := migrationsConn.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+
+	migrationSQL, err := ioutil.ReadFile("./schema.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := migrationsConn.Exec(string(migrationSQL)); err != nil {
+		t.Fatal(err)
+	}
+
 	connPoolConfig := pgx.ConnPoolConfig{
 		ConnConfig:     testConnConfig(t),
 		MaxConnections: maxConnections,
@@ -31,6 +56,7 @@ func openTestClientMaxConns(t testing.TB, maxConnections int) *Client {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	return NewClient(pool)
 }
 

@@ -1,7 +1,7 @@
 version: "3"
 
 services:
-  pg:
+  postgres:
     image: postgres:9.6-alpine
     ports:
       - '5432'
@@ -10,8 +10,6 @@ services:
       POSTGRES_USER: test
       POSTGRES_PASSWORD: test
       POSTGRES_DB: test
-    volumes:
-      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:

@@ -47,7 +47,7 @@ jobs:
         if: success()
         run: go test -cover ./... -coverprofile=coverage.txt -covermode=atomic
         env:
-          TEST_PG: postgres://test:test@localhost:${{ job.services.postgres.ports[5432] }}/test?sslmode=disable
+          TEST_POSTGRES: postgres://test:test@localhost:${{ job.services.postgres.ports[5432] }}/test?sslmode=disable
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
