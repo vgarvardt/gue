@@ -4,15 +4,18 @@ import (
 	"bytes"
 	"fmt"
 	"log"
-	"os"
 	"runtime"
-	"strconv"
 	"sync"
 	"time"
 )
 
+const (
+	defaultWakeInterval = 5 * time.Second
+	defaultQueueName    = ""
+)
+
 // WorkFunc is a function that performs a Job. If an error is returned, the job
-// is reenqueued with exponential backoff.
+// is re-enqueued with exponential backoff.
 type WorkFunc func(j *Job) error
 
 // WorkMap is a map of Job names to WorkFuncs that are used to perform Jobs of a
@@ -38,33 +41,29 @@ type Worker struct {
 	ch   chan struct{}
 }
 
-var defaultWakeInterval = 5 * time.Second
-
-func init() {
-	if v := os.Getenv("QUE_WAKE_INTERVAL"); v != "" {
-		if newInt, err := strconv.Atoi(v); err == nil {
-			defaultWakeInterval = time.Duration(newInt) * time.Second
-		}
-	}
-}
-
 // NewWorker returns a Worker that fetches Jobs from the Client and executes
 // them using WorkMap. If the type of Job is not registered in the WorkMap, it's
 // considered an error and the job is re-enqueued with a backoff.
 //
 // Workers default to an Interval of 5 seconds, which can be overridden by
-// setting the environment variable QUE_WAKE_INTERVAL. The default Queue is the
-// nameless queue "", which can be overridden by setting QUE_QUEUE. Either of
-// these settings can be changed on the returned Worker before it is started
-// with Work().
-func NewWorker(c *Client, m WorkMap) *Worker {
-	return &Worker{
+// WakeInterval option.
+// The default Queue is the nameless queue "", which can be overridden by
+// WorkerQueue option. Also these settings can be changed on the returned
+// Worker before it is started with Work().
+func NewWorker(c *Client, m WorkMap, options ...WorkerOption) *Worker {
+	instance := Worker{
 		Interval: defaultWakeInterval,
-		Queue:    os.Getenv("QUE_QUEUE"),
+		Queue:    defaultQueueName,
 		c:        c,
 		m:        m,
 		ch:       make(chan struct{}),
 	}
+
+	for _, option := range options {
+		option(&instance)
+	}
+
+	return &instance
 }
 
 // Work pulls jobs off the Worker's Queue at its Interval. This function only
@@ -93,6 +92,7 @@ func (w *Worker) Work() {
 	}
 }
 
+// WorkOne tries to consume single message from the queue.
 func (w *Worker) WorkOne() (didWork bool) {
 	j, err := w.c.LockJob(w.Queue)
 	if err != nil {
@@ -183,13 +183,25 @@ type WorkerPool struct {
 }
 
 // NewWorkerPool creates a new WorkerPool with count workers using the Client c.
-func NewWorkerPool(c *Client, wm WorkMap, count int) *WorkerPool {
-	return &WorkerPool{
+//
+// Each Worker in the pool default to an Interval of 5 seconds, which can be
+// overridden by PoolWakeInterval option. The default Queue is the
+// nameless queue "", which can be overridden by PoolWorkerQueue option. Also
+// these settings can be changed on the returned WorkerPool before it is started
+// with Start().
+func NewWorkerPool(c *Client, wm WorkMap, count int, options ...WorkerPoolOption) *WorkerPool {
+	instance := WorkerPool{
 		c:        c,
 		WorkMap:  wm,
 		Interval: defaultWakeInterval,
 		workers:  make([]*Worker, count),
 	}
+
+	for _, option := range options {
+		option(&instance)
+	}
+
+	return &instance
 }
 
 // Start starts all of the Workers in the WorkerPool.
