@@ -1,19 +1,29 @@
 package gue
 
 import (
+	"os"
 	"testing"
 
 	"github.com/jackc/pgx"
 )
 
-var testConnConfig = pgx.ConnConfig{
-	Host:     "localhost",
-	Database: "que-go-test",
+func testConnConfig(t testing.TB) pgx.ConnConfig {
+	testPgConnString := os.Getenv("TEST_PG")
+	if testPgConnString == "" {
+		t.Fatal("TEST_PG env var is not set")
+	}
+
+	cfg, err := pgx.ParseConnectionString(testPgConnString)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return cfg
 }
 
 func openTestClientMaxConns(t testing.TB, maxConnections int) *Client {
 	connPoolConfig := pgx.ConnPoolConfig{
-		ConnConfig:     testConnConfig,
+		ConnConfig:     testConnConfig(t),
 		MaxConnections: maxConnections,
 		AfterConnect:   PrepareStatements,
 	}

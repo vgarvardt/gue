@@ -118,7 +118,9 @@ func (w *Worker) WorkOne() (didWork bool) {
 	}
 
 	if err = wf(j); err != nil {
-		j.Error(err.Error())
+		if jErr := j.Error(err.Error()); jErr != nil {
+			log.Printf("got an error (%v) when tried to mark job as errored (%v)", jErr, err)
+		}
 		return
 	}
 
