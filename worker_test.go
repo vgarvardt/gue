@@ -1,11 +1,13 @@
 package gue
 
 import (
+	"context"
 	"errors"
 	"io/ioutil"
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgtype"
 	"github.com/stretchr/testify/assert"
@@ -39,19 +41,55 @@ func TestWorkerWorkOne(t *testing.T) {
 	assert.True(t, success)
 }
 
-func TestWorkerShutdown(t *testing.T) {
+func TestWorker_Start(t *testing.T) {
 	c := openTestClient(t)
 
 	w := NewWorker(c, WorkMap{})
-	finished := false
-	go func() {
-		w.Work()
-		finished = true
-	}()
-	w.Shutdown()
 
-	assert.True(t, finished)
-	assert.True(t, w.done)
+	ctx, cancel := context.WithCancel(context.Background())
+	err := w.Start(ctx)
+	require.NoError(t, err)
+
+	assert.True(t, w.running)
+
+	// try to start one more time to get an error about already running worker
+	err = w.Start(context.Background())
+	require.Error(t, err)
+
+	cancel()
+
+	// give worker time to get a signal and stop
+	time.Sleep(time.Second)
+	assert.False(t, w.running)
+}
+
+func TestWorkerPool_Start(t *testing.T) {
+	c := openTestClient(t)
+
+	poolSize := 2
+	w := NewWorkerPool(c, WorkMap{}, poolSize)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	err := w.Start(ctx)
+	require.NoError(t, err)
+
+	assert.True(t, w.running)
+	for i := range w.workers {
+		assert.True(t, w.workers[i].running)
+	}
+
+	// try to start one more time to get an error about already running worker pool
+	err = w.Start(context.Background())
+	require.Error(t, err)
+
+	cancel()
+
+	// give worker time to get a signal and stop
+	time.Sleep(time.Second)
+	assert.False(t, w.running)
+	for i := range w.workers {
+		assert.False(t, w.workers[i].running)
+	}
 }
 
 func BenchmarkWorker(b *testing.B) {
