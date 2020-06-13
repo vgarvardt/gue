@@ -185,5 +185,5 @@ func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
 
 	assert.Equal(t, int32(1), j.ErrorCount)
 	require.NotEqual(t, pgtype.Null, j.LastError.Status)
-	assert.Equal(t, `unknown job type: "MyJob"`, j.LastError.String)
+	assert.Contains(t, j.LastError.String, `unknown job type: "MyJob"`)
 }

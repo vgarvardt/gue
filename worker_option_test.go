@@ -8,69 +8,91 @@ import (
 )
 
 func TestWakeInterval(t *testing.T) {
-	c := openTestClient(t)
-
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
 			return nil
 		},
 	}
 
-	workerWithDefaultInterval := NewWorker(c, wm)
+	workerWithDefaultInterval := NewWorker(nil, wm)
 	assert.Equal(t, defaultWakeInterval, workerWithDefaultInterval.interval)
 
 	customInterval := 12345 * time.Millisecond
-	workerWithCustomInterval := NewWorker(c, wm, WakeInterval(customInterval))
+	workerWithCustomInterval := NewWorker(nil, wm, WakeInterval(customInterval))
 	assert.Equal(t, customInterval, workerWithCustomInterval.interval)
 }
 
 func TestWorkerQueue(t *testing.T) {
-	c := openTestClient(t)
-
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
 			return nil
 		},
 	}
 
-	workerWithDefaultQueue := NewWorker(c, wm)
+	workerWithDefaultQueue := NewWorker(nil, wm)
 	assert.Equal(t, defaultQueueName, workerWithDefaultQueue.queue)
 
 	customQueue := "fooBarBaz"
-	workerWithCustomQueue := NewWorker(c, wm, WorkerQueue(customQueue))
+	workerWithCustomQueue := NewWorker(nil, wm, WorkerQueue(customQueue))
 	assert.Equal(t, customQueue, workerWithCustomQueue.queue)
 }
 
-func TestPoolWakeInterval(t *testing.T) {
-	c := openTestClient(t)
-
+func TestWorkerID(t *testing.T) {
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
 			return nil
 		},
 	}
 
-	workerPoolWithDefaultInterval := NewWorkerPool(c, wm, 2)
+	workerWithDefaultID := NewWorker(nil, wm)
+	assert.NotEmpty(t, workerWithDefaultID.id)
+
+	customID := "some-meaningful-id"
+	workerWithCustomID := NewWorker(nil, wm, WorkerID(customID))
+	assert.Equal(t, customID, workerWithCustomID.id)
+}
+
+func TestPoolWakeInterval(t *testing.T) {
+	wm := WorkMap{
+		"MyJob": func(j *Job) error {
+			return nil
+		},
+	}
+
+	workerPoolWithDefaultInterval := NewWorkerPool(nil, wm, 2)
 	assert.Equal(t, defaultWakeInterval, workerPoolWithDefaultInterval.interval)
 
 	customInterval := 12345 * time.Millisecond
-	workerPoolWithCustomInterval := NewWorkerPool(c, wm, 2, PoolWakeInterval(customInterval))
+	workerPoolWithCustomInterval := NewWorkerPool(nil, wm, 2, PoolWakeInterval(customInterval))
 	assert.Equal(t, customInterval, workerPoolWithCustomInterval.interval)
 }
 
 func TestPoolWorkerQueue(t *testing.T) {
-	c := openTestClient(t)
-
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
 			return nil
 		},
 	}
 
-	workerPoolWithDefaultQueue := NewWorkerPool(c, wm, 2)
+	workerPoolWithDefaultQueue := NewWorkerPool(nil, wm, 2)
 	assert.Equal(t, defaultQueueName, workerPoolWithDefaultQueue.queue)
 
 	customQueue := "fooBarBaz"
-	workerPoolWithCustomQueue := NewWorkerPool(c, wm, 2, PoolWorkerQueue(customQueue))
+	workerPoolWithCustomQueue := NewWorkerPool(nil, wm, 2, PoolWorkerQueue(customQueue))
 	assert.Equal(t, customQueue, workerPoolWithCustomQueue.queue)
+}
+
+func TestPoolWorkerID(t *testing.T) {
+	wm := WorkMap{
+		"MyJob": func(j *Job) error {
+			return nil
+		},
+	}
+
+	workerPoolWithDefaultID := NewWorkerPool(nil, wm, 2)
+	assert.NotEmpty(t, workerPoolWithDefaultID.id)
+
+	customID := "some-meaningful-id"
+	workerPoolWithCustomID := NewWorkerPool(nil, wm, 2, PoolWorkerID(customID))
+	assert.Equal(t, customID, workerPoolWithCustomID.id)
 }
