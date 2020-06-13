@@ -22,6 +22,13 @@ func WorkerQueue(queue string) WorkerOption {
 	}
 }
 
+// WorkerID sets worker ID for easier identification in logs
+func WorkerID(id string) WorkerOption {
+	return func(w *Worker) {
+		w.id = id
+	}
+}
+
 // PoolWakeInterval overrides default wake interval with the given value.
 func PoolWakeInterval(d time.Duration) WorkerPoolOption {
 	return func(w *WorkerPool) {
@@ -33,5 +40,12 @@ func PoolWakeInterval(d time.Duration) WorkerPoolOption {
 func PoolWorkerQueue(queue string) WorkerPoolOption {
 	return func(w *WorkerPool) {
 		w.queue = queue
+	}
+}
+
+// PoolWorkerID sets worker pool ID for easier identification in logs
+func PoolWorkerID(id string) WorkerPoolOption {
+	return func(w *WorkerPool) {
+		w.id = id
 	}
 }

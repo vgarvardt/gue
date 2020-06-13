@@ -2,6 +2,8 @@ package gue
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"runtime"
@@ -32,6 +34,7 @@ type Worker struct {
 	mu       sync.Mutex
 	done     bool
 	ch       chan struct{}
+	id       string
 }
 
 // NewWorker returns a Worker that fetches Jobs from the Client and executes
@@ -55,13 +58,17 @@ func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) *Worker {
 		option(&instance)
 	}
 
+	if instance.id == "" {
+		instance.id = newID()
+	}
+
 	return &instance
 }
 
 // Work pulls jobs off the Worker's queue at its interval. This function only
 // returns after Shutdown() is called, so it should be run in its own goroutine.
 func (w *Worker) Work() {
-	defer log.Println("worker done")
+	defer log.Printf("worker[id=%s] done", w.id)
 	for {
 		// Try to work a job
 		if w.WorkOne() {
@@ -88,7 +95,7 @@ func (w *Worker) Work() {
 func (w *Worker) WorkOne() (didWork bool) {
 	j, err := w.c.LockJob(w.queue)
 	if err != nil {
-		log.Printf("attempting to lock job: %v", err)
+		log.Printf("worker[id=%s] attempting to lock job: %v", w.id, err)
 		return
 	}
 	if j == nil {
@@ -101,7 +108,7 @@ func (w *Worker) WorkOne() (didWork bool) {
 
 	wf, ok := w.wm[j.Type]
 	if !ok {
-		msg := fmt.Sprintf("unknown job type: %q", j.Type)
+		msg := fmt.Sprintf("worker[id=%s] unknown job type: %q", w.id, j.Type)
 		log.Println(msg)
 		if err = j.Error(msg); err != nil {
 			log.Printf("attempting to save error on job %d: %v", j.ID, err)
@@ -111,15 +118,15 @@ func (w *Worker) WorkOne() (didWork bool) {
 
 	if err = wf(j); err != nil {
 		if jErr := j.Error(err.Error()); jErr != nil {
-			log.Printf("got an error (%v) when tried to mark job as errored (%v)", jErr, err)
+			log.Printf("worker[id=%s] got an error (%v) when tried to mark job as errored (%v)", w.id, jErr, err)
 		}
 		return
 	}
 
 	if err = j.Delete(); err != nil {
-		log.Printf("attempting to delete job %d: %v", j.ID, err)
+		log.Printf("worker[id=%s] attempting to delete job %d: %v", w.id, j.ID, err)
 	}
-	log.Printf("event=job_worked job_id=%d job_type=%s", j.ID, j.Type)
+	log.Printf("worker[id=%s] event=job_worked job_id=%d job_type=%s", w.id, j.ID, j.Type)
 	return
 }
 
@@ -135,7 +142,7 @@ func (w *Worker) Shutdown() {
 		return
 	}
 
-	log.Println("worker shutting down gracefully...")
+	log.Printf("worker[id=%s]  shutting down gracefully...", w.id)
 	w.ch <- struct{}{}
 	w.done = true
 	close(w.ch)
@@ -161,6 +168,13 @@ func recoverPanic(j *Job) {
 	}
 }
 
+func newID() string {
+	hasher := md5.New()
+	// nolint:errcheck
+	hasher.Write([]byte(time.Now().Format(time.RFC3339Nano)))
+	return hex.EncodeToString(hasher.Sum(nil))[:6]
+}
+
 // WorkerPool is a pool of Workers, each working jobs from the queue queue
 // at the specified interval using the WorkMap.
 type WorkerPool struct {
@@ -171,6 +185,7 @@ type WorkerPool struct {
 	workers  []*Worker
 	mu       sync.Mutex
 	done     bool
+	id       string
 }
 
 // NewWorkerPool creates a new WorkerPool with count workers using the Client c.
@@ -191,6 +206,10 @@ func NewWorkerPool(c *Client, wm WorkMap, count int, options ...WorkerPoolOption
 		option(&instance)
 	}
 
+	if instance.id == "" {
+		instance.id = newID()
+	}
+
 	return &instance
 }
 
@@ -200,7 +219,7 @@ func (w *WorkerPool) Start() {
 	defer w.mu.Unlock()
 
 	for i := range w.workers {
-		w.workers[i] = NewWorker(w.c, w.wm)
+		w.workers[i] = NewWorker(w.c, w.wm, WorkerID(fmt.Sprintf("%s/worker-%d", w.id, i)))
 		w.workers[i].interval = w.interval
 		w.workers[i].queue = w.queue
 		go w.workers[i].Work()
