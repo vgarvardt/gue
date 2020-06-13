@@ -1,14 +1,15 @@
 package gue
 
 import (
-	"fmt"
+	"errors"
 	"io/ioutil"
 	"log"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/jackc/pgtype"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func init() {
@@ -17,7 +18,6 @@ func init() {
 
 func TestWorkerWorkOne(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
 	success := false
 	wm := WorkMap{
@@ -29,26 +29,18 @@ func TestWorkerWorkOne(t *testing.T) {
 	w := NewWorker(c, wm)
 
 	didWork := w.WorkOne()
-	if didWork {
-		t.Errorf("want didWork=false when no job was queued")
-	}
+	assert.False(t, didWork)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
-		t.Fatal(err)
-	}
+	err := c.Enqueue(&Job{Type: "MyJob"})
+	require.NoError(t, err)
 
 	didWork = w.WorkOne()
-	if !didWork {
-		t.Errorf("want didWork=true")
-	}
-	if !success {
-		t.Errorf("want success=true")
-	}
+	assert.True(t, didWork)
+	assert.True(t, success)
 }
 
 func TestWorkerShutdown(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
 	w := NewWorker(c, WorkMap{})
 	finished := false
@@ -57,12 +49,9 @@ func TestWorkerShutdown(t *testing.T) {
 		finished = true
 	}()
 	w.Shutdown()
-	if !finished {
-		t.Errorf("want finished=true")
-	}
-	if !w.done {
-		t.Errorf("want w.done=true")
-	}
+
+	assert.True(t, finished)
+	assert.True(t, w.done)
 }
 
 func BenchmarkWorker(b *testing.B) {
@@ -71,7 +60,6 @@ func BenchmarkWorker(b *testing.B) {
 	defer func() {
 		log.SetOutput(os.Stdout)
 	}()
-	defer truncateAndClose(c.pool)
 
 	w := NewWorker(c, WorkMap{"Nil": nilWorker})
 
@@ -93,62 +81,43 @@ func nilWorker(j *Job) error {
 
 func TestWorkerWorkReturnsError(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
 	called := 0
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
 			called++
-			return fmt.Errorf("the error msg")
+			return errors.New("the error msg")
 		},
 	}
 	w := NewWorker(c, wm)
 
 	didWork := w.WorkOne()
-	if didWork {
-		t.Errorf("want didWork=false when no job was queued")
-	}
+	assert.False(t, didWork)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
-		t.Fatal(err)
-	}
+	err := c.Enqueue(&Job{Type: "MyJob"})
+	require.NoError(t, err)
 
 	didWork = w.WorkOne()
-	if !didWork {
-		t.Errorf("want didWork=true")
-	}
-	if called != 1 {
-		t.Errorf("want called=1 was: %d", called)
-	}
+	assert.True(t, didWork)
+	assert.Equal(t, 1, called)
 
 	tx, err := c.pool.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer func() {
-		if err := tx.Rollback(); err != nil {
-			t.Error(err)
-		}
+		err := tx.Rollback()
+		assert.NoError(t, err)
 	}()
 
-	j, err := findOneJob(tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if j.ErrorCount != 1 {
-		t.Errorf("want ErrorCount=1 was %d", j.ErrorCount)
-	}
-	if j.LastError.Status == pgtype.Null {
-		t.Errorf("want LastError IS NOT NULL")
-	}
-	if j.LastError.String != "the error msg" {
-		t.Errorf("want LastError=\"the error msg\" was: %q", j.LastError.String)
-	}
+	j := findOneJob(t, tx)
+	require.NotNil(t, j)
+
+	assert.Equal(t, int32(1), j.ErrorCount)
+	assert.NotEqual(t, pgtype.Null, j.LastError.Status)
+	assert.Equal(t, "the error msg", j.LastError.String)
 }
 
 func TestWorkerWorkRescuesPanic(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
 	called := 0
 	wm := WorkMap{
@@ -159,104 +128,62 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 	}
 	w := NewWorker(c, wm)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
-		t.Fatal(err)
-	}
+	err := c.Enqueue(&Job{Type: "MyJob"})
+	require.NoError(t, err)
 
 	w.WorkOne()
-	if called != 1 {
-		t.Errorf("want called=1 was: %d", called)
-	}
+	assert.Equal(t, 1, called)
 
 	tx, err := c.pool.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer func() {
-		if err := tx.Rollback(); err != nil {
-			t.Error(err)
-		}
+		err := tx.Rollback()
+		assert.NoError(t, err)
 	}()
 
-	j, err := findOneJob(tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if j.ErrorCount != 1 {
-		t.Errorf("want ErrorCount=1 was %d", j.ErrorCount)
-	}
-	if j.LastError.Status == pgtype.Null {
-		t.Errorf("want LastError IS NOT NULL")
-	}
-	if !strings.Contains(j.LastError.String, "the panic msg\n") {
-		t.Errorf("want LastError contains \"the panic msg\\n\" was: %q", j.LastError.String)
-	}
+	j := findOneJob(t, tx)
+	require.NotNil(t, j)
+
+	assert.Equal(t, int32(1), j.ErrorCount)
+	assert.NotEqual(t, pgtype.Null, j.LastError.Status)
+	assert.Contains(t, j.LastError.String, "the panic msg\n")
 	// basic check if a stacktrace is there - not the stacktrace format itself
-	if !strings.Contains(j.LastError.String, "worker.go:") {
-		t.Errorf("want LastError contains \"worker.go:\" was: %q", j.LastError.String)
-	}
-	if !strings.Contains(j.LastError.String, "worker_test.go:") {
-		t.Errorf("want LastError contains \"worker_test.go:\" was: %q", j.LastError.String)
-	}
+	assert.Contains(t, j.LastError.String, "worker.go:")
+	assert.Contains(t, j.LastError.String, "worker_test.go:")
 }
 
 func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
 	currentConns := c.pool.Stat().CurrentConnections
 	availConns := c.pool.Stat().AvailableConnections
 
-	success := false
 	wm := WorkMap{}
 	w := NewWorker(c, wm)
 
 	didWork := w.WorkOne()
-	if didWork {
-		t.Errorf("want didWork=false when no job was queued")
-	}
+	assert.False(t, didWork)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
-		t.Fatal(err)
-	}
+	err := c.Enqueue(&Job{Type: "MyJob"})
+	require.NoError(t, err)
 
 	didWork = w.WorkOne()
-	if !didWork {
-		t.Errorf("want didWork=true")
-	}
-	if success {
-		t.Errorf("want success=false")
-	}
+	assert.True(t, didWork)
 
-	if currentConns != c.pool.Stat().CurrentConnections {
-		t.Errorf("want currentConns euqual: before=%d  after=%d", currentConns, c.pool.Stat().CurrentConnections)
-	}
-	if availConns != c.pool.Stat().AvailableConnections {
-		t.Errorf("want availConns euqual: before=%d  after=%d", availConns, c.pool.Stat().AvailableConnections)
-	}
+	assert.Equal(t, currentConns, c.pool.Stat().CurrentConnections)
+	assert.Equal(t, availConns, c.pool.Stat().AvailableConnections)
 
 	tx, err := c.pool.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer func() {
-		if err := tx.Rollback(); err != nil {
-			t.Error(err)
-		}
+		err := tx.Rollback()
+		assert.NoError(t, err)
 	}()
 
-	j, err := findOneJob(tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if j.ErrorCount != 1 {
-		t.Errorf("want ErrorCount=1 was %d", j.ErrorCount)
-	}
-	if j.LastError.Status == pgtype.Null {
-		t.Fatal("want non-nil LastError")
-	}
-	if want := "unknown job type: \"MyJob\""; j.LastError.String != want {
-		t.Errorf("want LastError=%q, got %q", want, j.LastError.String)
-	}
+	j := findOneJob(t, tx)
+	require.NotNil(t, j)
 
+	assert.Equal(t, int32(1), j.ErrorCount)
+	require.NotEqual(t, pgtype.Null, j.LastError.Status)
+	assert.Equal(t, `unknown job type: "MyJob"`, j.LastError.String)
 }

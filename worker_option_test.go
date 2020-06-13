@@ -3,11 +3,12 @@ package gue
 import (
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestWakeInterval(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
@@ -16,20 +17,15 @@ func TestWakeInterval(t *testing.T) {
 	}
 
 	workerWithDefaultInterval := NewWorker(c, wm)
-	if workerWithDefaultInterval.Interval != defaultWakeInterval {
-		t.Fatal("Worker interval has value other than the default one")
-	}
+	assert.Equal(t, defaultWakeInterval, workerWithDefaultInterval.Interval)
 
 	customInterval := 12345 * time.Millisecond
 	workerWithCustomInterval := NewWorker(c, wm, WakeInterval(customInterval))
-	if workerWithCustomInterval.Interval != customInterval {
-		t.Fatal("Worker interval has value other than custom one")
-	}
+	assert.Equal(t, customInterval, workerWithCustomInterval.Interval)
 }
 
 func TestWorkerQueue(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
@@ -38,20 +34,15 @@ func TestWorkerQueue(t *testing.T) {
 	}
 
 	workerWithDefaultQueue := NewWorker(c, wm)
-	if workerWithDefaultQueue.Queue != defaultQueueName {
-		t.Fatal("Worker queue has value other than the default one")
-	}
+	assert.Equal(t, defaultQueueName, workerWithDefaultQueue.Queue)
 
 	customQueue := "fooBarBaz"
 	workerWithCustomQueue := NewWorker(c, wm, WorkerQueue(customQueue))
-	if workerWithCustomQueue.Queue != customQueue {
-		t.Fatal("Worker interval has value other than custom one")
-	}
+	assert.Equal(t, customQueue, workerWithCustomQueue.Queue)
 }
 
 func TestPoolWakeInterval(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
@@ -60,20 +51,15 @@ func TestPoolWakeInterval(t *testing.T) {
 	}
 
 	workerPoolWithDefaultInterval := NewWorkerPool(c, wm, 2)
-	if workerPoolWithDefaultInterval.Interval != defaultWakeInterval {
-		t.Fatal("WorkerPool interval has value other than the default one")
-	}
+	assert.Equal(t, defaultWakeInterval, workerPoolWithDefaultInterval.Interval)
 
 	customInterval := 12345 * time.Millisecond
 	workerPoolWithCustomInterval := NewWorkerPool(c, wm, 2, PoolWakeInterval(customInterval))
-	if workerPoolWithCustomInterval.Interval != customInterval {
-		t.Fatal("WorkerPool interval has value other than custom one")
-	}
+	assert.Equal(t, customInterval, workerPoolWithCustomInterval.Interval)
 }
 
 func TestPoolWorkerQueue(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
@@ -82,13 +68,9 @@ func TestPoolWorkerQueue(t *testing.T) {
 	}
 
 	workerPoolWithDefaultQueue := NewWorkerPool(c, wm, 2)
-	if workerPoolWithDefaultQueue.Queue != "" {
-		t.Fatal("WorkerPool queue has value other than the default one")
-	}
+	assert.Equal(t, defaultQueueName, workerPoolWithDefaultQueue.Queue)
 
 	customQueue := "fooBarBaz"
 	workerPoolWithCustomQueue := NewWorkerPool(c, wm, 2, PoolWorkerQueue(customQueue))
-	if workerPoolWithCustomQueue.Queue != customQueue {
-		t.Fatal("WorkerPool interval has value other than custom one")
-	}
+	assert.Equal(t, customQueue, workerPoolWithCustomQueue.Queue)
 }

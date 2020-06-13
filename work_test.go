@@ -8,186 +8,123 @@ import (
 
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLockJob(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
-		t.Fatal(err)
-	}
+	jobType := "MyJob"
+	err := c.Enqueue(&Job{Type: jobType})
+	require.NoError(t, err)
 
 	j, err := c.LockJob("")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
-	if j.conn == nil {
-		t.Fatal("want non-nil conn on locked Job")
-	}
-	if j.pool == nil {
-		t.Fatal("want non-nil pool on locked Job")
-	}
+	require.NotNil(t, j.conn)
+	require.NotNil(t, j.pool)
 	defer j.Done()
 
 	// check values of returned Job
-	if j.ID == 0 {
-		t.Errorf("want non-zero ID")
-	}
-	if want := ""; j.Queue != want {
-		t.Errorf("want Queue=%q, got %q", want, j.Queue)
-	}
-	if want := int16(100); j.Priority != want {
-		t.Errorf("want Priority=%d, got %d", want, j.Priority)
-	}
-	if j.RunAt.IsZero() {
-		t.Error("want non-zero RunAt")
-	}
-	if want := "MyJob"; j.Type != want {
-		t.Errorf("want Type=%q, got %q", want, j.Type)
-	}
-	if want, got := "[]", string(j.Args); got != want {
-		t.Errorf("want Args=%s, got %s", want, got)
-	}
-	if want := int32(0); j.ErrorCount != want {
-		t.Errorf("want ErrorCount=%d, got %d", want, j.ErrorCount)
-	}
-	if j.LastError.Status == pgtype.Present {
-		t.Errorf("want no LastError, got %v", j.LastError)
-	}
+	assert.Greater(t, j.ID, int64(0))
+	assert.Equal(t, defaultQueueName, j.Queue)
+	assert.Equal(t, int16(100), j.Priority)
+	assert.False(t, j.RunAt.IsZero())
+	assert.Equal(t, jobType, j.Type)
+	assert.Equal(t, []byte(`[]`), j.Args)
+	assert.Equal(t, int32(0), j.ErrorCount)
+	assert.NotEqual(t, pgtype.Present, j.LastError.Status)
 
 	// check for advisory lock
 	var count int64
 	query := "SELECT count(*) FROM pg_locks WHERE locktype=$1 AND objid=$2::bigint"
-	if err = j.pool.QueryRow(query, "advisory", j.ID).Scan(&count); err != nil {
-		t.Fatal(err)
-	}
-	if count != 1 {
-		t.Errorf("want 1 advisory lock, got %d", count)
-	}
+	err = j.pool.QueryRow(query, "advisory", j.ID).Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), count)
 
 	// make sure conn was checked out of pool
 	stat := c.pool.Stat()
 	total, available := stat.CurrentConnections, stat.AvailableConnections
-	if want := total - 1; available != want {
-		t.Errorf("want available=%d, got %d", want, available)
-	}
+	assert.Equal(t, total-1, available)
 
-	if err = j.Delete(); err != nil {
-		t.Fatal(err)
-	}
+	err = j.Delete()
+	require.NoError(t, err)
 }
 
 func TestLockJobAlreadyLocked(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
-		t.Fatal(err)
-	}
+	err := c.Enqueue(&Job{Type: "MyJob"})
+	require.NoError(t, err)
 
 	j, err := c.LockJob("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if j == nil {
-		t.Fatal("wanted job, got none")
-	}
+	require.NoError(t, err)
+	require.NotNil(t, j)
 	defer j.Done()
 
 	j2, err := c.LockJob("")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
 	if j2 != nil {
 		defer j2.Done()
-		t.Fatalf("wanted no job, got %+v", j2)
+		require.Fail(t, "wanted no job, got %+v", j2)
 	}
 }
 
 func TestLockJobNoJob(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
 	j, err := c.LockJob("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if j != nil {
-		t.Errorf("want no job, got %v", j)
-	}
+	require.NoError(t, err)
+	require.Nil(t, j)
 }
 
 func TestLockJobCustomQueue(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
-	if err := c.Enqueue(&Job{Type: "MyJob", Queue: "extra_priority"}); err != nil {
-		t.Fatal(err)
-	}
+	err := c.Enqueue(&Job{Type: "MyJob", Queue: "extra_priority"})
+	require.NoError(t, err)
 
 	j, err := c.LockJob("")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	if j != nil {
 		j.Done()
-		t.Errorf("expected no job to be found with empty queue name, got %+v", j)
+		assert.Fail(t, "expected no job to be found with empty queue name, got %+v", j)
 	}
 
 	j, err = c.LockJob("extra_priority")
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer j.Done()
+	require.NotNil(t, j)
 
-	if j == nil {
-		t.Fatal("wanted job, got none")
-	}
-
-	if err = j.Delete(); err != nil {
-		t.Fatal(err)
-	}
+	err = j.Delete()
+	require.NoError(t, err)
 }
 
 func TestJobConn(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
-		t.Fatal(err)
-	}
+	err := c.Enqueue(&Job{Type: "MyJob"})
+	require.NoError(t, err)
 
 	j, err := c.LockJob("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if j == nil {
-		t.Fatal("wanted job, got none")
-	}
+	require.NoError(t, err)
+	require.NotNil(t, j)
 	defer j.Done()
 
-	if conn := j.Conn(); conn != j.conn {
-		t.Errorf("want %+v, got %+v", j.conn, conn)
-	}
+	assert.Equal(t, j.conn, j.Conn())
 }
 
 func TestJobConnRace(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
-		t.Fatal(err)
-	}
+	err := c.Enqueue(&Job{Type: "MyJob"})
+	require.NoError(t, err)
 
 	j, err := c.LockJob("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if j == nil {
-		t.Fatal("wanted job, got none")
-	}
+	require.NoError(t, err)
+	require.NotNil(t, j)
 	defer j.Done()
 
 	var wg sync.WaitGroup
@@ -209,52 +146,42 @@ func TestJobConnRace(t *testing.T) {
 // Test the race condition in LockJob
 func TestLockJobAdvisoryRace(t *testing.T) {
 	c := openTestClientMaxConns(t, 2)
-	defer truncateAndClose(c.pool)
 
 	// *pgx.ConnPool doesn't support pools of only one connection.  Make sure
 	// the other one is busy so we know which backend will be used by LockJob
 	// below.
 	unusedConn, err := c.pool.Acquire()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer c.pool.Release(unusedConn)
 
 	// We use two jobs: the first one is concurrently deleted, and the second
 	// one is returned by LockJob after recovering from the race condition.
 	for i := 0; i < 2; i++ {
-		if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
-			t.Fatal(err)
-		}
+		err := c.Enqueue(&Job{Type: "MyJob"})
+		require.NoError(t, err)
 	}
 
 	// helper functions
 	newConn := func() *pgx.Conn {
 		conn, err := pgx.Connect(testConnConfig(t))
-		if err != nil {
-			panic(err)
-		}
+		require.NoError(t, err)
 		return conn
 	}
+
 	getBackendPID := func(conn *pgx.Conn) int32 {
 		var backendPID int32
-		err := conn.QueryRow(`
-			SELECT pg_backend_pid()
-		`).Scan(&backendPID)
-		if err != nil {
-			panic(err)
-		}
+		err := conn.QueryRow(`SELECT pg_backend_pid()`).Scan(&backendPID)
+		require.NoError(t, err)
 		return backendPID
 	}
+
 	waitUntilBackendIsWaiting := func(backendPID int32, name string) {
 		conn := newConn()
 		i := 0
 		for {
 			var waiting bool
 			err := conn.QueryRow(`SELECT wait_event is not null from pg_stat_activity where pid=$1`, backendPID).Scan(&waiting)
-			if err != nil {
-				panic(err)
-			}
+			require.NoError(t, err)
 
 			if waiting {
 				break
@@ -289,19 +216,15 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 	go func() {
 		conn := newConn()
 		defer func() {
-			if err := conn.Close(); err != nil {
-				t.Error(err)
-			}
+			err := conn.Close()
+			assert.NoError(t, err)
 		}()
 
 		tx, err := conn.Begin()
-		if err != nil {
-			panic(err)
-		}
+		require.NoError(t, err)
+
 		_, err = tx.Exec(`LOCK TABLE que_jobs IN ACCESS EXCLUSIVE MODE`)
-		if err != nil {
-			panic(err)
-		}
+		require.NoError(t, err)
 
 		// first wait for LockJob to appear behind us
 		backendID := <-lockJobBackendIDChan
@@ -312,30 +235,24 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 		waitUntilBackendIsWaiting(backendID, "second access exclusive lock")
 
 		err = tx.Rollback()
-		if err != nil {
-			panic(err)
-		}
+		require.NoError(t, err)
 	}()
 
 	go func() {
 		conn := newConn()
 		defer func() {
-			if err := conn.Close(); err != nil {
-				t.Error(err)
-			}
+			err := conn.Close()
+			assert.NoError(t, err)
 		}()
 
 		// synchronization point
 		secondAccessExclusiveBackendIDChan <- getBackendPID(conn)
 
 		tx, err := conn.Begin()
-		if err != nil {
-			panic(err)
-		}
+		require.NoError(t, err)
+
 		_, err = tx.Exec(`LOCK TABLE que_jobs IN ACCESS EXCLUSIVE MODE`)
-		if err != nil {
-			panic(err)
-		}
+		require.NoError(t, err)
 
 		// Fake a concurrent transaction grabbing the job
 		var jid int64
@@ -346,22 +263,17 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 				 FROM que_jobs)
 			RETURNING job_id
 		`).Scan(&jid)
-		if err != nil {
-			panic(err)
-		}
+		require.NoError(t, err)
 
 		deletedJobIDChan <- jid
 
 		err = tx.Commit()
-		if err != nil {
-			panic(err)
-		}
+		require.NoError(t, err)
 	}()
 
 	conn, err := c.pool.Acquire()
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
+
 	ourBackendID := getBackendPID(conn)
 	c.pool.Release(conn)
 
@@ -369,111 +281,71 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 	lockJobBackendIDChan <- ourBackendID
 
 	job, err := c.LockJob("")
-	if err != nil {
-		panic(err)
-	}
+	require.NoError(t, err)
 	defer job.Done()
 
 	deletedJobID := <-deletedJobIDChan
 
-	t.Logf("Got id %d", job.ID)
-	t.Logf("Concurrently deleted id %d", deletedJobID)
-
-	if deletedJobID >= job.ID {
-		t.Fatalf("deleted job id %d must be smaller than job.ID %d", deletedJobID, job.ID)
-	}
+	require.Less(t, deletedJobID, job.ID)
 }
 
 func TestJobDelete(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
-		t.Fatal(err)
-	}
+	err := c.Enqueue(&Job{Type: "MyJob"})
+	require.NoError(t, err)
 
 	j, err := c.LockJob("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if j == nil {
-		t.Fatal("wanted job, got none")
-	}
+	require.NoError(t, err)
+	require.NotNil(t, j)
 	defer j.Done()
 
-	if err = j.Delete(); err != nil {
-		t.Fatal(err)
-	}
+	err = j.Delete()
+	require.NoError(t, err)
 
 	// make sure job was deleted
-	j2, err := findOneJob(c.pool)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if j2 != nil {
-		t.Errorf("job was not deleted: %+v", j2)
-	}
+	j2 := findOneJob(t, c.pool)
+	assert.Nil(t, j2)
 }
 
 func TestJobDone(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
-		t.Fatal(err)
-	}
+	err := c.Enqueue(&Job{Type: "MyJob"})
+	require.NoError(t, err)
 
 	j, err := c.LockJob("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if j == nil {
-		t.Fatal("wanted job, got none")
-	}
+	require.NoError(t, err)
+	require.NotNil(t, j)
 
 	j.Done()
 
 	// make sure conn and pool were cleared
-	if j.conn != nil {
-		t.Errorf("want nil conn, got %+v", j.conn)
-	}
-	if j.pool != nil {
-		t.Errorf("want nil pool, got %+v", j.pool)
-	}
+	assert.Nil(t, j.conn)
+	assert.Nil(t, j.pool)
 
 	// make sure lock was released
 	var count int64
-	query := "SELECT count(*) FROM pg_locks WHERE locktype=$1 AND objid=$2::bigint"
-	if err = c.pool.QueryRow(query, "advisory", j.ID).Scan(&count); err != nil {
-		t.Fatal(err)
-	}
-	if count != 0 {
-		t.Error("advisory lock was not released")
-	}
+	query := "SELECT count(*) FROM pg_locks WHERE locktype = $1 AND objid= $2::bigint"
+	err = c.pool.QueryRow(query, "advisory", j.ID).Scan(&count)
+	require.NoError(t, err)
+	assert.Equal(t, int64(0), count)
 
 	// make sure conn was returned to pool
 	stat := c.pool.Stat()
 	total, available := stat.CurrentConnections, stat.AvailableConnections
-	if total != available {
-		t.Errorf("want available=total, got available=%d total=%d", available, total)
-	}
+	assert.Equal(t, available, total)
 }
 
 func TestJobDoneMultiple(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
-		t.Fatal(err)
-	}
+	err := c.Enqueue(&Job{Type: "MyJob"})
+	require.NoError(t, err)
 
 	j, err := c.LockJob("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if j == nil {
-		t.Fatal("wanted job, got none")
-	}
+	require.NoError(t, err)
+	require.NotNil(t, j)
 
 	j.Done()
 	// try calling Done() again
@@ -482,160 +354,107 @@ func TestJobDoneMultiple(t *testing.T) {
 
 func TestJobDeleteFromTx(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
-		t.Fatal(err)
-	}
+	err := c.Enqueue(&Job{Type: "MyJob"})
+	require.NoError(t, err)
 
 	j, err := c.LockJob("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if j == nil {
-		t.Fatal("wanted job, got none")
-	}
+	require.NoError(t, err)
+	require.NotNil(t, j)
 
 	// get the job's database connection
 	conn := j.Conn()
-	if conn == nil {
-		t.Fatal("wanted conn, got nil")
-	}
+	require.NotNil(t, conn)
 
 	// start a transaction
 	tx, err := conn.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	// delete the job
-	if err = j.Delete(); err != nil {
-		t.Fatal(err)
-	}
+	err = j.Delete()
+	require.NoError(t, err)
 
-	if err = tx.Commit(); err != nil {
-		t.Fatal(err)
-	}
+	err = tx.Commit()
+	require.NoError(t, err)
 
 	// mark as done
 	j.Done()
 
 	// make sure the job is gone
-	j2, err := findOneJob(c.pool)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if j2 != nil {
-		t.Errorf("wanted no job, got %+v", j2)
-	}
+	j2 := findOneJob(t, c.pool)
+	assert.Nil(t, j2)
 }
 
 func TestJobDeleteFromTxRollback(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
-		t.Fatal(err)
-	}
+	err := c.Enqueue(&Job{Type: "MyJob"})
+	require.NoError(t, err)
 
 	j1, err := c.LockJob("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if j1 == nil {
-		t.Fatal("wanted job, got none")
-	}
+	require.NoError(t, err)
+	require.NotNil(t, j1)
 
 	// get the job's database connection
 	conn := j1.Conn()
-	if conn == nil {
-		t.Fatal("wanted conn, got nil")
-	}
+	require.NotNil(t, conn)
 
 	// start a transaction
 	tx, err := conn.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	// delete the job
-	if err = j1.Delete(); err != nil {
-		t.Fatal(err)
-	}
+	err = j1.Delete()
+	require.NoError(t, err)
 
-	if err = tx.Rollback(); err != nil {
-		t.Fatal(err)
-	}
+	err = tx.Rollback()
+	require.NoError(t, err)
 
 	// mark as done
 	j1.Done()
 
 	// make sure the job still exists and matches j1
-	j2, err := findOneJob(c.pool)
-	if err != nil {
-		t.Fatal(err)
-	}
+	j2 := findOneJob(t, c.pool)
+	require.NotNil(t, j2)
 
-	if j1.ID != j2.ID {
-		t.Errorf("want job %d, got %d", j1.ID, j2.ID)
-	}
+	assert.Equal(t, j1.ID, j2.ID)
 }
 
 func TestJobError(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
-		t.Fatal(err)
-	}
+	err := c.Enqueue(&Job{Type: "MyJob"})
+	require.NoError(t, err)
 
 	j, err := c.LockJob("")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if j == nil {
-		t.Fatal("wanted job, got none")
-	}
+	require.NoError(t, err)
+	require.NotNil(t, j)
 	defer j.Done()
 
 	msg := "world\nended"
-	if err = j.Error(msg); err != nil {
-		t.Fatal(err)
-	}
+	err = j.Error(msg)
+	require.NoError(t, err)
 	j.Done()
 
 	// make sure job was not deleted
-	j2, err := findOneJob(c.pool)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if j2 == nil {
-		t.Fatal("job was not found")
-	}
+	j2 := findOneJob(t, c.pool)
+	require.NotNil(t, j2)
 	defer j2.Done()
 
-	if j2.LastError.Status == pgtype.Null || j2.LastError.String != msg {
-		t.Errorf("want LastError=%q, got %q", msg, j2.LastError.String)
-	}
-	if j2.ErrorCount != 1 {
-		t.Errorf("want ErrorCount=%d, got %d", 1, j2.ErrorCount)
-	}
+	assert.NotEqual(t, pgtype.Null, j2.LastError.Status)
+	assert.Equal(t, msg, j2.LastError.String)
+	assert.Equal(t, int32(1), j2.ErrorCount)
 
 	// make sure lock was released
 	var count int64
 	query := "SELECT count(*) FROM pg_locks WHERE locktype=$1 AND objid=$2::bigint"
-	if err = c.pool.QueryRow(query, "advisory", j.ID).Scan(&count); err != nil {
-		t.Fatal(err)
-	}
-	if count != 0 {
-		t.Error("advisory lock was not released")
-	}
+	err = c.pool.QueryRow(query, "advisory", j.ID).Scan(&count)
+	require.NoError(t, err)
+
+	assert.Equal(t, int64(0), count, "advisory lock was not released")
 
 	// make sure conn was returned to pool
 	stat := c.pool.Stat()
 	total, available := stat.CurrentConnections, stat.AvailableConnections
-	if total != available {
-		t.Errorf("want available=total, got available=%d total=%d", available, total)
-	}
+	assert.Equal(t, available, total)
 }
