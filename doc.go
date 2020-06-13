@@ -73,8 +73,13 @@ Here is a complete example showing worker setup and two jobs enqueued, one with 
     }
     // create a pool w/ 2 workers
     workers := que.NewWorkerPool(qc, wm, 2, que.PoolWorkerQueue("name_printer"))
-    // work jobs in another goroutine
-    go workers.Start()
+
+    ctx, shutdown := context.WithCancel(context.Background())
+
+    // work jobs in goroutine
+    if err := workers.Start(ctx); err != nil {
+        log.Fatal(err)
+    }
 
     args, err := json.Marshal(printNameArgs{Name: "vgarvardt"})
     if err != nil {
@@ -98,9 +103,10 @@ Here is a complete example showing worker setup and two jobs enqueued, one with 
         log.Fatal(err)
     }
 
-    time.Sleep(35 * time.Second) // wait for while
+    time.Sleep(30 * time.Second) // wait for while
 
-    workers.Shutdown()
+    // send shutdown signal to worker
+    shutdown()
 
 */
 package gue
