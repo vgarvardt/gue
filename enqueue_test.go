@@ -5,165 +5,107 @@ import (
 	"time"
 
 	"github.com/jackc/pgtype"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestEnqueueOnlyType(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
-	if err := c.Enqueue(&Job{Type: "MyJob"}); err != nil {
-		t.Fatal(err)
-	}
+	jobType := "MyJob"
+	err := c.Enqueue(&Job{Type: jobType})
+	require.NoError(t, err)
 
-	j, err := findOneJob(c.pool)
-	if err != nil {
-		t.Fatal(err)
-	}
+	j := findOneJob(t, c.pool)
+	require.NotNil(t, j)
 
 	// check resulting job
-	if j.ID == 0 {
-		t.Errorf("want non-zero ID")
-	}
-	if want := ""; j.Queue != want {
-		t.Errorf("want Queue=%q, got %q", want, j.Queue)
-	}
-	if want := int16(100); j.Priority != want {
-		t.Errorf("want Priority=%d, got %d", want, j.Priority)
-	}
-	if j.RunAt.IsZero() {
-		t.Error("want non-zero RunAt")
-	}
-	if want := "MyJob"; j.Type != want {
-		t.Errorf("want Type=%q, got %q", want, j.Type)
-	}
-	if want, got := "[]", string(j.Args); got != want {
-		t.Errorf("want Args=%s, got %s", want, got)
-	}
-	if want := int32(0); j.ErrorCount != want {
-		t.Errorf("want ErrorCount=%d, got %d", want, j.ErrorCount)
-	}
-	if j.LastError.Status == pgtype.Present {
-		t.Errorf("want no LastError, got %v", j.LastError)
-	}
+	assert.Greater(t, j.ID, int64(0))
+	assert.Equal(t, defaultQueueName, j.Queue)
+	assert.Equal(t, int16(100), j.Priority)
+	assert.False(t, j.RunAt.IsZero())
+	assert.Equal(t, jobType, j.Type)
+	assert.Equal(t, []byte(`[]`), j.Args)
+	assert.Equal(t, int32(0), j.ErrorCount)
+	assert.NotEqual(t, pgtype.Present, j.LastError.Status)
 }
 
 func TestEnqueueWithPriority(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
 	want := int16(99)
-	if err := c.Enqueue(&Job{Type: "MyJob", Priority: want}); err != nil {
-		t.Fatal(err)
-	}
+	err := c.Enqueue(&Job{Type: "MyJob", Priority: want})
+	require.NoError(t, err)
 
-	j, err := findOneJob(c.pool)
-	if err != nil {
-		t.Fatal(err)
-	}
+	j := findOneJob(t, c.pool)
+	require.NotNil(t, j)
 
-	if j.Priority != want {
-		t.Errorf("want Priority=%d, got %d", want, j.Priority)
-	}
+	assert.Equal(t, want, j.Priority)
 }
 
 func TestEnqueueWithRunAt(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
 	want := time.Now().Add(2 * time.Minute)
-	if err := c.Enqueue(&Job{Type: "MyJob", RunAt: want}); err != nil {
-		t.Fatal(err)
-	}
+	err := c.Enqueue(&Job{Type: "MyJob", RunAt: want})
+	require.NoError(t, err)
 
-	j, err := findOneJob(c.pool)
-	if err != nil {
-		t.Fatal(err)
-	}
+	j := findOneJob(t, c.pool)
+	require.NotNil(t, j)
 
 	// truncate to the microsecond as postgres driver does
 	want = want.Truncate(time.Microsecond)
-	if !want.Equal(j.RunAt) {
-		t.Errorf("want RunAt=%s, got %s", want, j.RunAt)
-	}
+	assert.True(t, want.Equal(j.RunAt))
 }
 
 func TestEnqueueWithArgs(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
-	want := `{"arg1":0, "arg2":"a string"}`
-	if err := c.Enqueue(&Job{Type: "MyJob", Args: []byte(want)}); err != nil {
-		t.Fatal(err)
-	}
+	want := []byte(`{"arg1":0, "arg2":"a string"}`)
+	err := c.Enqueue(&Job{Type: "MyJob", Args: want})
+	require.NoError(t, err)
 
-	j, err := findOneJob(c.pool)
-	if err != nil {
-		t.Fatal(err)
-	}
+	j := findOneJob(t, c.pool)
+	require.NotNil(t, j)
 
-	if got := string(j.Args); got != want {
-		t.Errorf("want Args=%s, got %s", want, got)
-	}
+	assert.Equal(t, want, j.Args)
 }
 
 func TestEnqueueWithQueue(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
 	want := "special-work-queue"
-	if err := c.Enqueue(&Job{Type: "MyJob", Queue: want}); err != nil {
-		t.Fatal(err)
-	}
+	err := c.Enqueue(&Job{Type: "MyJob", Queue: want})
+	require.NoError(t, err)
 
-	j, err := findOneJob(c.pool)
-	if err != nil {
-		t.Fatal(err)
-	}
+	j := findOneJob(t, c.pool)
+	require.NotNil(t, j)
 
-	if j.Queue != want {
-		t.Errorf("want Queue=%q, got %q", want, j.Queue)
-	}
+	assert.Equal(t, want, j.Queue)
 }
 
 func TestEnqueueWithEmptyType(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
-	if err := c.Enqueue(&Job{Type: ""}); err != ErrMissingType {
-		t.Fatalf("want ErrMissingType, got %v", err)
-	}
+	err := c.Enqueue(&Job{Type: ""})
+	require.Equal(t, ErrMissingType, err)
 }
 
 func TestEnqueueInTx(t *testing.T) {
 	c := openTestClient(t)
-	defer truncateAndClose(c.pool)
 
 	tx, err := c.pool.Begin()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
-	if err = c.EnqueueInTx(&Job{Type: "MyJob"}, tx); err != nil {
-		t.Fatal(err)
-	}
+	err = c.EnqueueInTx(&Job{Type: "MyJob"}, tx)
+	require.NoError(t, err)
 
-	j, err := findOneJob(tx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if j == nil {
-		t.Fatal("want job, got none")
-	}
+	j := findOneJob(t, tx)
+	require.NotNil(t, j)
 
-	if err = tx.Rollback(); err != nil {
-		t.Fatal(err)
-	}
+	err = tx.Rollback()
+	require.NoError(t, err)
 
-	j, err = findOneJob(c.pool)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if j != nil {
-		t.Fatalf("wanted job to be rolled back, got %+v", j)
-	}
+	j = findOneJob(t, c.pool)
+	require.Nil(t, j)
 }

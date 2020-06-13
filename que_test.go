@@ -8,44 +8,44 @@ import (
 
 	"github.com/jackc/pgx"
 	_ "github.com/jackc/pgx/stdlib"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func testConnDSN(t testing.TB) string {
-	testPgConnString := os.Getenv("TEST_POSTGRES")
-	if testPgConnString == "" {
-		t.Fatal("TEST_PG env var is not set")
-	}
+	t.Helper()
+
+	testPgConnString, found := os.LookupEnv("TEST_POSTGRES")
+	require.True(t, found, "TEST_POSTGRES env var is not set")
+	require.NotEmpty(t, testPgConnString, "TEST_POSTGRES env var is empty")
 
 	return testPgConnString
 }
 
 func testConnConfig(t testing.TB) pgx.ConnConfig {
+	t.Helper()
+
 	cfg, err := pgx.ParseConnectionString(testConnDSN(t))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	return cfg
 }
 
 func openTestClientMaxConns(t testing.TB, maxConnections int) *Client {
+	t.Helper()
+
 	migrationsConn, err := sql.Open("pgx", testConnDSN(t))
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer func() {
-		if err := migrationsConn.Close(); err != nil {
-			t.Error(err)
-		}
+		err := migrationsConn.Close()
+		assert.NoError(t, err)
 	}()
 
 	migrationSQL, err := ioutil.ReadFile("./schema.sql")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := migrationsConn.Exec(string(migrationSQL)); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
+	_, err = migrationsConn.Exec(string(migrationSQL))
+	require.NoError(t, err)
 
 	connPoolConfig := pgx.ConnPoolConfig{
 		ConnConfig:     testConnConfig(t),
@@ -53,30 +53,36 @@ func openTestClientMaxConns(t testing.TB, maxConnections int) *Client {
 		AfterConnect:   PrepareStatements,
 	}
 	pool, err := pgx.NewConnPool(connPoolConfig)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		truncateAndClose(t, pool)
+	})
 
 	return NewClient(pool)
 }
 
 func openTestClient(t testing.TB) *Client {
+	t.Helper()
+
 	return openTestClientMaxConns(t, 5)
 }
 
-func truncateAndClose(pool *pgx.ConnPool) {
-	if _, err := pool.Exec("TRUNCATE TABLE que_jobs"); err != nil {
-		panic(err)
-	}
+func truncateAndClose(t testing.TB, pool *pgx.ConnPool) {
+	t.Helper()
+
+	_, err := pool.Exec("TRUNCATE TABLE que_jobs")
+	assert.NoError(t, err)
+
 	pool.Close()
 }
 
-func findOneJob(q queryable) (*Job, error) {
-	findSQL := `
-	SELECT priority, run_at, job_id, job_class, args, error_count, last_error, queue
-	FROM que_jobs LIMIT 1`
+func findOneJob(t testing.TB, q queryable) *Job {
+	t.Helper()
 
-	j := &Job{}
+	findSQL := `SELECT priority, run_at, job_id, job_class, args, error_count, last_error, queue FROM que_jobs LIMIT 1`
+
+	j := new(Job)
 	err := q.QueryRow(findSQL).Scan(
 		&j.Priority,
 		&j.RunAt,
@@ -88,10 +94,9 @@ func findOneJob(q queryable) (*Job, error) {
 		&j.Queue,
 	)
 	if err == pgx.ErrNoRows {
-		return nil, nil
+		return nil
 	}
-	if err != nil {
-		return nil, err
-	}
-	return j, nil
+	require.NoError(t, err)
+
+	return j
 }
