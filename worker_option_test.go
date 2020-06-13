@@ -17,11 +17,11 @@ func TestWakeInterval(t *testing.T) {
 	}
 
 	workerWithDefaultInterval := NewWorker(c, wm)
-	assert.Equal(t, defaultWakeInterval, workerWithDefaultInterval.Interval)
+	assert.Equal(t, defaultWakeInterval, workerWithDefaultInterval.interval)
 
 	customInterval := 12345 * time.Millisecond
 	workerWithCustomInterval := NewWorker(c, wm, WakeInterval(customInterval))
-	assert.Equal(t, customInterval, workerWithCustomInterval.Interval)
+	assert.Equal(t, customInterval, workerWithCustomInterval.interval)
 }
 
 func TestWorkerQueue(t *testing.T) {
@@ -34,11 +34,11 @@ func TestWorkerQueue(t *testing.T) {
 	}
 
 	workerWithDefaultQueue := NewWorker(c, wm)
-	assert.Equal(t, defaultQueueName, workerWithDefaultQueue.Queue)
+	assert.Equal(t, defaultQueueName, workerWithDefaultQueue.queue)
 
 	customQueue := "fooBarBaz"
 	workerWithCustomQueue := NewWorker(c, wm, WorkerQueue(customQueue))
-	assert.Equal(t, customQueue, workerWithCustomQueue.Queue)
+	assert.Equal(t, customQueue, workerWithCustomQueue.queue)
 }
 
 func TestPoolWakeInterval(t *testing.T) {
@@ -51,11 +51,11 @@ func TestPoolWakeInterval(t *testing.T) {
 	}
 
 	workerPoolWithDefaultInterval := NewWorkerPool(c, wm, 2)
-	assert.Equal(t, defaultWakeInterval, workerPoolWithDefaultInterval.Interval)
+	assert.Equal(t, defaultWakeInterval, workerPoolWithDefaultInterval.interval)
 
 	customInterval := 12345 * time.Millisecond
 	workerPoolWithCustomInterval := NewWorkerPool(c, wm, 2, PoolWakeInterval(customInterval))
-	assert.Equal(t, customInterval, workerPoolWithCustomInterval.Interval)
+	assert.Equal(t, customInterval, workerPoolWithCustomInterval.interval)
 }
 
 func TestPoolWorkerQueue(t *testing.T) {
@@ -68,9 +68,9 @@ func TestPoolWorkerQueue(t *testing.T) {
 	}
 
 	workerPoolWithDefaultQueue := NewWorkerPool(c, wm, 2)
-	assert.Equal(t, defaultQueueName, workerPoolWithDefaultQueue.Queue)
+	assert.Equal(t, defaultQueueName, workerPoolWithDefaultQueue.queue)
 
 	customQueue := "fooBarBaz"
 	workerPoolWithCustomQueue := NewWorkerPool(c, wm, 2, PoolWorkerQueue(customQueue))
-	assert.Equal(t, customQueue, workerPoolWithCustomQueue.Queue)
+	assert.Equal(t, customQueue, workerPoolWithCustomQueue.queue)
 }
