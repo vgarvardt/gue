@@ -22,40 +22,32 @@ type WorkFunc func(j *Job) error
 // given type.
 type WorkMap map[string]WorkFunc
 
-// Worker is a single worker that pulls jobs off the specified Queue. If no Job
-// is found, the Worker will sleep for Interval seconds.
+// Worker is a single worker that pulls jobs off the specified queue. If no Job
+// is found, the Worker will sleep for interval seconds.
 type Worker struct {
-	// Interval is the amount of time that this Worker should sleep before trying
-	// to find another Job.
-	Interval time.Duration
-
-	// Queue is the name of the queue to pull Jobs off of. The default value, "",
-	// is usable and is the default for both que-go and the ruby que library.
-	Queue string
-
-	c *Client
-	m WorkMap
-
-	mu   sync.Mutex
-	done bool
-	ch   chan struct{}
+	wm       WorkMap
+	interval time.Duration
+	queue    string
+	c        *Client
+	mu       sync.Mutex
+	done     bool
+	ch       chan struct{}
 }
 
 // NewWorker returns a Worker that fetches Jobs from the Client and executes
 // them using WorkMap. If the type of Job is not registered in the WorkMap, it's
 // considered an error and the job is re-enqueued with a backoff.
 //
-// Workers default to an Interval of 5 seconds, which can be overridden by
+// Workers default to an interval of 5 seconds, which can be overridden by
 // WakeInterval option.
-// The default Queue is the nameless queue "", which can be overridden by
-// WorkerQueue option. Also these settings can be changed on the returned
-// Worker before it is started with Work().
-func NewWorker(c *Client, m WorkMap, options ...WorkerOption) *Worker {
+// The default queue is the nameless queue "", which can be overridden by
+// WorkerQueue option.
+func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) *Worker {
 	instance := Worker{
-		Interval: defaultWakeInterval,
-		Queue:    defaultQueueName,
+		interval: defaultWakeInterval,
+		queue:    defaultQueueName,
 		c:        c,
-		m:        m,
+		wm:       wm,
 		ch:       make(chan struct{}),
 	}
 
@@ -66,7 +58,7 @@ func NewWorker(c *Client, m WorkMap, options ...WorkerOption) *Worker {
 	return &instance
 }
 
-// Work pulls jobs off the Worker's Queue at its Interval. This function only
+// Work pulls jobs off the Worker's queue at its interval. This function only
 // returns after Shutdown() is called, so it should be run in its own goroutine.
 func (w *Worker) Work() {
 	defer log.Println("worker done")
@@ -85,7 +77,7 @@ func (w *Worker) Work() {
 			select {
 			case <-w.ch:
 				return
-			case <-time.After(w.Interval):
+			case <-time.After(w.interval):
 				// continue in loop
 			}
 		}
@@ -94,7 +86,7 @@ func (w *Worker) Work() {
 
 // WorkOne tries to consume single message from the queue.
 func (w *Worker) WorkOne() (didWork bool) {
-	j, err := w.c.LockJob(w.Queue)
+	j, err := w.c.LockJob(w.queue)
 	if err != nil {
 		log.Printf("attempting to lock job: %v", err)
 		return
@@ -107,7 +99,7 @@ func (w *Worker) WorkOne() (didWork bool) {
 
 	didWork = true
 
-	wf, ok := w.m[j.Type]
+	wf, ok := w.wm[j.Type]
 	if !ok {
 		msg := fmt.Sprintf("unknown job type: %q", j.Type)
 		log.Println(msg)
@@ -169,31 +161,29 @@ func recoverPanic(j *Job) {
 	}
 }
 
-// WorkerPool is a pool of Workers, each working jobs from the queue Queue
-// at the specified Interval using the WorkMap.
+// WorkerPool is a pool of Workers, each working jobs from the queue queue
+// at the specified interval using the WorkMap.
 type WorkerPool struct {
-	WorkMap  WorkMap
-	Interval time.Duration
-	Queue    string
-
-	c       *Client
-	workers []*Worker
-	mu      sync.Mutex
-	done    bool
+	wm       WorkMap
+	interval time.Duration
+	queue    string
+	c        *Client
+	workers  []*Worker
+	mu       sync.Mutex
+	done     bool
 }
 
 // NewWorkerPool creates a new WorkerPool with count workers using the Client c.
 //
-// Each Worker in the pool default to an Interval of 5 seconds, which can be
-// overridden by PoolWakeInterval option. The default Queue is the
-// nameless queue "", which can be overridden by PoolWorkerQueue option. Also
-// these settings can be changed on the returned WorkerPool before it is started
-// with Start().
+// Each Worker in the pool default to an interval of 5 seconds, which can be
+// overridden by PoolWakeInterval option. The default queue is the
+// nameless queue "", which can be overridden by PoolWorkerQueue option.
 func NewWorkerPool(c *Client, wm WorkMap, count int, options ...WorkerPoolOption) *WorkerPool {
 	instance := WorkerPool{
+		wm:       wm,
+		interval: defaultWakeInterval,
+		queue:    defaultQueueName,
 		c:        c,
-		WorkMap:  wm,
-		Interval: defaultWakeInterval,
 		workers:  make([]*Worker, count),
 	}
 
@@ -210,9 +200,9 @@ func (w *WorkerPool) Start() {
 	defer w.mu.Unlock()
 
 	for i := range w.workers {
-		w.workers[i] = NewWorker(w.c, w.WorkMap)
-		w.workers[i].Interval = w.Interval
-		w.workers[i].Queue = w.Queue
+		w.workers[i] = NewWorker(w.c, w.wm)
+		w.workers[i].interval = w.interval
+		w.workers[i].queue = w.queue
 		go w.workers[i].Work()
 	}
 }
