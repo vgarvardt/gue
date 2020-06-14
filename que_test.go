@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vgarvardt/gue/adapter"
-	"github.com/vgarvardt/gue/adapter/pgXv3"
+	"github.com/vgarvardt/gue/adapter/pgxv3"
 )
 
 var (
@@ -49,12 +49,12 @@ func openTestClientMaxConnsPGXv3(t testing.TB, maxConnections int) *Client {
 	connPoolConfig := pgx.ConnPoolConfig{
 		ConnConfig:     testConnPGXv3Config(t),
 		MaxConnections: maxConnections,
-		AfterConnect:   pgXv3.PrepareStatements,
+		AfterConnect:   pgxv3.PrepareStatements,
 	}
 	poolPGXv3, err := pgx.NewConnPool(connPoolConfig)
 	require.NoError(t, err)
 
-	pool := pgXv3.NewConnPool(poolPGXv3)
+	pool := pgxv3.NewConnPool(poolPGXv3)
 
 	t.Cleanup(func() {
 		truncateAndClose(t, pool)
@@ -75,7 +75,7 @@ func openTestConnPGXv3(t testing.TB) adapter.Conn {
 	conn, err := pgx.Connect(testConnPGXv3Config(t))
 	require.NoError(t, err)
 
-	return pgXv3.NewConn(conn)
+	return pgxv3.NewConn(conn)
 }
 
 func truncateAndClose(t testing.TB, pool adapter.ConnPool) {

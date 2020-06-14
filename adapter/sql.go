@@ -136,6 +136,7 @@ AND   job_id   = $4::bigint
 	//`
 )
 
+// PreparedStatements is the list of the named statements used by the library that should be prepared per connection
 var PreparedStatements = map[string]string{
 	"que_check_job":   sqlCheckJob,
 	"que_destroy_job": sqlDeleteJob,

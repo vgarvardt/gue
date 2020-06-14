@@ -45,7 +45,7 @@ jobs:
         uses: actions/checkout@v2
       - name: Run tests
         if: success()
-        run: go test -cover ./... -coverprofile=coverage.txt -covermode=atomic
+        run: go test -timeout 60s -cover ./... -coverprofile=coverage.txt -covermode=atomic
         env:
           TEST_POSTGRES: postgres://test:test@localhost:${{ job.services.postgres.ports[5432] }}/test?sslmode=disable
 
