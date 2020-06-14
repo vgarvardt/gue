@@ -1,6 +1,7 @@
 package gue
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -11,9 +12,10 @@ import (
 
 func TestEnqueueOnlyType(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
 	jobType := "MyJob"
-	err := c.Enqueue(&Job{Type: jobType})
+	err := c.Enqueue(ctx, &Job{Type: jobType})
 	require.NoError(t, err)
 
 	j := findOneJob(t, c.pool)
@@ -32,9 +34,10 @@ func TestEnqueueOnlyType(t *testing.T) {
 
 func TestEnqueueWithPriority(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
 	want := int16(99)
-	err := c.Enqueue(&Job{Type: "MyJob", Priority: want})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob", Priority: want})
 	require.NoError(t, err)
 
 	j := findOneJob(t, c.pool)
@@ -45,9 +48,10 @@ func TestEnqueueWithPriority(t *testing.T) {
 
 func TestEnqueueWithRunAt(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
 	want := time.Now().Add(2 * time.Minute)
-	err := c.Enqueue(&Job{Type: "MyJob", RunAt: want})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob", RunAt: want})
 	require.NoError(t, err)
 
 	j := findOneJob(t, c.pool)
@@ -60,9 +64,10 @@ func TestEnqueueWithRunAt(t *testing.T) {
 
 func TestEnqueueWithArgs(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
 	want := []byte(`{"arg1":0, "arg2":"a string"}`)
-	err := c.Enqueue(&Job{Type: "MyJob", Args: want})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob", Args: want})
 	require.NoError(t, err)
 
 	j := findOneJob(t, c.pool)
@@ -73,9 +78,10 @@ func TestEnqueueWithArgs(t *testing.T) {
 
 func TestEnqueueWithQueue(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
 	want := "special-work-queue"
-	err := c.Enqueue(&Job{Type: "MyJob", Queue: want})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob", Queue: want})
 	require.NoError(t, err)
 
 	j := findOneJob(t, c.pool)
@@ -86,24 +92,26 @@ func TestEnqueueWithQueue(t *testing.T) {
 
 func TestEnqueueWithEmptyType(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
-	err := c.Enqueue(&Job{Type: ""})
+	err := c.Enqueue(ctx, &Job{Type: ""})
 	require.Equal(t, ErrMissingType, err)
 }
 
 func TestEnqueueInTx(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
-	tx, err := c.pool.Begin()
+	tx, err := c.pool.Begin(ctx)
 	require.NoError(t, err)
 
-	err = c.EnqueueInTx(&Job{Type: "MyJob"}, tx)
+	err = c.EnqueueInTx(ctx, &Job{Type: "MyJob"}, tx)
 	require.NoError(t, err)
 
 	j := findOneJob(t, tx)
 	require.NotNil(t, j)
 
-	err = tx.Rollback()
+	err = tx.Rollback(ctx)
 	require.NoError(t, err)
 
 	j = findOneJob(t, c.pool)

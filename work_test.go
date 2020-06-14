@@ -1,6 +1,7 @@
 package gue
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"testing"
@@ -15,17 +16,18 @@ import (
 
 func TestLockJob(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
 	jobType := "MyJob"
-	err := c.Enqueue(&Job{Type: jobType})
+	err := c.Enqueue(ctx, &Job{Type: jobType})
 	require.NoError(t, err)
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
 
 	require.NotNil(t, j.conn)
 	require.NotNil(t, j.pool)
-	defer j.Done()
+	defer j.Done(ctx)
 
 	// check values of returned Job
 	assert.Greater(t, j.ID, int64(0))
@@ -40,7 +42,7 @@ func TestLockJob(t *testing.T) {
 	// check for advisory lock
 	var count int64
 	query := "SELECT count(*) FROM pg_locks WHERE locktype=$1 AND objid=$2::bigint"
-	err = j.pool.QueryRow(query, "advisory", j.ID).Scan(&count)
+	err = j.pool.QueryRow(ctx, query, "advisory", j.ID).Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), count)
 
@@ -49,84 +51,89 @@ func TestLockJob(t *testing.T) {
 	total, available := stat.CurrentConnections, stat.AvailableConnections
 	assert.Equal(t, total-1, available)
 
-	err = j.Delete()
+	err = j.Delete(ctx)
 	require.NoError(t, err)
 }
 
 func TestLockJobAlreadyLocked(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
-	err := c.Enqueue(&Job{Type: "MyJob"})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
 	require.NotNil(t, j)
-	defer j.Done()
+	defer j.Done(ctx)
 
-	j2, err := c.LockJob("")
+	j2, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
 
 	if j2 != nil {
-		defer j2.Done()
+		defer j2.Done(ctx)
 		require.Fail(t, "wanted no job, got %+v", j2)
 	}
 }
 
 func TestLockJobNoJob(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
 	require.Nil(t, j)
 }
 
 func TestLockJobCustomQueue(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
-	err := c.Enqueue(&Job{Type: "MyJob", Queue: "extra_priority"})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob", Queue: "extra_priority"})
 	require.NoError(t, err)
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
 	if j != nil {
-		j.Done()
+		j.Done(ctx)
 		assert.Fail(t, "expected no job to be found with empty queue name, got %+v", j)
 	}
 
-	j, err = c.LockJob("extra_priority")
+	j, err = c.LockJob(ctx, "extra_priority")
 	require.NoError(t, err)
-	defer j.Done()
+	defer j.Done(ctx)
 	require.NotNil(t, j)
 
-	err = j.Delete()
+	err = j.Delete(ctx)
 	require.NoError(t, err)
 }
 
 func TestJobConn(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
-	err := c.Enqueue(&Job{Type: "MyJob"})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
 	require.NotNil(t, j)
-	defer j.Done()
+	defer j.Done(ctx)
 
 	assert.Equal(t, j.conn, j.Conn())
 }
 
 func TestJobConnRace(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
-	err := c.Enqueue(&Job{Type: "MyJob"})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
 	require.NotNil(t, j)
-	defer j.Done()
+	defer j.Done(ctx)
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -138,7 +145,7 @@ func TestJobConnRace(t *testing.T) {
 		wg.Done()
 	}()
 	go func() {
-		j.Done()
+		j.Done(ctx)
 		wg.Done()
 	}()
 	wg.Wait()
@@ -147,25 +154,26 @@ func TestJobConnRace(t *testing.T) {
 // Test the race condition in LockJob
 func TestLockJobAdvisoryRace(t *testing.T) {
 	c := openTestClientMaxConnsPGXv3(t, 2)
+	ctx := context.Background()
 
 	// *pgx.ConnPool doesn't support pools of only one connection.  Make sure
 	// the other one is busy so we know which backend will be used by LockJob
 	// below.
-	unusedConn, err := c.pool.Acquire()
+	unusedConn, err := c.pool.Acquire(ctx)
 	require.NoError(t, err)
 	defer c.pool.Release(unusedConn)
 
 	// We use two jobs: the first one is concurrently deleted, and the second
 	// one is returned by LockJob after recovering from the race condition.
 	for i := 0; i < 2; i++ {
-		err := c.Enqueue(&Job{Type: "MyJob"})
+		err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 		require.NoError(t, err)
 	}
 
 	// helper functions
 	getBackendPID := func(conn adapter.Conn) int32 {
 		var backendPID int32
-		err := conn.QueryRow(`SELECT pg_backend_pid()`).Scan(&backendPID)
+		err := conn.QueryRow(ctx, `SELECT pg_backend_pid()`).Scan(&backendPID)
 		require.NoError(t, err)
 		return backendPID
 	}
@@ -175,7 +183,7 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 		i := 0
 		for {
 			var waiting bool
-			err := conn.QueryRow(`SELECT wait_event is not null from pg_stat_activity where pid=$1`, backendPID).Scan(&waiting)
+			err := conn.QueryRow(ctx, `SELECT wait_event is not null from pg_stat_activity where pid=$1`, backendPID).Scan(&waiting)
 			require.NoError(t, err)
 
 			if waiting {
@@ -211,14 +219,14 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 	go func() {
 		conn := openTestConnPGXv3(t)
 		defer func() {
-			err := conn.Close()
+			err := conn.Close(ctx)
 			assert.NoError(t, err)
 		}()
 
-		tx, err := conn.Begin()
+		tx, err := conn.Begin(ctx)
 		require.NoError(t, err)
 
-		_, err = tx.Exec(`LOCK TABLE que_jobs IN ACCESS EXCLUSIVE MODE`)
+		_, err = tx.Exec(ctx, `LOCK TABLE que_jobs IN ACCESS EXCLUSIVE MODE`)
 		require.NoError(t, err)
 
 		// first wait for LockJob to appear behind us
@@ -229,29 +237,29 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 		backendID = <-secondAccessExclusiveBackendIDChan
 		waitUntilBackendIsWaiting(backendID, "second access exclusive lock")
 
-		err = tx.Rollback()
+		err = tx.Rollback(ctx)
 		require.NoError(t, err)
 	}()
 
 	go func() {
 		conn := openTestConnPGXv3(t)
 		defer func() {
-			err := conn.Close()
+			err := conn.Close(ctx)
 			assert.NoError(t, err)
 		}()
 
 		// synchronization point
 		secondAccessExclusiveBackendIDChan <- getBackendPID(conn)
 
-		tx, err := conn.Begin()
+		tx, err := conn.Begin(ctx)
 		require.NoError(t, err)
 
-		_, err = tx.Exec(`LOCK TABLE que_jobs IN ACCESS EXCLUSIVE MODE`)
+		_, err = tx.Exec(ctx, `LOCK TABLE que_jobs IN ACCESS EXCLUSIVE MODE`)
 		require.NoError(t, err)
 
 		// Fake a concurrent transaction grabbing the job
 		var jid int64
-		err = tx.QueryRow(`
+		err = tx.QueryRow(ctx, `
 			DELETE FROM que_jobs
 			WHERE job_id =
 				(SELECT min(job_id)
@@ -262,11 +270,11 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 
 		deletedJobIDChan <- jid
 
-		err = tx.Commit()
+		err = tx.Commit(ctx)
 		require.NoError(t, err)
 	}()
 
-	conn, err := c.pool.Acquire()
+	conn, err := c.pool.Acquire(ctx)
 	require.NoError(t, err)
 
 	ourBackendID := getBackendPID(conn)
@@ -275,9 +283,9 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 	// synchronization point
 	lockJobBackendIDChan <- ourBackendID
 
-	job, err := c.LockJob("")
+	job, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
-	defer job.Done()
+	defer job.Done(ctx)
 
 	deletedJobID := <-deletedJobIDChan
 
@@ -286,16 +294,17 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 
 func TestJobDelete(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
-	err := c.Enqueue(&Job{Type: "MyJob"})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
 	require.NotNil(t, j)
-	defer j.Done()
+	defer j.Done(ctx)
 
-	err = j.Delete()
+	err = j.Delete(ctx)
 	require.NoError(t, err)
 
 	// make sure job was deleted
@@ -305,15 +314,16 @@ func TestJobDelete(t *testing.T) {
 
 func TestJobDone(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
-	err := c.Enqueue(&Job{Type: "MyJob"})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
 	require.NotNil(t, j)
 
-	j.Done()
+	j.Done(ctx)
 
 	// make sure conn and pool were cleared
 	assert.Nil(t, j.conn)
@@ -322,7 +332,7 @@ func TestJobDone(t *testing.T) {
 	// make sure lock was released
 	var count int64
 	query := "SELECT count(*) FROM pg_locks WHERE locktype = $1 AND objid= $2::bigint"
-	err = c.pool.QueryRow(query, "advisory", j.ID).Scan(&count)
+	err = c.pool.QueryRow(ctx, query, "advisory", j.ID).Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), count)
 
@@ -334,26 +344,28 @@ func TestJobDone(t *testing.T) {
 
 func TestJobDoneMultiple(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
-	err := c.Enqueue(&Job{Type: "MyJob"})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
 	require.NotNil(t, j)
 
-	j.Done()
+	j.Done(ctx)
 	// try calling Done() again
-	j.Done()
+	j.Done(ctx)
 }
 
 func TestJobDeleteFromTx(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
-	err := c.Enqueue(&Job{Type: "MyJob"})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
 	require.NotNil(t, j)
 
@@ -362,18 +374,18 @@ func TestJobDeleteFromTx(t *testing.T) {
 	require.NotNil(t, conn)
 
 	// start a transaction
-	tx, err := conn.Begin()
+	tx, err := conn.Begin(ctx)
 	require.NoError(t, err)
 
 	// delete the job
-	err = j.Delete()
+	err = j.Delete(ctx)
 	require.NoError(t, err)
 
-	err = tx.Commit()
+	err = tx.Commit(ctx)
 	require.NoError(t, err)
 
 	// mark as done
-	j.Done()
+	j.Done(ctx)
 
 	// make sure the job is gone
 	j2 := findOneJob(t, c.pool)
@@ -382,11 +394,12 @@ func TestJobDeleteFromTx(t *testing.T) {
 
 func TestJobDeleteFromTxRollback(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
-	err := c.Enqueue(&Job{Type: "MyJob"})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
-	j1, err := c.LockJob("")
+	j1, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
 	require.NotNil(t, j1)
 
@@ -395,18 +408,18 @@ func TestJobDeleteFromTxRollback(t *testing.T) {
 	require.NotNil(t, conn)
 
 	// start a transaction
-	tx, err := conn.Begin()
+	tx, err := conn.Begin(ctx)
 	require.NoError(t, err)
 
 	// delete the job
-	err = j1.Delete()
+	err = j1.Delete(ctx)
 	require.NoError(t, err)
 
-	err = tx.Rollback()
+	err = tx.Rollback(ctx)
 	require.NoError(t, err)
 
 	// mark as done
-	j1.Done()
+	j1.Done(ctx)
 
 	// make sure the job still exists and matches j1
 	j2 := findOneJob(t, c.pool)
@@ -417,24 +430,25 @@ func TestJobDeleteFromTxRollback(t *testing.T) {
 
 func TestJobError(t *testing.T) {
 	c := openTestClientPGXv3(t)
+	ctx := context.Background()
 
-	err := c.Enqueue(&Job{Type: "MyJob"})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
-	j, err := c.LockJob("")
+	j, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
 	require.NotNil(t, j)
-	defer j.Done()
+	defer j.Done(ctx)
 
 	msg := "world\nended"
-	err = j.Error(msg)
+	err = j.Error(ctx, msg)
 	require.NoError(t, err)
-	j.Done()
+	j.Done(ctx)
 
 	// make sure job was not deleted
 	j2 := findOneJob(t, c.pool)
 	require.NotNil(t, j2)
-	defer j2.Done()
+	defer j2.Done(ctx)
 
 	assert.NotEqual(t, pgtype.Null, j2.LastError.Status)
 	assert.Equal(t, msg, j2.LastError.String)
@@ -443,7 +457,7 @@ func TestJobError(t *testing.T) {
 	// make sure lock was released
 	var count int64
 	query := "SELECT count(*) FROM pg_locks WHERE locktype=$1 AND objid=$2::bigint"
-	err = c.pool.QueryRow(query, "advisory", j.ID).Scan(&count)
+	err = c.pool.QueryRow(ctx, query, "advisory", j.ID).Scan(&count)
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(0), count, "advisory lock was not released")

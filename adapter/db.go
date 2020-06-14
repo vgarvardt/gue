@@ -1,6 +1,9 @@
 package adapter
 
-import "errors"
+import (
+	"context"
+	"errors"
+)
 
 var (
 	// ErrNoRows abstract db driver-level "no rows in result set" error
@@ -29,11 +32,11 @@ type CommandTag interface {
 type Queryable interface {
 	// Exec executes sql. sql can be either a prepared statement name or an SQL string.
 	// arguments should be referenced positionally from the sql string as $1, $2, etc.
-	Exec(sql string, arguments ...interface{}) (CommandTag, error)
+	Exec(ctx context.Context, sql string, arguments ...interface{}) (CommandTag, error)
 	// Query executes sql with args. Any error that occurs while
 	// querying is deferred until calling Scan on the returned Row. That Row will
 	// error with ErrNoRows if no rows are returned.
-	QueryRow(sql string, args ...interface{}) Row
+	QueryRow(ctx context.Context, sql string, args ...interface{}) Row
 }
 
 // Tx represents a database transaction.
@@ -43,9 +46,9 @@ type Tx interface {
 	// Tx is already closed, but is otherwise safe to call multiple times. Hence, a
 	// defer tx.Rollback() is safe even if tx.Commit() will be called first in a
 	// non-error condition.
-	Rollback() error
+	Rollback(ctx context.Context) error
 	// Commit commits the transaction
-	Commit() error
+	Commit(ctx context.Context) error
 }
 
 // Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
@@ -55,10 +58,10 @@ type Conn interface {
 	Queryable
 	// Begin starts a transaction with the default transaction mode for the
 	// current connection.
-	Begin() (Tx, error)
+	Begin(ctx context.Context) (Tx, error)
 	// Close closes a connection. It is safe to call Close on a already closed
 	// connection.
-	Close() error
+	Close(ctx context.Context) error
 }
 
 // ConnPoolStat is the connection pool statistics
@@ -76,9 +79,9 @@ type ConnPool interface {
 	Queryable
 	// Begin starts a transaction with the default transaction mode for the
 	// current connection.
-	Begin() (Tx, error)
+	Begin(ctx context.Context) (Tx, error)
 	// Acquire takes exclusive use of a connection until it is released.
-	Acquire() (Conn, error)
+	Acquire(ctx context.Context) (Conn, error)
 	// Release gives up use of a connection.
 	Release(conn Conn)
 	// Stat returns connection pool statistics

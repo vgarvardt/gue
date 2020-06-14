@@ -1,6 +1,7 @@
 package gue
 
 import (
+	"context"
 	"database/sql"
 	"io/ioutil"
 	"os"
@@ -81,7 +82,7 @@ func openTestConnPGXv3(t testing.TB) adapter.Conn {
 func truncateAndClose(t testing.TB, pool adapter.ConnPool) {
 	t.Helper()
 
-	_, err := pool.Exec("TRUNCATE TABLE que_jobs")
+	_, err := pool.Exec(context.Background(), "TRUNCATE TABLE que_jobs")
 	assert.NoError(t, err)
 
 	pool.Close()
@@ -90,10 +91,11 @@ func truncateAndClose(t testing.TB, pool adapter.ConnPool) {
 func findOneJob(t testing.TB, q adapter.Queryable) *Job {
 	t.Helper()
 
-	findSQL := `SELECT priority, run_at, job_id, job_class, args, error_count, last_error, queue FROM que_jobs LIMIT 1`
-
 	j := new(Job)
-	err := q.QueryRow(findSQL).Scan(
+	err := q.QueryRow(
+		context.Background(),
+		`SELECT priority, run_at, job_id, job_class, args, error_count, last_error, queue FROM que_jobs LIMIT 1`,
+	).Scan(
 		&j.Priority,
 		&j.RunAt,
 		&j.ID,
