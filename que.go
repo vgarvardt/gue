@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx"
+	"github.com/vgarvardt/gue/adapter"
 )
 
 // Job is a single unit of work for Que to perform.
@@ -44,8 +44,8 @@ type Job struct {
 
 	mu      sync.Mutex
 	deleted bool
-	pool    *pgx.ConnPool
-	conn    *pgx.Conn
+	pool    adapter.ConnPool
+	conn    adapter.Conn
 }
 
 // Conn returns the pgx connection that this job is locked to. You may initiate
@@ -53,7 +53,7 @@ type Job struct {
 // Done(). At that point, this conn will be returned to the pool and it is
 // unsafe to keep using it. This function will return nil if the Job's
 // connection has already been released with Done().
-func (j *Job) Conn() *pgx.Conn {
+func (j *Job) Conn() adapter.Conn {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -122,13 +122,13 @@ func (j *Job) Error(msg string) error {
 // Client is a Que client that can add jobs to the queue and remove jobs from
 // the queue.
 type Client struct {
-	pool *pgx.ConnPool
+	pool adapter.ConnPool
 
 	// TODO: add a way to specify default queueing options
 }
 
 // NewClient creates a new Client that uses the pgx pool.
-func NewClient(pool *pgx.ConnPool) *Client {
+func NewClient(pool adapter.ConnPool) *Client {
 	return &Client{pool: pool}
 }
 
@@ -147,11 +147,11 @@ func (c *Client) Enqueue(j *Job) error {
 //
 // It is the caller's responsibility to Commit or Rollback the transaction after
 // this function is called.
-func (c *Client) EnqueueInTx(j *Job, tx *pgx.Tx) error {
+func (c *Client) EnqueueInTx(j *Job, tx adapter.Tx) error {
 	return execEnqueue(j, tx)
 }
 
-func execEnqueue(j *Job, q queryable) error {
+func execEnqueue(j *Job, q adapter.Queryable) error {
 	if j.Type == "" {
 		return ErrMissingType
 	}
@@ -190,12 +190,6 @@ func execEnqueue(j *Job, q queryable) error {
 
 	_, err := q.Exec("que_insert_job", queue, priority, runAt, j.Type, args)
 	return err
-}
-
-type queryable interface {
-	Exec(sql string, arguments ...interface{}) (commandTag pgx.CommandTag, err error)
-	Query(sql string, args ...interface{}) (*pgx.Rows, error)
-	QueryRow(sql string, args ...interface{}) *pgx.Row
 }
 
 // Maximum number of loop iterations in LockJob before giving up.  This is to
@@ -242,7 +236,7 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 		)
 		if err != nil {
 			c.pool.Release(conn)
-			if err == pgx.ErrNoRows {
+			if err == adapter.ErrNoRows {
 				return nil, nil
 			}
 			return nil, err
@@ -264,7 +258,7 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 		err = conn.QueryRow("que_check_job", j.Queue, j.Priority, j.RunAt, j.ID).Scan(&ok)
 		if err == nil {
 			return &j, nil
-		} else if err == pgx.ErrNoRows {
+		} else if err == adapter.ErrNoRows {
 			// Encountered job race condition; start over from the beginning.
 			// We're still holding the advisory lock, though, so we need to
 			// release it before resuming.  Otherwise we leak the lock,
@@ -280,40 +274,4 @@ func (c *Client) LockJob(queue string) (*Job, error) {
 	}
 	c.pool.Release(conn)
 	return nil, ErrAgain
-}
-
-var preparedStatements = map[string]string{
-	"que_check_job":   sqlCheckJob,
-	"que_destroy_job": sqlDeleteJob,
-	"que_insert_job":  sqlInsertJob,
-	"que_lock_job":    sqlLockJob,
-	"que_set_error":   sqlSetError,
-	"que_unlock_job":  sqlUnlockJob,
-}
-
-// PrepareStatements prepares the required statements to run que on the provided
-// *pgx.Conn. Typically it is used as an AfterConnect func for a
-// *pgx.ConnPool. Every connection used by que must have the statements prepared
-// ahead of time.
-func PrepareStatements(conn *pgx.Conn) error {
-	return PrepareStatementsWithPreparer(conn)
-}
-
-// Preparer defines the interface for types that support preparing
-// statements. This includes all of *pgx.ConnPool, *pgx.Conn, and *pgx.Tx
-type Preparer interface {
-	Prepare(name, sql string) (*pgx.PreparedStatement, error)
-}
-
-// PrepareStatementsWithPreparer prepares the required statements to run que on
-// the provided Preparer. This func can be used to prepare statements on a
-// *pgx.ConnPool after it is created, or on a *pg.Tx. Every connection used by
-// que must have the statements prepared ahead of time.
-func PrepareStatementsWithPreparer(p Preparer) error {
-	for name, sql := range preparedStatements {
-		if _, err := p.Prepare(name, sql); err != nil {
-			return err
-		}
-	}
-	return nil
 }

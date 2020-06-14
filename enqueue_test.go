@@ -10,7 +10,7 @@ import (
 )
 
 func TestEnqueueOnlyType(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	jobType := "MyJob"
 	err := c.Enqueue(&Job{Type: jobType})
@@ -31,7 +31,7 @@ func TestEnqueueOnlyType(t *testing.T) {
 }
 
 func TestEnqueueWithPriority(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	want := int16(99)
 	err := c.Enqueue(&Job{Type: "MyJob", Priority: want})
@@ -44,7 +44,7 @@ func TestEnqueueWithPriority(t *testing.T) {
 }
 
 func TestEnqueueWithRunAt(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	want := time.Now().Add(2 * time.Minute)
 	err := c.Enqueue(&Job{Type: "MyJob", RunAt: want})
@@ -59,7 +59,7 @@ func TestEnqueueWithRunAt(t *testing.T) {
 }
 
 func TestEnqueueWithArgs(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	want := []byte(`{"arg1":0, "arg2":"a string"}`)
 	err := c.Enqueue(&Job{Type: "MyJob", Args: want})
@@ -72,7 +72,7 @@ func TestEnqueueWithArgs(t *testing.T) {
 }
 
 func TestEnqueueWithQueue(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	want := "special-work-queue"
 	err := c.Enqueue(&Job{Type: "MyJob", Queue: want})
@@ -85,14 +85,14 @@ func TestEnqueueWithQueue(t *testing.T) {
 }
 
 func TestEnqueueWithEmptyType(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	err := c.Enqueue(&Job{Type: ""})
 	require.Equal(t, ErrMissingType, err)
 }
 
 func TestEnqueueInTx(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	tx, err := c.pool.Begin()
 	require.NoError(t, err)
