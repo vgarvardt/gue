@@ -12,10 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/vgarvardt/gue/adapter"
+	adapterTesting "github.com/vgarvardt/gue/adapter/testing"
 )
 
 func TestLockJob(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	jobType := "MyJob"
@@ -56,7 +57,7 @@ func TestLockJob(t *testing.T) {
 }
 
 func TestLockJobAlreadyLocked(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
@@ -77,7 +78,7 @@ func TestLockJobAlreadyLocked(t *testing.T) {
 }
 
 func TestLockJobNoJob(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	j, err := c.LockJob(ctx, "")
@@ -86,7 +87,7 @@ func TestLockJobNoJob(t *testing.T) {
 }
 
 func TestLockJobCustomQueue(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	err := c.Enqueue(ctx, &Job{Type: "MyJob", Queue: "extra_priority"})
@@ -109,7 +110,7 @@ func TestLockJobCustomQueue(t *testing.T) {
 }
 
 func TestJobConn(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
@@ -124,7 +125,7 @@ func TestJobConn(t *testing.T) {
 }
 
 func TestJobConnRace(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
@@ -153,7 +154,7 @@ func TestJobConnRace(t *testing.T) {
 
 // Test the race condition in LockJob
 func TestLockJobAdvisoryRace(t *testing.T) {
-	c := openTestClientMaxConnsPGXv3(t, 2)
+	c := NewClient(adapterTesting.OpenTestPoolMaxConnsPGXv3(t, 2))
 	ctx := context.Background()
 
 	// *pgx.ConnPool doesn't support pools of only one connection.  Make sure
@@ -179,7 +180,7 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 	}
 
 	waitUntilBackendIsWaiting := func(backendPID int32, name string) {
-		conn := openTestConnPGXv3(t)
+		conn := adapterTesting.OpenTestConnPGXv3(t)
 		i := 0
 		for {
 			var waiting bool
@@ -217,7 +218,7 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 	secondAccessExclusiveBackendIDChan := make(chan int32)
 
 	go func() {
-		conn := openTestConnPGXv3(t)
+		conn := adapterTesting.OpenTestConnPGXv3(t)
 		defer func() {
 			err := conn.Close(ctx)
 			assert.NoError(t, err)
@@ -242,7 +243,7 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 	}()
 
 	go func() {
-		conn := openTestConnPGXv3(t)
+		conn := adapterTesting.OpenTestConnPGXv3(t)
 		defer func() {
 			err := conn.Close(ctx)
 			assert.NoError(t, err)
@@ -293,7 +294,7 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 }
 
 func TestJobDelete(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
@@ -313,7 +314,7 @@ func TestJobDelete(t *testing.T) {
 }
 
 func TestJobDone(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
@@ -343,7 +344,7 @@ func TestJobDone(t *testing.T) {
 }
 
 func TestJobDoneMultiple(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
@@ -359,7 +360,7 @@ func TestJobDoneMultiple(t *testing.T) {
 }
 
 func TestJobDeleteFromTx(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
@@ -393,7 +394,7 @@ func TestJobDeleteFromTx(t *testing.T) {
 }
 
 func TestJobDeleteFromTxRollback(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
@@ -429,7 +430,7 @@ func TestJobDeleteFromTxRollback(t *testing.T) {
 }
 
 func TestJobError(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	err := c.Enqueue(ctx, &Job{Type: "MyJob"})

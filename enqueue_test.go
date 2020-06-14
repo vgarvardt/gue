@@ -8,10 +8,12 @@ import (
 	"github.com/jackc/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	adapterTesting "github.com/vgarvardt/gue/adapter/testing"
 )
 
 func TestEnqueueOnlyType(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	jobType := "MyJob"
@@ -33,7 +35,7 @@ func TestEnqueueOnlyType(t *testing.T) {
 }
 
 func TestEnqueueWithPriority(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	want := int16(99)
@@ -47,7 +49,7 @@ func TestEnqueueWithPriority(t *testing.T) {
 }
 
 func TestEnqueueWithRunAt(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	want := time.Now().Add(2 * time.Minute)
@@ -63,7 +65,7 @@ func TestEnqueueWithRunAt(t *testing.T) {
 }
 
 func TestEnqueueWithArgs(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	want := []byte(`{"arg1":0, "arg2":"a string"}`)
@@ -77,7 +79,7 @@ func TestEnqueueWithArgs(t *testing.T) {
 }
 
 func TestEnqueueWithQueue(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	want := "special-work-queue"
@@ -91,7 +93,7 @@ func TestEnqueueWithQueue(t *testing.T) {
 }
 
 func TestEnqueueWithEmptyType(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	err := c.Enqueue(ctx, &Job{Type: ""})
@@ -99,7 +101,7 @@ func TestEnqueueWithEmptyType(t *testing.T) {
 }
 
 func TestEnqueueInTx(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	tx, err := c.pool.Begin(ctx)

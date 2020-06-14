@@ -11,6 +11,8 @@ import (
 	"github.com/jackc/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	adapterTesting "github.com/vgarvardt/gue/adapter/testing"
 )
 
 func init() {
@@ -18,7 +20,7 @@ func init() {
 }
 
 func TestWorkerWorkOne(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	success := false
@@ -42,7 +44,7 @@ func TestWorkerWorkOne(t *testing.T) {
 }
 
 func TestWorker_Start(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 
 	w := NewWorker(c, WorkMap{})
 
@@ -64,7 +66,7 @@ func TestWorker_Start(t *testing.T) {
 }
 
 func TestWorkerPool_Start(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 
 	poolSize := 2
 	w := NewWorkerPool(c, WorkMap{}, poolSize)
@@ -93,7 +95,7 @@ func TestWorkerPool_Start(t *testing.T) {
 }
 
 func BenchmarkWorker(b *testing.B) {
-	c := openTestClientPGXv3(b)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(b))
 	ctx := context.Background()
 
 	w := NewWorker(c, WorkMap{"Nil": nilWorker})
@@ -115,7 +117,7 @@ func nilWorker(j *Job) error {
 }
 
 func TestWorkerWorkReturnsError(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	called := 0
@@ -153,7 +155,7 @@ func TestWorkerWorkReturnsError(t *testing.T) {
 }
 
 func TestWorkerWorkRescuesPanic(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	called := 0
@@ -190,7 +192,7 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 }
 
 func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
 	ctx := context.Background()
 
 	currentConns := c.pool.Stat().CurrentConnections
