@@ -19,7 +19,7 @@ func init() {
 }
 
 func TestWorkerWorkOne(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	success := false
 	wm := WorkMap{
@@ -42,7 +42,7 @@ func TestWorkerWorkOne(t *testing.T) {
 }
 
 func TestWorker_Start(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	w := NewWorker(c, WorkMap{})
 
@@ -64,7 +64,7 @@ func TestWorker_Start(t *testing.T) {
 }
 
 func TestWorkerPool_Start(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	poolSize := 2
 	w := NewWorkerPool(c, WorkMap{}, poolSize)
@@ -93,7 +93,7 @@ func TestWorkerPool_Start(t *testing.T) {
 }
 
 func BenchmarkWorker(b *testing.B) {
-	c := openTestClient(b)
+	c := openTestClientPGXv3(b)
 	log.SetOutput(ioutil.Discard)
 	defer func() {
 		log.SetOutput(os.Stdout)
@@ -118,7 +118,7 @@ func nilWorker(j *Job) error {
 }
 
 func TestWorkerWorkReturnsError(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	called := 0
 	wm := WorkMap{
@@ -155,7 +155,7 @@ func TestWorkerWorkReturnsError(t *testing.T) {
 }
 
 func TestWorkerWorkRescuesPanic(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	called := 0
 	wm := WorkMap{
@@ -191,7 +191,7 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 }
 
 func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	currentConns := c.pool.Stat().CurrentConnections
 	availConns := c.pool.Stat().AvailableConnections

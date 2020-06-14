@@ -7,13 +7,14 @@ import (
 	"time"
 
 	"github.com/jackc/pgtype"
-	"github.com/jackc/pgx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/vgarvardt/gue/adapter"
 )
 
 func TestLockJob(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	jobType := "MyJob"
 	err := c.Enqueue(&Job{Type: jobType})
@@ -53,7 +54,7 @@ func TestLockJob(t *testing.T) {
 }
 
 func TestLockJobAlreadyLocked(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	err := c.Enqueue(&Job{Type: "MyJob"})
 	require.NoError(t, err)
@@ -73,7 +74,7 @@ func TestLockJobAlreadyLocked(t *testing.T) {
 }
 
 func TestLockJobNoJob(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	j, err := c.LockJob("")
 	require.NoError(t, err)
@@ -81,7 +82,7 @@ func TestLockJobNoJob(t *testing.T) {
 }
 
 func TestLockJobCustomQueue(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	err := c.Enqueue(&Job{Type: "MyJob", Queue: "extra_priority"})
 	require.NoError(t, err)
@@ -103,7 +104,7 @@ func TestLockJobCustomQueue(t *testing.T) {
 }
 
 func TestJobConn(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	err := c.Enqueue(&Job{Type: "MyJob"})
 	require.NoError(t, err)
@@ -117,7 +118,7 @@ func TestJobConn(t *testing.T) {
 }
 
 func TestJobConnRace(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	err := c.Enqueue(&Job{Type: "MyJob"})
 	require.NoError(t, err)
@@ -145,7 +146,7 @@ func TestJobConnRace(t *testing.T) {
 
 // Test the race condition in LockJob
 func TestLockJobAdvisoryRace(t *testing.T) {
-	c := openTestClientMaxConns(t, 2)
+	c := openTestClientMaxConnsPGXv3(t, 2)
 
 	// *pgx.ConnPool doesn't support pools of only one connection.  Make sure
 	// the other one is busy so we know which backend will be used by LockJob
@@ -162,13 +163,7 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 	}
 
 	// helper functions
-	newConn := func() *pgx.Conn {
-		conn, err := pgx.Connect(testConnConfig(t))
-		require.NoError(t, err)
-		return conn
-	}
-
-	getBackendPID := func(conn *pgx.Conn) int32 {
+	getBackendPID := func(conn adapter.Conn) int32 {
 		var backendPID int32
 		err := conn.QueryRow(`SELECT pg_backend_pid()`).Scan(&backendPID)
 		require.NoError(t, err)
@@ -176,7 +171,7 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 	}
 
 	waitUntilBackendIsWaiting := func(backendPID int32, name string) {
-		conn := newConn()
+		conn := openTestConnPGXv3(t)
 		i := 0
 		for {
 			var waiting bool
@@ -214,7 +209,7 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 	secondAccessExclusiveBackendIDChan := make(chan int32)
 
 	go func() {
-		conn := newConn()
+		conn := openTestConnPGXv3(t)
 		defer func() {
 			err := conn.Close()
 			assert.NoError(t, err)
@@ -239,7 +234,7 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 	}()
 
 	go func() {
-		conn := newConn()
+		conn := openTestConnPGXv3(t)
 		defer func() {
 			err := conn.Close()
 			assert.NoError(t, err)
@@ -290,7 +285,7 @@ func TestLockJobAdvisoryRace(t *testing.T) {
 }
 
 func TestJobDelete(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	err := c.Enqueue(&Job{Type: "MyJob"})
 	require.NoError(t, err)
@@ -309,7 +304,7 @@ func TestJobDelete(t *testing.T) {
 }
 
 func TestJobDone(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	err := c.Enqueue(&Job{Type: "MyJob"})
 	require.NoError(t, err)
@@ -338,7 +333,7 @@ func TestJobDone(t *testing.T) {
 }
 
 func TestJobDoneMultiple(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	err := c.Enqueue(&Job{Type: "MyJob"})
 	require.NoError(t, err)
@@ -353,7 +348,7 @@ func TestJobDoneMultiple(t *testing.T) {
 }
 
 func TestJobDeleteFromTx(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	err := c.Enqueue(&Job{Type: "MyJob"})
 	require.NoError(t, err)
@@ -386,7 +381,7 @@ func TestJobDeleteFromTx(t *testing.T) {
 }
 
 func TestJobDeleteFromTxRollback(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	err := c.Enqueue(&Job{Type: "MyJob"})
 	require.NoError(t, err)
@@ -421,7 +416,7 @@ func TestJobDeleteFromTxRollback(t *testing.T) {
 }
 
 func TestJobError(t *testing.T) {
-	c := openTestClient(t)
+	c := openTestClientPGXv3(t)
 
 	err := c.Enqueue(&Job{Type: "MyJob"})
 	require.NoError(t, err)
