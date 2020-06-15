@@ -89,5 +89,5 @@ type ConnPool interface {
 	// Close ends the use of a connection pool. It prevents any new connections from
 	// being acquired and closes available underlying connections. Any acquired
 	// connections will be closed when they are released.
-	Close()
+	Close() error
 }

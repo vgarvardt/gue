@@ -136,12 +136,22 @@ AND   job_id   = $4::bigint
 	//`
 )
 
+// Names that are used internally for named prepared statements
+const (
+	StmtCheckJob  = "gue_check_job"
+	StmtDeleteJob = "gue_destroy_job"
+	StmtInsertJob = "gue_insert_job"
+	StmtLockJob   = "gue_lock_job"
+	StmtSetError  = "gue_set_error"
+	StmtUnlockJob = "gue_unlock_job"
+)
+
 // PreparedStatements is the list of the named statements used by the library that should be prepared per connection
 var PreparedStatements = map[string]string{
-	"que_check_job":   sqlCheckJob,
-	"que_destroy_job": sqlDeleteJob,
-	"que_insert_job":  sqlInsertJob,
-	"que_lock_job":    sqlLockJob,
-	"que_set_error":   sqlSetError,
-	"que_unlock_job":  sqlUnlockJob,
+	StmtCheckJob:  sqlCheckJob,
+	StmtDeleteJob: sqlDeleteJob,
+	StmtInsertJob: sqlInsertJob,
+	StmtLockJob:   sqlLockJob,
+	StmtSetError:  sqlSetError,
+	StmtUnlockJob: sqlUnlockJob,
 }

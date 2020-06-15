@@ -55,16 +55,6 @@ func OpenTestPoolPGXv3(t testing.TB) adapter.ConnPool {
 	return OpenTestPoolMaxConnsPGXv3(t, defaultPoolConns)
 }
 
-// OpenTestConnPGXv3 opens connection user in testing
-func OpenTestConnPGXv3(t testing.TB) adapter.Conn {
-	t.Helper()
-
-	conn, err := pgx.Connect(testConnPGXv3Config(t))
-	require.NoError(t, err)
-
-	return pgxv3.NewConn(conn)
-}
-
 func testConnDSN(t testing.TB) string {
 	t.Helper()
 
@@ -91,7 +81,8 @@ func truncateAndClose(t testing.TB, pool adapter.ConnPool) {
 	_, err := pool.Exec(context.Background(), "TRUNCATE TABLE que_jobs")
 	assert.NoError(t, err)
 
-	pool.Close()
+	err = pool.Close()
+	assert.NoError(t, err)
 }
 
 func doApplyMigrations(t testing.TB) {
