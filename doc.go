@@ -1,50 +1,45 @@
 /*
-Package gue is a fully interoperable Golang port of Chris Hanks' Ruby Que
-queueing library for PostgreSQL. Que uses PostgreSQL's advisory locks
-for speed and reliability. See the original Que documentation for more details:
-https://github.com/chanks/que
+Package gue is based on the github.com/bgentry/que-go and adds some
+additional functionality like several PostgreSQL drivers support, slightly
+more idiomatic Go API (opinionated) and some minor improvements.
 
-Because que-go is an interoperable port of Que, you can enqueue jobs in Ruby
-(i.e. from a Rails app) and write your workers in Go. Or if you have a limited
-set of jobs that you want to write in Go, you can leave most of your workers in
-Ruby and just add a few Go workers on a different queue name.
+PostgreSQL drivers
 
-PostgreSQL Driver pgx
-
-Instead of using database/sql and the more popular pq PostgreSQL driver, this
-package uses the pgx driver: https://github.com/jackc/pgx
-
-Because Que uses session-level advisory locks, we have to hold the same
-connection throughout the process of getting a job, working it, deleting it, and
-removing the lock.
-
-Pq and the built-in database/sql interfaces do not offer this functionality, so
-we'd have to implement our own connection pool. Fortunately, pgx already has a
-perfectly usable one built for us. Even better, it offers better performance
-than pq due largely to its use of binary encoding.
+Package supports several PostgreSQL drivers using adapter interface internally.
+Currently, adapters for the following drivers have been implemented:
+- github.com/jackc/pgx v3
+- github.com/jackc/pgx v4
 
 Prepared Statements
 
-que-go relies on prepared statements for performance. As of now these have to
-be initialized manually on your connection pool like so:
+gue relies on prepared statements for performance. As of now these have to
+be initialized manually on your connection pool like this for pgx v3:
+
+    import "github.com/vgarvardt/gue/adapter/pgxv3"
 
     pgxPool, err := pgx.NewConnPool(pgx.ConnPoolConfig{
         ConnConfig:   pgxCfg,
-        AfterConnect: que.PrepareStatements,
+        AfterConnect: pgxv3.PrepareStatements,
     })
 
-If you have suggestions on how to cleanly do this automatically, please open an
-issue!
+or like this for pgx v4:
+
+    import "github.com/vgarvardt/gue/adapter/pgxv4"
+
+    pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
+    pgxCfg.AfterConnect = pgxv4.PrepareStatements
+
+    pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
 
 Usage
 
-Here is a complete example showing worker setup and two jobs enqueued, one with a delay:
+Here is a complete example showing worker setup for pgx/v4 and two jobs enqueued, one with a delay:
 
     type printNameArgs struct {
         Name string
     }
 
-    printName := func(j *que.Job) error {
+    printName := func(j *gue.Job) error {
         var args printNameArgs
         if err := json.Unmarshal(j.Args, &args); err != nil {
             return err
@@ -53,26 +48,27 @@ Here is a complete example showing worker setup and two jobs enqueued, one with 
         return nil
     }
 
-    pgxCfg, err := pgx.ParseURI(os.Getenv("DATABASE_URL"))
+    pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
     if err != nil {
         log.Fatal(err)
     }
 
-    pgxPool, err := pgx.NewConnPool(pgx.ConnPoolConfig{
-        ConnConfig:   pgxCfg,
-        AfterConnect: que.PrepareStatements,
-    })
+    pgxCfg.AfterConnect = pgxv4.PrepareStatements
+
+    pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
     if err != nil {
         log.Fatal(err)
     }
     defer pgxPool.Close()
 
-    qc := que.NewClient(pgxPool)
-    wm := que.WorkMap{
+    poolAdapter := pgxv4.NewConnPool(pgxPool)
+
+    gc := gue.NewClient(poolAdapter)
+    wm := gue.WorkMap{
         "PrintName": printName,
     }
     // create a pool w/ 2 workers
-    workers := que.NewWorkerPool(qc, wm, 2, que.PoolWorkerQueue("name_printer"))
+    workers := gue.NewWorkerPool(gc, wm, 2, que.PoolWorkerQueue("name_printer"))
 
     ctx, shutdown := context.WithCancel(context.Background())
 
@@ -90,7 +86,7 @@ Here is a complete example showing worker setup and two jobs enqueued, one with 
         Type:  "PrintName",
         Args:  args,
     }
-    if err := qc.Enqueue(j); err != nil {
+    if err := gc.Enqueue(context.Background(), j); err != nil {
         log.Fatal(err)
     }
 
@@ -99,7 +95,7 @@ Here is a complete example showing worker setup and two jobs enqueued, one with 
         RunAt: time.Now().UTC().Add(30 * time.Second), // delay 30 seconds
         Args:  args,
     }
-    if err := qc.Enqueue(j); err != nil {
+    if err := gc.Enqueue(context.Background(), j); err != nil {
         log.Fatal(err)
     }
 
