@@ -34,7 +34,6 @@ func OpenTestPoolMaxConnsPGXv3(t testing.TB, maxConnections int) adapter.ConnPoo
 	connPoolConfig := pgx.ConnPoolConfig{
 		ConnConfig:     testConnPGXv3Config(t),
 		MaxConnections: maxConnections,
-		AfterConnect:   pgxv3.PrepareStatements,
 	}
 	poolPGXv3, err := pgx.NewConnPool(connPoolConfig)
 	require.NoError(t, err)

@@ -23,7 +23,6 @@ func OpenTestPoolMaxConnsPGXv4(t testing.TB, maxConnections int32) adapter.ConnP
 	require.NoError(t, err)
 
 	connPoolConfig.MaxConns = maxConnections
-	connPoolConfig.AfterConnect = pgxv4.PrepareStatements
 
 	poolPGXv4, err := pgxpool.ConnectConfig(context.Background(), connPoolConfig)
 	require.NoError(t, err)

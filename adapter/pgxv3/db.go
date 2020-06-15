@@ -105,7 +105,17 @@ func NewConnPool(pool *pgx.ConnPool) adapter.ConnPool {
 // Acquire implements adapter.ConnPool.Acquire() using github.com/jackc/pgx/v3
 func (c *ConnPool) Acquire(ctx context.Context) (adapter.Conn, error) {
 	conn, err := c.pool.AcquireEx(ctx)
-	return &Conn{conn, c.pool}, err
+	if err != nil {
+		return nil, err
+	}
+
+	for name, sql := range adapter.PreparedStatements {
+		if _, err := conn.Prepare(name, sql); err != nil {
+			return nil, err
+		}
+	}
+
+	return &Conn{conn, c.pool}, nil
 }
 
 // Stat implements adapter.ConnPool.Stat() using github.com/jackc/pgx/v3
