@@ -198,7 +198,13 @@ func testEnqueueInTx(t *testing.T, connPool adapter.ConnPool) {
 	c := NewClient(connPool)
 	ctx := context.Background()
 
-	tx, err := c.pool.Begin(ctx)
+	connService, err := connPool.Acquire(ctx)
+	require.NoError(t, err)
+	defer func() {
+		connService.Release()
+	}()
+
+	tx, err := connService.Begin(ctx)
 	require.NoError(t, err)
 
 	err = c.EnqueueInTx(ctx, &Job{Type: "MyJob"}, tx)
@@ -210,12 +216,6 @@ func testEnqueueInTx(t *testing.T, connPool adapter.ConnPool) {
 	err = tx.Rollback(ctx)
 	require.NoError(t, err)
 
-	conn, err := connPool.Acquire(ctx)
-	require.NoError(t, err)
-	defer func() {
-		conn.Release()
-	}()
-
-	j = findOneJob(t, conn)
+	j = findOneJob(t, connService)
 	require.Nil(t, j)
 }

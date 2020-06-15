@@ -166,6 +166,12 @@ func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
 	c := NewClient(connPool)
 	ctx := context.Background()
 
+	connService, err := connPool.Acquire(ctx)
+	require.NoError(t, err)
+	defer func() {
+		connService.Release()
+	}()
+
 	called := 0
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
@@ -178,14 +184,14 @@ func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
 	didWork := w.WorkOne(ctx)
 	assert.False(t, didWork)
 
-	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
+	err = c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
 	didWork = w.WorkOne(ctx)
 	assert.True(t, didWork)
 	assert.Equal(t, 1, called)
 
-	tx, err := c.pool.Begin(ctx)
+	tx, err := connService.Begin(ctx)
 	require.NoError(t, err)
 	defer func() {
 		err := tx.Rollback(ctx)
@@ -213,6 +219,12 @@ func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
 	c := NewClient(connPool)
 	ctx := context.Background()
 
+	connService, err := connPool.Acquire(ctx)
+	require.NoError(t, err)
+	defer func() {
+		connService.Release()
+	}()
+
 	called := 0
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
@@ -222,13 +234,13 @@ func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
 	}
 	w := NewWorker(c, wm)
 
-	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
+	err = c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
 	w.WorkOne(ctx)
 	assert.Equal(t, 1, called)
 
-	tx, err := c.pool.Begin(ctx)
+	tx, err := connService.Begin(ctx)
 	require.NoError(t, err)
 	defer func() {
 		err := tx.Rollback(ctx)
@@ -277,7 +289,13 @@ func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, currentConns, c.pool.Stat().CurrentConnections)
 	assert.Equal(t, availConns, c.pool.Stat().AvailableConnections)
 
-	tx, err := c.pool.Begin(ctx)
+	connService, err := connPool.Acquire(ctx)
+	require.NoError(t, err)
+	defer func() {
+		connService.Release()
+	}()
+
+	tx, err := connService.Begin(ctx)
 	require.NoError(t, err)
 	defer func() {
 		err := tx.Rollback(ctx)

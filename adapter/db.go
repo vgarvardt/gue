@@ -76,9 +76,6 @@ type ConnPoolStat struct {
 
 // ConnPool is a PostgreSQL connection pool handle.
 type ConnPool interface {
-	// Begin starts a transaction with the default transaction mode for the
-	// current connection.
-	Begin(ctx context.Context) (Tx, error)
 	// Acquire takes exclusive use of a connection until it is released.
 	Acquire(ctx context.Context) (Conn, error)
 	// Stat returns connection pool statistics
