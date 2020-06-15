@@ -76,7 +76,6 @@ type ConnPoolStat struct {
 
 // ConnPool is a PostgreSQL connection pool handle.
 type ConnPool interface {
-	Queryable
 	// Begin starts a transaction with the default transaction mode for the
 	// current connection.
 	Begin(ctx context.Context) (Tx, error)

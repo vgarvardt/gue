@@ -50,16 +50,23 @@ func testLockJob(t *testing.T, connPool adapter.ConnPool) {
 	assert.NotEqual(t, pgtype.Present, j.LastError.Status)
 
 	// check for advisory lock
+	connFind, err := connPool.Acquire(ctx)
+	require.NoError(t, err)
+	defer func() {
+		connPool.Release(connFind)
+	}()
+
 	var count int64
 	query := "SELECT count(*) FROM pg_locks WHERE locktype=$1 AND objid=$2::bigint"
-	err = j.pool.QueryRow(ctx, query, "advisory", j.ID).Scan(&count)
+	err = connFind.QueryRow(ctx, query, "advisory", j.ID).Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), count)
 
 	// make sure conn was checked out of pool
 	stat := c.pool.Stat()
 	total, available := stat.CurrentConnections, stat.AvailableConnections
-	assert.Equal(t, total-1, available)
+	// one connection should be acquired inside the job and one to use for find
+	assert.Equal(t, total-2, available)
 
 	err = j.Delete(ctx)
 	require.NoError(t, err)
@@ -378,8 +385,14 @@ func testJobDelete(t *testing.T, connPool adapter.ConnPool) {
 	err = j.Delete(ctx)
 	require.NoError(t, err)
 
+	conn, err := connPool.Acquire(ctx)
+	require.NoError(t, err)
+	defer func() {
+		connPool.Release(conn)
+	}()
+
 	// make sure job was deleted
-	j2 := findOneJob(t, c.pool)
+	j2 := findOneJob(t, conn)
 	assert.Nil(t, j2)
 }
 
@@ -410,16 +423,23 @@ func testJobDone(t *testing.T, connPool adapter.ConnPool) {
 	assert.Nil(t, j.pool)
 
 	// make sure lock was released
+	connFind, err := connPool.Acquire(ctx)
+	require.NoError(t, err)
+	defer func() {
+		connPool.Release(connFind)
+	}()
+
 	var count int64
 	query := "SELECT count(*) FROM pg_locks WHERE locktype = $1 AND objid= $2::bigint"
-	err = c.pool.QueryRow(ctx, query, "advisory", j.ID).Scan(&count)
+	err = connFind.QueryRow(ctx, query, "advisory", j.ID).Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, int64(0), count)
 
 	// make sure conn was returned to pool
 	stat := c.pool.Stat()
 	total, available := stat.CurrentConnections, stat.AvailableConnections
-	assert.Equal(t, available, total)
+	// one connection should be acquired for find
+	assert.Equal(t, available, total-1)
 }
 
 func TestJobDoneMultiple(t *testing.T) {
@@ -485,8 +505,14 @@ func testJobDeleteFromTx(t *testing.T, connPool adapter.ConnPool) {
 	// mark as done
 	j.Done(ctx)
 
+	connFind, err := connPool.Acquire(ctx)
+	require.NoError(t, err)
+	defer func() {
+		connPool.Release(connFind)
+	}()
+
 	// make sure the job is gone
-	j2 := findOneJob(t, c.pool)
+	j2 := findOneJob(t, connFind)
 	assert.Nil(t, j2)
 }
 
@@ -528,8 +554,14 @@ func testJobDeleteFromTxRollback(t *testing.T, connPool adapter.ConnPool) {
 	// mark as done
 	j1.Done(ctx)
 
+	connFind, err := connPool.Acquire(ctx)
+	require.NoError(t, err)
+	defer func() {
+		connPool.Release(connFind)
+	}()
+
 	// make sure the job still exists and matches j1
-	j2 := findOneJob(t, c.pool)
+	j2 := findOneJob(t, connFind)
 	require.NotNil(t, j2)
 
 	assert.Equal(t, j1.ID, j2.ID)
@@ -561,8 +593,14 @@ func testJobError(t *testing.T, connPool adapter.ConnPool) {
 	require.NoError(t, err)
 	j.Done(ctx)
 
+	connFind, err := connPool.Acquire(ctx)
+	require.NoError(t, err)
+	defer func() {
+		connPool.Release(connFind)
+	}()
+
 	// make sure job was not deleted
-	j2 := findOneJob(t, c.pool)
+	j2 := findOneJob(t, connFind)
 	require.NotNil(t, j2)
 	defer j2.Done(ctx)
 
@@ -573,7 +611,7 @@ func testJobError(t *testing.T, connPool adapter.ConnPool) {
 	// make sure lock was released
 	var count int64
 	query := "SELECT count(*) FROM pg_locks WHERE locktype=$1 AND objid=$2::bigint"
-	err = c.pool.QueryRow(ctx, query, "advisory", j.ID).Scan(&count)
+	err = connFind.QueryRow(ctx, query, "advisory", j.ID).Scan(&count)
 	require.NoError(t, err)
 
 	assert.Equal(t, int64(0), count, "advisory lock was not released")
@@ -581,5 +619,6 @@ func testJobError(t *testing.T, connPool adapter.ConnPool) {
 	// make sure conn was returned to pool
 	stat := c.pool.Stat()
 	total, available := stat.CurrentConnections, stat.AvailableConnections
-	assert.Equal(t, available, total)
+	// one connection should be acquired for find
+	assert.Equal(t, available, total-1)
 }
