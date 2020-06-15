@@ -104,12 +104,6 @@ func NewConnPool(pool *pgxpool.Pool) adapter.ConnPool {
 	return &ConnPool{pool}
 }
 
-// Begin implements adapter.ConnPool.Begin() using github.com/jackc/pgx/v4
-func (c *ConnPool) Begin(ctx context.Context) (adapter.Tx, error) {
-	tx, err := c.pool.Begin(ctx)
-	return &Tx{tx}, err
-}
-
 // Acquire implements adapter.ConnPool.Acquire() using github.com/jackc/pgx/v4
 func (c *ConnPool) Acquire(ctx context.Context) (adapter.Conn, error) {
 	conn, err := c.pool.Acquire(ctx)
