@@ -1,5 +1,10 @@
 # gue
 
+[![GoDoc](https://godoc.org/github.com/vgarvardt/gue?status.svg)](https://godoc.org/github.com/vgarvardt/gue)
+[![Coverage Status](https://codecov.io/gh/vgarvardt/gue/branch/master/graph/badge.svg)](https://codecov.io/gh/vgarvardt/gue)
+[![ReportCard](https://goreportcard.com/badge/github.com/vgarvardt/gue)](https://goreportcard.com/report/github.com/vgarvardt/gue)
+[![License](https://img.shields.io/npm/l/express.svg)](http://opensource.org/licenses/MIT)
+
 Gue is Golang queue that uses PostgreSQL's advisory locks.
 
 Originally this project used to a fork of [bgentry/que-go][bgentry/que-go]
@@ -8,17 +13,88 @@ author not being very responsive for PRs I turned fork into standalone project.
 
 The name Gue is yet another silly word transformation: Queue -> Que, Go + Que -> Gue.
  
-## `pgx` PostgreSQL driver
+## PostgreSQL drivers
 
-This package uses the [pgx][pgx] Go PostgreSQL driver rather than the more
-popular [pq][pq]. Because Que uses session-level advisory locks, we have to hold
-the same connection throughout the process of getting a job, working it,
-deleting it, and removing the lock.
+Package supports several PostgreSQL drivers using adapter interface internally.
+Currently, adapters for the following drivers have been implemented:
+- [github.com/jackc/pgx/v3][pgx]
+- [github.com/jackc/pgx/v4][pgx]
 
-Pq and the built-in database/sql interfaces do not offer this functionality, so
-we'd have to implement our own connection pool. Fortunately, pgx already has a
-perfectly usable one built for us. Even better, it offers better performance
-than pq due largely to its use of binary encoding.
+### `pgx/v3`
+
+```go
+package main
+
+import(
+    "log"
+    "os"
+
+    "github.com/jackc/pgx"
+
+    "github.com/vgarvardt/gue"
+    "github.com/vgarvardt/gue/adapter/pgxv3"
+)
+
+func main() {
+    pgxCfg, err := pgx.ParseURI(os.Getenv("DATABASE_URL"))
+    if err != nil {
+        log.Fatal(err)
+    }
+    pgxPool, err := pgx.NewConnPool(pgx.ConnPoolConfig{
+        ConnConfig:   pgxCfg,
+        // it is important to prepare gue SQL statements for every opened connection
+        AfterConnect: pgxv3.PrepareStatements,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer pgxPool.Close()
+
+    poolAdapter := pgxv3.NewConnPool(pgxPool)
+
+    gc := gue.NewClient(poolAdapter)
+    ...
+}
+```
+
+### `pgx/v4`
+
+```go
+package main
+
+import(
+    "context"
+    "log"
+    "os"
+
+    "github.com/jackc/pgx/v4"
+    "github.com/jackc/pgx/v4/pgxpool"
+
+    "github.com/vgarvardt/gue"
+    "github.com/vgarvardt/gue/adapter/pgxv4"
+)
+
+func main() {
+    pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    // it is important to prepare gue SQL statements for every opened connection
+    pgxCfg.AfterConnect = pgxv4.PrepareStatements
+
+    pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer pgxPool.Close()
+
+    poolAdapter := pgxv4.NewConnPool(pgxPool)
+
+    gc := gue.NewClient(poolAdapter)
+    ...
+}
+```
 
 ## Testing
 

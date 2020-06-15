@@ -12,9 +12,9 @@ import (
 	_ "github.com/jackc/pgx/stdlib" // register pgx sql driver
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vgarvardt/gue/adapter/pgxv3"
 
 	"github.com/vgarvardt/gue/adapter"
+	"github.com/vgarvardt/gue/adapter/pgxv3"
 )
 
 const defaultPoolConns = 5
