@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
 
@@ -43,23 +42,4 @@ func OpenTestPoolPGXv4(t testing.TB) adapter.ConnPool {
 	t.Helper()
 
 	return OpenTestPoolMaxConnsPGXv4(t, defaultPoolConns)
-}
-
-// OpenTestConnPGXv4 opens connection user in testing
-func OpenTestConnPGXv4(t testing.TB) adapter.Conn {
-	t.Helper()
-
-	conn, err := pgx.ConnectConfig(context.Background(), testConnPGXv4Config(t))
-	require.NoError(t, err)
-
-	return pgxv4.NewConn(conn)
-}
-
-func testConnPGXv4Config(t testing.TB) *pgx.ConnConfig {
-	t.Helper()
-
-	cfg, err := pgx.ParseConfig(testConnDSN(t))
-	require.NoError(t, err)
-
-	return cfg
 }

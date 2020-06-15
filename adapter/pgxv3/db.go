@@ -69,11 +69,6 @@ type Conn struct {
 	conn *pgx.Conn
 }
 
-// NewConn instantiates new adapter.Conn using github.com/jackc/pgx/v3
-func NewConn(conn *pgx.Conn) adapter.Conn {
-	return &Conn{conn}
-}
-
 // Exec implements adapter.Conn.Exec() using github.com/jackc/pgx/v3
 func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (adapter.CommandTag, error) {
 	ct, err := c.conn.ExecEx(ctx, sql, nil, arguments...)
@@ -145,6 +140,7 @@ func (c *ConnPool) Stat() adapter.ConnPoolStat {
 }
 
 // Close implements adapter.ConnPool.Close() using github.com/jackc/pgx/v3
-func (c *ConnPool) Close() {
+func (c *ConnPool) Close() error {
 	c.pool.Close()
+	return nil
 }

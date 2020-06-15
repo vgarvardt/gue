@@ -208,31 +208,35 @@ func testJobConnRace(t *testing.T, connPool adapter.ConnPool) {
 // Test the race condition in LockJob
 func TestLockJobAdvisoryRace(t *testing.T) {
 	t.Run("pgx/v3", func(t *testing.T) {
-		testLockJobAdvisoryRace(
-			t,
-			adapterTesting.OpenTestPoolMaxConnsPGXv3(t, 2),
-			adapterTesting.OpenTestConnPGXv3,
-		)
+		testLockJobAdvisoryRace(t, adapterTesting.OpenTestPoolMaxConnsPGXv3(t, 5))
 	})
 	t.Run("pgx/v4", func(t *testing.T) {
-		testLockJobAdvisoryRace(
-			t,
-			adapterTesting.OpenTestPoolMaxConnsPGXv4(t, 2),
-			adapterTesting.OpenTestConnPGXv4,
-		)
+		testLockJobAdvisoryRace(t, adapterTesting.OpenTestPoolMaxConnsPGXv4(t, 5))
 	})
 }
 
-func testLockJobAdvisoryRace(t *testing.T, connPool adapter.ConnPool, openConn func(testing.TB) adapter.Conn) {
+func testLockJobAdvisoryRace(t *testing.T, connPool adapter.ConnPool) {
 	c := NewClient(connPool)
 	ctx := context.Background()
 
-	// *pgx.ConnPool doesn't support pools of only one connection.  Make sure
-	// the other one is busy so we know which backend will be used by LockJob
-	// below.
-	unusedConn, err := c.pool.Acquire(ctx)
+	// acquire connections that are going to be used exclusively during the test,
+	// make sure this test gets the pool with max 5 connections as we must be sure
+	// which connection is doing what
+	accessLockerConn1, err := c.pool.Acquire(ctx)
 	require.NoError(t, err)
-	defer c.pool.Release(unusedConn)
+	defer c.pool.Release(accessLockerConn1)
+
+	accessLockerConn2, err := c.pool.Acquire(ctx)
+	require.NoError(t, err)
+	defer c.pool.Release(accessLockerConn2)
+
+	eventWaiterConn1, err := c.pool.Acquire(ctx)
+	require.NoError(t, err)
+	defer c.pool.Release(eventWaiterConn1)
+
+	eventWaiterConn2, err := c.pool.Acquire(ctx)
+	require.NoError(t, err)
+	defer c.pool.Release(eventWaiterConn2)
 
 	// We use two jobs: the first one is concurrently deleted, and the second
 	// one is returned by LockJob after recovering from the race condition.
@@ -249,8 +253,7 @@ func testLockJobAdvisoryRace(t *testing.T, connPool adapter.ConnPool, openConn f
 		return backendPID
 	}
 
-	waitUntilBackendIsWaiting := func(backendPID int32, name string) {
-		conn := openConn(t)
+	waitUntilBackendIsWaiting := func(conn adapter.Conn, backendPID int32, name string) {
 		i := 0
 		for {
 			var waiting bool
@@ -288,13 +291,7 @@ func testLockJobAdvisoryRace(t *testing.T, connPool adapter.ConnPool, openConn f
 	secondAccessExclusiveBackendIDChan := make(chan int32)
 
 	go func() {
-		conn := openConn(t)
-		defer func() {
-			err := conn.Close(ctx)
-			assert.NoError(t, err)
-		}()
-
-		tx, err := conn.Begin(ctx)
+		tx, err := accessLockerConn1.Begin(ctx)
 		require.NoError(t, err)
 
 		_, err = tx.Exec(ctx, `LOCK TABLE que_jobs IN ACCESS EXCLUSIVE MODE`)
@@ -302,27 +299,21 @@ func testLockJobAdvisoryRace(t *testing.T, connPool adapter.ConnPool, openConn f
 
 		// first wait for LockJob to appear behind us
 		backendID := <-lockJobBackendIDChan
-		waitUntilBackendIsWaiting(backendID, "LockJob")
+		waitUntilBackendIsWaiting(eventWaiterConn1, backendID, "LockJob")
 
 		// then for the AccessExclusive lock to appear behind that one
 		backendID = <-secondAccessExclusiveBackendIDChan
-		waitUntilBackendIsWaiting(backendID, "second access exclusive lock")
+		waitUntilBackendIsWaiting(eventWaiterConn2, backendID, "second access exclusive lock")
 
 		err = tx.Rollback(ctx)
 		require.NoError(t, err)
 	}()
 
 	go func() {
-		conn := openConn(t)
-		defer func() {
-			err := conn.Close(ctx)
-			assert.NoError(t, err)
-		}()
-
 		// synchronization point
-		secondAccessExclusiveBackendIDChan <- getBackendPID(conn)
+		secondAccessExclusiveBackendIDChan <- getBackendPID(accessLockerConn2)
 
-		tx, err := conn.Begin(ctx)
+		tx, err := accessLockerConn2.Begin(ctx)
 		require.NoError(t, err)
 
 		_, err = tx.Exec(ctx, `LOCK TABLE que_jobs IN ACCESS EXCLUSIVE MODE`)
