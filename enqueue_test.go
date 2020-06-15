@@ -33,7 +33,7 @@ func testEnqueueOnlyType(t *testing.T, connPool adapter.ConnPool) {
 	conn, err := connPool.Acquire(ctx)
 	require.NoError(t, err)
 	defer func() {
-		connPool.Release(conn)
+		conn.Release()
 	}()
 
 	j := findOneJob(t, conn)
@@ -70,7 +70,7 @@ func testEnqueueWithPriority(t *testing.T, connPool adapter.ConnPool) {
 	conn, err := connPool.Acquire(ctx)
 	require.NoError(t, err)
 	defer func() {
-		connPool.Release(conn)
+		conn.Release()
 	}()
 
 	j := findOneJob(t, conn)
@@ -99,7 +99,7 @@ func testEnqueueWithRunAt(t *testing.T, connPool adapter.ConnPool) {
 	conn, err := connPool.Acquire(ctx)
 	require.NoError(t, err)
 	defer func() {
-		connPool.Release(conn)
+		conn.Release()
 	}()
 
 	j := findOneJob(t, conn)
@@ -130,7 +130,7 @@ func testEnqueueWithArgs(t *testing.T, connPool adapter.ConnPool) {
 	conn, err := connPool.Acquire(ctx)
 	require.NoError(t, err)
 	defer func() {
-		connPool.Release(conn)
+		conn.Release()
 	}()
 
 	j := findOneJob(t, conn)
@@ -159,7 +159,7 @@ func testEnqueueWithQueue(t *testing.T, connPool adapter.ConnPool) {
 	conn, err := connPool.Acquire(ctx)
 	require.NoError(t, err)
 	defer func() {
-		connPool.Release(conn)
+		conn.Release()
 	}()
 
 	j := findOneJob(t, conn)
@@ -213,7 +213,7 @@ func testEnqueueInTx(t *testing.T, connPool adapter.ConnPool) {
 	conn, err := connPool.Acquire(ctx)
 	require.NoError(t, err)
 	defer func() {
-		connPool.Release(conn)
+		conn.Release()
 	}()
 
 	j = findOneJob(t, conn)

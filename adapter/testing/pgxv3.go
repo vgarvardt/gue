@@ -84,7 +84,7 @@ func truncateAndClose(t testing.TB, pool adapter.ConnPool) {
 	_, err = conn.Exec(context.Background(), "TRUNCATE TABLE que_jobs")
 	assert.NoError(t, err)
 
-	pool.Release(conn)
+	conn.Release()
 
 	err = pool.Close()
 	assert.NoError(t, err)

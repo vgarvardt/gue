@@ -89,10 +89,9 @@ func (c *Conn) Begin(ctx context.Context) (adapter.Tx, error) {
 	return &Tx{tx}, err
 }
 
-// Close implements adapter.Conn.Close() using github.com/jackc/pgx/v4
-func (c *Conn) Close(ctx context.Context) error {
+// Release implements adapter.Conn.Release() using github.com/jackc/pgx/v4
+func (c *Conn) Release() {
 	c.conn.Release()
-	return nil
 }
 
 // ConnPool implements adapter.ConnPool using github.com/jackc/pgx/v4
@@ -115,11 +114,6 @@ func (c *ConnPool) Begin(ctx context.Context) (adapter.Tx, error) {
 func (c *ConnPool) Acquire(ctx context.Context) (adapter.Conn, error) {
 	conn, err := c.pool.Acquire(ctx)
 	return &Conn{conn}, err
-}
-
-// Release implements adapter.ConnPool.Release() using github.com/jackc/pgx/v4
-func (c *ConnPool) Release(conn adapter.Conn) {
-	conn.(*Conn).conn.Release()
 }
 
 // Stat implements adapter.ConnPool.Stat() using github.com/jackc/pgx/v4

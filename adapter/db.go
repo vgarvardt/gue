@@ -59,9 +59,9 @@ type Conn interface {
 	// Begin starts a transaction with the default transaction mode for the
 	// current connection.
 	Begin(ctx context.Context) (Tx, error)
-	// Close closes a connection. It is safe to call Close on a already closed
-	// connection.
-	Close(ctx context.Context) error
+	// Release returns c to the pool it was acquired from.
+	// Once Release has been called, other methods must not be called.
+	Release()
 }
 
 // ConnPoolStat is the connection pool statistics
@@ -81,8 +81,6 @@ type ConnPool interface {
 	Begin(ctx context.Context) (Tx, error)
 	// Acquire takes exclusive use of a connection until it is released.
 	Acquire(ctx context.Context) (Conn, error)
-	// Release gives up use of a connection.
-	Release(conn Conn)
 	// Stat returns connection pool statistics
 	Stat() ConnPoolStat
 	// Close ends the use of a connection pool. It prevents any new connections from

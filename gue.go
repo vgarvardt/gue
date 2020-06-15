@@ -99,7 +99,7 @@ func (j *Job) Done(ctx context.Context) {
 	// stop.
 	_ = j.conn.QueryRow(ctx, adapter.StmtUnlockJob, j.ID).Scan(&ok)
 
-	j.pool.Release(j.conn)
+	j.conn.Release()
 	j.pool = nil
 	j.conn = nil
 }
@@ -146,7 +146,7 @@ func (c *Client) Enqueue(ctx context.Context, j *Job) error {
 	}
 
 	defer func() {
-		c.pool.Release(connEnqueue)
+		connEnqueue.Release()
 	}()
 
 	return execEnqueue(ctx, j, connEnqueue)
@@ -246,7 +246,7 @@ func (c *Client) LockJob(ctx context.Context, queue string) (*Job, error) {
 			&j.ErrorCount,
 		)
 		if err != nil {
-			c.pool.Release(conn)
+			conn.Release()
 			if err == adapter.ErrNoRows {
 				return nil, nil
 			}
@@ -279,10 +279,11 @@ func (c *Client) LockJob(ctx context.Context, queue string) (*Job, error) {
 			_ = conn.QueryRow(ctx, adapter.StmtUnlockJob, j.ID).Scan(&ok)
 			continue
 		} else {
-			c.pool.Release(conn)
+			conn.Release()
 			return nil, err
 		}
 	}
-	c.pool.Release(conn)
+	conn.Release()
+
 	return nil, ErrAgain
 }
