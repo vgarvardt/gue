@@ -140,7 +140,16 @@ var ErrMissingType = errors.New("job type must be specified")
 
 // Enqueue adds a job to the queue.
 func (c *Client) Enqueue(ctx context.Context, j *Job) error {
-	return execEnqueue(ctx, j, c.pool)
+	connEnqueue, err := c.pool.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		c.pool.Release(connEnqueue)
+	}()
+
+	return execEnqueue(ctx, j, connEnqueue)
 }
 
 // EnqueueInTx adds a job to the queue within the scope of the transaction tx.

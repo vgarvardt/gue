@@ -105,17 +105,6 @@ func NewConnPool(pool *pgxpool.Pool) adapter.ConnPool {
 	return &ConnPool{pool}
 }
 
-// Exec implements adapter.ConnPool.Exec() using github.com/jackc/pgx/v4
-func (c *ConnPool) Exec(ctx context.Context, sql string, arguments ...interface{}) (adapter.CommandTag, error) {
-	ct, err := c.pool.Exec(ctx, sql, arguments...)
-	return CommandTag{ct}, err
-}
-
-// QueryRow implements adapter.ConnPool.QueryRow() using github.com/jackc/pgx/v4
-func (c *ConnPool) QueryRow(ctx context.Context, sql string, args ...interface{}) adapter.Row {
-	return &Row{c.pool.QueryRow(ctx, sql, args...)}
-}
-
 // Begin implements adapter.ConnPool.Begin() using github.com/jackc/pgx/v4
 func (c *ConnPool) Begin(ctx context.Context) (adapter.Tx, error) {
 	tx, err := c.pool.Begin(ctx)
