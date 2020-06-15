@@ -53,7 +53,7 @@ func testLockJob(t *testing.T, connPool adapter.ConnPool) {
 	connFind, err := connPool.Acquire(ctx)
 	require.NoError(t, err)
 	defer func() {
-		connPool.Release(connFind)
+		connFind.Release()
 	}()
 
 	var count int64
@@ -231,19 +231,19 @@ func testLockJobAdvisoryRace(t *testing.T, connPool adapter.ConnPool) {
 	// which connection is doing what
 	accessLockerConn1, err := c.pool.Acquire(ctx)
 	require.NoError(t, err)
-	defer c.pool.Release(accessLockerConn1)
+	defer accessLockerConn1.Release()
 
 	accessLockerConn2, err := c.pool.Acquire(ctx)
 	require.NoError(t, err)
-	defer c.pool.Release(accessLockerConn2)
+	defer accessLockerConn2.Release()
 
 	eventWaiterConn1, err := c.pool.Acquire(ctx)
 	require.NoError(t, err)
-	defer c.pool.Release(eventWaiterConn1)
+	defer eventWaiterConn1.Release()
 
 	eventWaiterConn2, err := c.pool.Acquire(ctx)
 	require.NoError(t, err)
-	defer c.pool.Release(eventWaiterConn2)
+	defer eventWaiterConn2.Release()
 
 	// We use two jobs: the first one is concurrently deleted, and the second
 	// one is returned by LockJob after recovering from the race condition.
@@ -347,7 +347,7 @@ func testLockJobAdvisoryRace(t *testing.T, connPool adapter.ConnPool) {
 	require.NoError(t, err)
 
 	ourBackendID := getBackendPID(conn)
-	c.pool.Release(conn)
+	conn.Release()
 
 	// synchronization point
 	lockJobBackendIDChan <- ourBackendID
@@ -388,7 +388,7 @@ func testJobDelete(t *testing.T, connPool adapter.ConnPool) {
 	conn, err := connPool.Acquire(ctx)
 	require.NoError(t, err)
 	defer func() {
-		connPool.Release(conn)
+		conn.Release()
 	}()
 
 	// make sure job was deleted
@@ -426,7 +426,7 @@ func testJobDone(t *testing.T, connPool adapter.ConnPool) {
 	connFind, err := connPool.Acquire(ctx)
 	require.NoError(t, err)
 	defer func() {
-		connPool.Release(connFind)
+		connFind.Release()
 	}()
 
 	var count int64
@@ -508,7 +508,7 @@ func testJobDeleteFromTx(t *testing.T, connPool adapter.ConnPool) {
 	connFind, err := connPool.Acquire(ctx)
 	require.NoError(t, err)
 	defer func() {
-		connPool.Release(connFind)
+		connFind.Release()
 	}()
 
 	// make sure the job is gone
@@ -557,7 +557,7 @@ func testJobDeleteFromTxRollback(t *testing.T, connPool adapter.ConnPool) {
 	connFind, err := connPool.Acquire(ctx)
 	require.NoError(t, err)
 	defer func() {
-		connPool.Release(connFind)
+		connFind.Release()
 	}()
 
 	// make sure the job still exists and matches j1
@@ -596,7 +596,7 @@ func testJobError(t *testing.T, connPool adapter.ConnPool) {
 	connFind, err := connPool.Acquire(ctx)
 	require.NoError(t, err)
 	defer func() {
-		connPool.Release(connFind)
+		connFind.Release()
 	}()
 
 	// make sure job was not deleted

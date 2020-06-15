@@ -67,6 +67,7 @@ func (tx *Tx) Commit(ctx context.Context) error {
 // Conn implements adapter.Conn using github.com/jackc/pgx/v3
 type Conn struct {
 	conn *pgx.Conn
+	pool *pgx.ConnPool
 }
 
 // Exec implements adapter.Conn.Exec() using github.com/jackc/pgx/v3
@@ -86,9 +87,9 @@ func (c *Conn) Begin(ctx context.Context) (adapter.Tx, error) {
 	return &Tx{tx}, err
 }
 
-// Close implements adapter.Conn.Close() using github.com/jackc/pgx/v3
-func (c *Conn) Close(ctx context.Context) error {
-	return c.conn.Close()
+// Release implements adapter.Conn.Release() using github.com/jackc/pgx/v3
+func (c *Conn) Release() {
+	c.pool.Release(c.conn)
 }
 
 // ConnPool implements adapter.ConnPool using github.com/jackc/pgx/v3
@@ -110,12 +111,7 @@ func (c *ConnPool) Begin(ctx context.Context) (adapter.Tx, error) {
 // Acquire implements adapter.ConnPool.Acquire() using github.com/jackc/pgx/v3
 func (c *ConnPool) Acquire(ctx context.Context) (adapter.Conn, error) {
 	conn, err := c.pool.AcquireEx(ctx)
-	return &Conn{conn}, err
-}
-
-// Release implements adapter.ConnPool.Release() using github.com/jackc/pgx/v3
-func (c *ConnPool) Release(conn adapter.Conn) {
-	c.pool.Release(conn.(*Conn).conn)
+	return &Conn{conn, c.pool}, err
 }
 
 // Stat implements adapter.ConnPool.Stat() using github.com/jackc/pgx/v3
