@@ -1,19 +1,33 @@
 package gue
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/vgarvardt/gue/adapter"
+	adapterTesting "github.com/vgarvardt/gue/adapter/testing"
 )
 
 func TestEnqueueOnlyType(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	t.Run("pgx/v3", func(t *testing.T) {
+		testEnqueueOnlyType(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testEnqueueOnlyType(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
+
+func testEnqueueOnlyType(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
+	ctx := context.Background()
 
 	jobType := "MyJob"
-	err := c.Enqueue(&Job{Type: jobType})
+	err := c.Enqueue(ctx, &Job{Type: jobType})
 	require.NoError(t, err)
 
 	j := findOneJob(t, c.pool)
@@ -31,10 +45,20 @@ func TestEnqueueOnlyType(t *testing.T) {
 }
 
 func TestEnqueueWithPriority(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	t.Run("pgx/v3", func(t *testing.T) {
+		testEnqueueWithPriority(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testEnqueueWithPriority(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
+
+func testEnqueueWithPriority(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
+	ctx := context.Background()
 
 	want := int16(99)
-	err := c.Enqueue(&Job{Type: "MyJob", Priority: want})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob", Priority: want})
 	require.NoError(t, err)
 
 	j := findOneJob(t, c.pool)
@@ -44,10 +68,20 @@ func TestEnqueueWithPriority(t *testing.T) {
 }
 
 func TestEnqueueWithRunAt(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	t.Run("pgx/v3", func(t *testing.T) {
+		testEnqueueWithRunAt(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testEnqueueWithRunAt(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
+
+func testEnqueueWithRunAt(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
+	ctx := context.Background()
 
 	want := time.Now().Add(2 * time.Minute)
-	err := c.Enqueue(&Job{Type: "MyJob", RunAt: want})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob", RunAt: want})
 	require.NoError(t, err)
 
 	j := findOneJob(t, c.pool)
@@ -59,10 +93,20 @@ func TestEnqueueWithRunAt(t *testing.T) {
 }
 
 func TestEnqueueWithArgs(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	t.Run("pgx/v3", func(t *testing.T) {
+		testEnqueueWithArgs(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testEnqueueWithArgs(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
+
+func testEnqueueWithArgs(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
+	ctx := context.Background()
 
 	want := []byte(`{"arg1":0, "arg2":"a string"}`)
-	err := c.Enqueue(&Job{Type: "MyJob", Args: want})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob", Args: want})
 	require.NoError(t, err)
 
 	j := findOneJob(t, c.pool)
@@ -72,10 +116,20 @@ func TestEnqueueWithArgs(t *testing.T) {
 }
 
 func TestEnqueueWithQueue(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	t.Run("pgx/v3", func(t *testing.T) {
+		testEnqueueWithQueue(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testEnqueueWithQueue(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
+
+func testEnqueueWithQueue(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
+	ctx := context.Background()
 
 	want := "special-work-queue"
-	err := c.Enqueue(&Job{Type: "MyJob", Queue: want})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob", Queue: want})
 	require.NoError(t, err)
 
 	j := findOneJob(t, c.pool)
@@ -85,25 +139,45 @@ func TestEnqueueWithQueue(t *testing.T) {
 }
 
 func TestEnqueueWithEmptyType(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	t.Run("pgx/v3", func(t *testing.T) {
+		testEnqueueWithEmptyType(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testEnqueueWithEmptyType(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
 
-	err := c.Enqueue(&Job{Type: ""})
+func testEnqueueWithEmptyType(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
+	ctx := context.Background()
+
+	err := c.Enqueue(ctx, &Job{Type: ""})
 	require.Equal(t, ErrMissingType, err)
 }
 
 func TestEnqueueInTx(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	t.Run("pgx/v3", func(t *testing.T) {
+		testEnqueueInTx(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testEnqueueInTx(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
 
-	tx, err := c.pool.Begin()
+func testEnqueueInTx(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
+	ctx := context.Background()
+
+	tx, err := c.pool.Begin(ctx)
 	require.NoError(t, err)
 
-	err = c.EnqueueInTx(&Job{Type: "MyJob"}, tx)
+	err = c.EnqueueInTx(ctx, &Job{Type: "MyJob"}, tx)
 	require.NoError(t, err)
 
 	j := findOneJob(t, tx)
 	require.NotNil(t, j)
 
-	err = tx.Rollback()
+	err = tx.Rollback(ctx)
 	require.NoError(t, err)
 
 	j = findOneJob(t, c.pool)

@@ -5,13 +5,15 @@ import (
 	"errors"
 	"io/ioutil"
 	"log"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/jackc/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/vgarvardt/gue/adapter"
+	adapterTesting "github.com/vgarvardt/gue/adapter/testing"
 )
 
 func init() {
@@ -19,7 +21,17 @@ func init() {
 }
 
 func TestWorkerWorkOne(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	t.Run("pgx/v3", func(t *testing.T) {
+		testWorkerWorkOne(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testWorkerWorkOne(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
+
+func testWorkerWorkOne(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
+	ctx := context.Background()
 
 	success := false
 	wm := WorkMap{
@@ -30,19 +42,28 @@ func TestWorkerWorkOne(t *testing.T) {
 	}
 	w := NewWorker(c, wm)
 
-	didWork := w.WorkOne()
+	didWork := w.WorkOne(ctx)
 	assert.False(t, didWork)
 
-	err := c.Enqueue(&Job{Type: "MyJob"})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
-	didWork = w.WorkOne()
+	didWork = w.WorkOne(ctx)
 	assert.True(t, didWork)
 	assert.True(t, success)
 }
 
 func TestWorker_Start(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	t.Run("pgx/v3", func(t *testing.T) {
+		testWorkerStart(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testWorkerStart(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
+
+func testWorkerStart(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
 
 	w := NewWorker(c, WorkMap{})
 
@@ -64,7 +85,16 @@ func TestWorker_Start(t *testing.T) {
 }
 
 func TestWorkerPool_Start(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	t.Run("pgx/v3", func(t *testing.T) {
+		testWorkerPoolStart(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testWorkerPoolStart(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
+
+func testWorkerPoolStart(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
 
 	poolSize := 2
 	w := NewWorkerPool(c, WorkMap{}, poolSize)
@@ -93,23 +123,29 @@ func TestWorkerPool_Start(t *testing.T) {
 }
 
 func BenchmarkWorker(b *testing.B) {
-	c := openTestClientPGXv3(b)
-	log.SetOutput(ioutil.Discard)
-	defer func() {
-		log.SetOutput(os.Stdout)
-	}()
+	b.Run("pgx/v3", func(b *testing.B) {
+		benchmarkWorker(b, adapterTesting.OpenTestPoolPGXv3(b))
+	})
+	b.Run("pgx/v4", func(b *testing.B) {
+		benchmarkWorker(b, adapterTesting.OpenTestPoolPGXv4(b))
+	})
+}
+
+func benchmarkWorker(b *testing.B, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
+	ctx := context.Background()
 
 	w := NewWorker(c, WorkMap{"Nil": nilWorker})
 
 	for i := 0; i < b.N; i++ {
-		if err := c.Enqueue(&Job{Type: "Nil"}); err != nil {
+		if err := c.Enqueue(ctx, &Job{Type: "Nil"}); err != nil {
 			log.Fatal(err)
 		}
 	}
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		w.WorkOne()
+		w.WorkOne(ctx)
 	}
 }
 
@@ -118,7 +154,17 @@ func nilWorker(j *Job) error {
 }
 
 func TestWorkerWorkReturnsError(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	t.Run("pgx/v3", func(t *testing.T) {
+		testWorkerWorkReturnsError(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testWorkerWorkReturnsError(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
+
+func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
+	ctx := context.Background()
 
 	called := 0
 	wm := WorkMap{
@@ -129,20 +175,20 @@ func TestWorkerWorkReturnsError(t *testing.T) {
 	}
 	w := NewWorker(c, wm)
 
-	didWork := w.WorkOne()
+	didWork := w.WorkOne(ctx)
 	assert.False(t, didWork)
 
-	err := c.Enqueue(&Job{Type: "MyJob"})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
-	didWork = w.WorkOne()
+	didWork = w.WorkOne(ctx)
 	assert.True(t, didWork)
 	assert.Equal(t, 1, called)
 
-	tx, err := c.pool.Begin()
+	tx, err := c.pool.Begin(ctx)
 	require.NoError(t, err)
 	defer func() {
-		err := tx.Rollback()
+		err := tx.Rollback(ctx)
 		assert.NoError(t, err)
 	}()
 
@@ -155,7 +201,17 @@ func TestWorkerWorkReturnsError(t *testing.T) {
 }
 
 func TestWorkerWorkRescuesPanic(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	t.Run("pgx/v3", func(t *testing.T) {
+		testWorkerWorkRescuesPanic(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testWorkerWorkRescuesPanic(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
+
+func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
+	ctx := context.Background()
 
 	called := 0
 	wm := WorkMap{
@@ -166,16 +222,16 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 	}
 	w := NewWorker(c, wm)
 
-	err := c.Enqueue(&Job{Type: "MyJob"})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
-	w.WorkOne()
+	w.WorkOne(ctx)
 	assert.Equal(t, 1, called)
 
-	tx, err := c.pool.Begin()
+	tx, err := c.pool.Begin(ctx)
 	require.NoError(t, err)
 	defer func() {
-		err := tx.Rollback()
+		err := tx.Rollback(ctx)
 		assert.NoError(t, err)
 	}()
 
@@ -191,7 +247,17 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 }
 
 func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
-	c := openTestClientPGXv3(t)
+	t.Run("pgx/v3", func(t *testing.T) {
+		testWorkerWorkOneTypeNotInMap(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testWorkerWorkOneTypeNotInMap(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
+
+func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
+	ctx := context.Background()
 
 	currentConns := c.pool.Stat().CurrentConnections
 	availConns := c.pool.Stat().AvailableConnections
@@ -199,22 +265,22 @@ func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
 	wm := WorkMap{}
 	w := NewWorker(c, wm)
 
-	didWork := w.WorkOne()
+	didWork := w.WorkOne(ctx)
 	assert.False(t, didWork)
 
-	err := c.Enqueue(&Job{Type: "MyJob"})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
-	didWork = w.WorkOne()
+	didWork = w.WorkOne(ctx)
 	assert.True(t, didWork)
 
 	assert.Equal(t, currentConns, c.pool.Stat().CurrentConnections)
 	assert.Equal(t, availConns, c.pool.Stat().AvailableConnections)
 
-	tx, err := c.pool.Begin()
+	tx, err := c.pool.Begin(ctx)
 	require.NoError(t, err)
 	defer func() {
-		err := tx.Rollback()
+		err := tx.Rollback(ctx)
 		assert.NoError(t, err)
 	}()
 

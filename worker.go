@@ -83,7 +83,7 @@ func (w *Worker) Start(ctx context.Context) error {
 
 		for {
 			// Try to work a job
-			if w.WorkOne() {
+			if w.WorkOne(ctx) {
 				// Since we just did work, non-blocking check whether we should exit
 				select {
 				case <-ctx.Done():
@@ -107,8 +107,8 @@ func (w *Worker) Start(ctx context.Context) error {
 }
 
 // WorkOne tries to consume single message from the queue.
-func (w *Worker) WorkOne() (didWork bool) {
-	j, err := w.c.LockJob(w.queue)
+func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
+	j, err := w.c.LockJob(ctx, w.queue)
 	if err != nil {
 		log.Printf("worker[id=%s] attempting to lock job: %v", w.id, err)
 		return
@@ -116,8 +116,8 @@ func (w *Worker) WorkOne() (didWork bool) {
 	if j == nil {
 		return // no job was available
 	}
-	defer j.Done()
-	defer recoverPanic(j)
+	defer j.Done(ctx)
+	defer recoverPanic(ctx, j)
 
 	didWork = true
 
@@ -125,20 +125,20 @@ func (w *Worker) WorkOne() (didWork bool) {
 	if !ok {
 		msg := fmt.Sprintf("worker[id=%s] unknown job type: %q", w.id, j.Type)
 		log.Println(msg)
-		if err = j.Error(msg); err != nil {
+		if err = j.Error(ctx, msg); err != nil {
 			log.Printf("attempting to save error on job %d: %v", j.ID, err)
 		}
 		return
 	}
 
 	if err = wf(j); err != nil {
-		if jErr := j.Error(err.Error()); jErr != nil {
+		if jErr := j.Error(ctx, err.Error()); jErr != nil {
 			log.Printf("worker[id=%s] got an error (%v) when tried to mark job as errored (%v)", w.id, jErr, err)
 		}
 		return
 	}
 
-	if err = j.Delete(); err != nil {
+	if err = j.Delete(ctx); err != nil {
 		log.Printf("worker[id=%s] attempting to delete job %d: %v", w.id, j.ID, err)
 	}
 	log.Printf("worker[id=%s] event=job_worked job_id=%d job_type=%s", w.id, j.ID, j.Type)
@@ -147,7 +147,7 @@ func (w *Worker) WorkOne() (didWork bool) {
 
 // recoverPanic tries to handle panics in job execution.
 // A stacktrace is stored into Job last_error.
-func recoverPanic(j *Job) {
+func recoverPanic(ctx context.Context, j *Job) {
 	if r := recover(); r != nil {
 		// record an error on the job with panic message and stacktrace
 		stackBuf := make([]byte, 1024)
@@ -159,7 +159,7 @@ func recoverPanic(j *Job) {
 		fmt.Fprintln(buf, "[...]")
 		stacktrace := buf.String()
 		log.Printf("event=panic job_id=%d job_type=%s\n%s", j.ID, j.Type, stacktrace)
-		if err := j.Error(stacktrace); err != nil {
+		if err := j.Error(ctx, stacktrace); err != nil {
 			log.Printf("attempting to save error on job %d: %v", j.ID, err)
 		}
 	}
