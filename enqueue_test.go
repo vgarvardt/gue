@@ -9,11 +9,21 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/vgarvardt/gue/adapter"
 	adapterTesting "github.com/vgarvardt/gue/adapter/testing"
 )
 
 func TestEnqueueOnlyType(t *testing.T) {
-	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
+	t.Run("pgx/v3", func(t *testing.T) {
+		testEnqueueOnlyType(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testEnqueueOnlyType(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
+
+func testEnqueueOnlyType(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
 	ctx := context.Background()
 
 	jobType := "MyJob"
@@ -35,7 +45,16 @@ func TestEnqueueOnlyType(t *testing.T) {
 }
 
 func TestEnqueueWithPriority(t *testing.T) {
-	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
+	t.Run("pgx/v3", func(t *testing.T) {
+		testEnqueueWithPriority(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testEnqueueWithPriority(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
+
+func testEnqueueWithPriority(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
 	ctx := context.Background()
 
 	want := int16(99)
@@ -49,7 +68,16 @@ func TestEnqueueWithPriority(t *testing.T) {
 }
 
 func TestEnqueueWithRunAt(t *testing.T) {
-	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
+	t.Run("pgx/v3", func(t *testing.T) {
+		testEnqueueWithRunAt(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testEnqueueWithRunAt(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
+
+func testEnqueueWithRunAt(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
 	ctx := context.Background()
 
 	want := time.Now().Add(2 * time.Minute)
@@ -65,7 +93,16 @@ func TestEnqueueWithRunAt(t *testing.T) {
 }
 
 func TestEnqueueWithArgs(t *testing.T) {
-	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
+	t.Run("pgx/v3", func(t *testing.T) {
+		testEnqueueWithArgs(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testEnqueueWithArgs(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
+
+func testEnqueueWithArgs(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
 	ctx := context.Background()
 
 	want := []byte(`{"arg1":0, "arg2":"a string"}`)
@@ -79,7 +116,16 @@ func TestEnqueueWithArgs(t *testing.T) {
 }
 
 func TestEnqueueWithQueue(t *testing.T) {
-	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
+	t.Run("pgx/v3", func(t *testing.T) {
+		testEnqueueWithQueue(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testEnqueueWithQueue(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
+
+func testEnqueueWithQueue(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
 	ctx := context.Background()
 
 	want := "special-work-queue"
@@ -93,7 +139,16 @@ func TestEnqueueWithQueue(t *testing.T) {
 }
 
 func TestEnqueueWithEmptyType(t *testing.T) {
-	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
+	t.Run("pgx/v3", func(t *testing.T) {
+		testEnqueueWithEmptyType(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testEnqueueWithEmptyType(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
+
+func testEnqueueWithEmptyType(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
 	ctx := context.Background()
 
 	err := c.Enqueue(ctx, &Job{Type: ""})
@@ -101,7 +156,16 @@ func TestEnqueueWithEmptyType(t *testing.T) {
 }
 
 func TestEnqueueInTx(t *testing.T) {
-	c := NewClient(adapterTesting.OpenTestPoolPGXv3(t))
+	t.Run("pgx/v3", func(t *testing.T) {
+		testEnqueueInTx(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testEnqueueInTx(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+}
+
+func testEnqueueInTx(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
 	ctx := context.Background()
 
 	tx, err := c.pool.Begin(ctx)

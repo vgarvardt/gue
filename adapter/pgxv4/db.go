@@ -171,7 +171,7 @@ func (c *ConnPool) Stat() adapter.ConnPoolStat {
 	return adapter.ConnPoolStat{
 		MaxConnections:       int(s.MaxConns()),
 		CurrentConnections:   int(s.TotalConns()),
-		AvailableConnections: int(s.TotalConns() - s.IdleConns()),
+		AvailableConnections: int(s.IdleConns()),
 	}
 }
 

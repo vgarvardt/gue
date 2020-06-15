@@ -72,6 +72,7 @@ func testConnDSN(t testing.TB) string {
 	require.True(t, found, "TEST_POSTGRES env var is not set")
 	require.NotEmpty(t, testPgConnString, "TEST_POSTGRES env var is empty")
 
+	//return `postgres://test:test@localhost:32769/test?sslmode=disable`
 	return testPgConnString
 }
 
