@@ -77,6 +77,8 @@ type ConnPoolStat struct {
 // ConnPool is a PostgreSQL connection pool handle.
 type ConnPool interface {
 	// Acquire takes exclusive use of a connection until it is released.
+	// Pool is responsible for preparing named statements for every connection it
+	// returns to the caller.
 	Acquire(ctx context.Context) (Conn, error)
 	// Stat returns connection pool statistics
 	Stat() ConnPoolStat

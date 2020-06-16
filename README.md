@@ -42,8 +42,6 @@ func main() {
     }
     pgxPool, err := pgx.NewConnPool(pgx.ConnPoolConfig{
         ConnConfig:   pgxCfg,
-        // it is important to prepare gue SQL statements for every opened connection
-        AfterConnect: pgxv3.PrepareStatements,
     })
     if err != nil {
         log.Fatal(err)
@@ -67,7 +65,6 @@ import(
     "log"
     "os"
 
-    "github.com/jackc/pgx/v4"
     "github.com/jackc/pgx/v4/pgxpool"
 
     "github.com/vgarvardt/gue"
@@ -79,9 +76,6 @@ func main() {
     if err != nil {
         log.Fatal(err)
     }
-
-    // it is important to prepare gue SQL statements for every opened connection
-    pgxCfg.AfterConnect = pgxv4.PrepareStatements
 
     pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
     if err != nil {

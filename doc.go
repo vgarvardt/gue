@@ -10,27 +10,6 @@ Currently, adapters for the following drivers have been implemented:
 - github.com/jackc/pgx v3
 - github.com/jackc/pgx v4
 
-Prepared Statements
-
-gue relies on prepared statements for performance. As of now these have to
-be initialized manually on your connection pool like this for pgx v3:
-
-    import "github.com/vgarvardt/gue/adapter/pgxv3"
-
-    pgxPool, err := pgx.NewConnPool(pgx.ConnPoolConfig{
-        ConnConfig:   pgxCfg,
-        AfterConnect: pgxv3.PrepareStatements,
-    })
-
-or like this for pgx v4:
-
-    import "github.com/vgarvardt/gue/adapter/pgxv4"
-
-    pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
-    pgxCfg.AfterConnect = pgxv4.PrepareStatements
-
-    pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
-
 Usage
 
 Here is a complete example showing worker setup for pgx/v4 and two jobs enqueued, one with a delay:
@@ -52,8 +31,6 @@ Here is a complete example showing worker setup for pgx/v4 and two jobs enqueued
     if err != nil {
         log.Fatal(err)
     }
-
-    pgxCfg.AfterConnect = pgxv4.PrepareStatements
 
     pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
     if err != nil {
