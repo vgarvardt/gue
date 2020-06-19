@@ -3,8 +3,6 @@ package gue
 import (
 	"context"
 	"errors"
-	"io/ioutil"
-	"log"
 	"testing"
 	"time"
 
@@ -15,10 +13,6 @@ import (
 	"github.com/vgarvardt/gue/adapter"
 	adapterTesting "github.com/vgarvardt/gue/adapter/testing"
 )
-
-func init() {
-	log.SetOutput(ioutil.Discard)
-}
 
 func TestWorkerWorkOne(t *testing.T) {
 	t.Run("pgx/v3", func(t *testing.T) {
@@ -139,7 +133,7 @@ func benchmarkWorker(b *testing.B, connPool adapter.ConnPool) {
 
 	for i := 0; i < b.N; i++ {
 		if err := c.Enqueue(ctx, &Job{Type: "Nil"}); err != nil {
-			log.Fatal(err)
+			b.Fatal(err)
 		}
 	}
 

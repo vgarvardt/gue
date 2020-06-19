@@ -6,10 +6,11 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"fmt"
-	"log"
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/vgarvardt/gue/adapter"
 )
 
 const (
@@ -33,6 +34,7 @@ type Worker struct {
 	queue    string
 	c        *Client
 	id       string
+	logger   adapter.Logger
 	mu       sync.Mutex
 	running  bool
 }
@@ -42,15 +44,16 @@ type Worker struct {
 // considered an error and the job is re-enqueued with a backoff.
 //
 // Workers default to an interval of 5 seconds, which can be overridden by
-// WakeInterval option.
+// WithWakeInterval option.
 // The default queue is the nameless queue "", which can be overridden by
-// WorkerQueue option.
+// WithQueue option.
 func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) *Worker {
 	instance := Worker{
 		interval: defaultWakeInterval,
 		queue:    defaultQueueName,
 		c:        c,
 		wm:       wm,
+		logger:   adapter.NoOpLogger{},
 	}
 
 	for _, option := range options {
@@ -60,6 +63,8 @@ func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) *Worker {
 	if instance.id == "" {
 		instance.id = newID()
 	}
+
+	instance.logger = instance.logger.With(adapter.F("worker-id", instance.id))
 
 	return &instance
 }
@@ -71,14 +76,14 @@ func (w *Worker) Start(ctx context.Context) error {
 	defer w.mu.Unlock()
 
 	if w.running {
-		return fmt.Errorf("worker[id=%s] already running", w.id)
+		return fmt.Errorf("worker[id=%s] is already running", w.id)
 	}
 
 	w.running = true
 	go func() {
 		defer func() {
 			w.running = false
-			log.Printf("worker[id=%s] done", w.id)
+			w.logger.Info("Worker finished")
 		}()
 
 		for {
@@ -110,44 +115,46 @@ func (w *Worker) Start(ctx context.Context) error {
 func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 	j, err := w.c.LockJob(ctx, w.queue)
 	if err != nil {
-		log.Printf("worker[id=%s] attempting to lock job: %v", w.id, err)
+		w.logger.Error("Worker failed to lock a job", adapter.Err(err))
 		return
 	}
 	if j == nil {
 		return // no job was available
 	}
+
+	ll := w.logger.With(adapter.F("job-id", j.ID), adapter.F("job-type", j.Type))
+
 	defer j.Done(ctx)
-	defer recoverPanic(ctx, j)
+	defer recoverPanic(ctx, ll, j)
 
 	didWork = true
 
 	wf, ok := w.wm[j.Type]
 	if !ok {
-		msg := fmt.Sprintf("worker[id=%s] unknown job type: %q", w.id, j.Type)
-		log.Println(msg)
-		if err = j.Error(ctx, msg); err != nil {
-			log.Printf("attempting to save error on job %d: %v", j.ID, err)
+		ll.Error("Got a job with unknown type")
+		if err = j.Error(ctx, fmt.Sprintf("worker[id=%s] unknown job type: %q", w.id, j.Type)); err != nil {
+			ll.Error("Got an error on setting an error to unknown job", adapter.Err(err))
 		}
 		return
 	}
 
 	if err = wf(j); err != nil {
 		if jErr := j.Error(ctx, err.Error()); jErr != nil {
-			log.Printf("worker[id=%s] got an error (%v) when tried to mark job as errored (%v)", w.id, jErr, err)
+			ll.Error("Got an error on setting an error to an errored job", adapter.Err(jErr), adapter.F("job-error", err))
 		}
 		return
 	}
 
 	if err = j.Delete(ctx); err != nil {
-		log.Printf("worker[id=%s] attempting to delete job %d: %v", w.id, j.ID, err)
+		ll.Error("Got an error on deleting a job", adapter.Err(err))
 	}
-	log.Printf("worker[id=%s] event=job_worked job_id=%d job_type=%s", w.id, j.ID, j.Type)
+	ll.Debug("Job finished")
 	return
 }
 
 // recoverPanic tries to handle panics in job execution.
 // A stacktrace is stored into Job last_error.
-func recoverPanic(ctx context.Context, j *Job) {
+func recoverPanic(ctx context.Context, logger adapter.Logger, j *Job) {
 	if r := recover(); r != nil {
 		// record an error on the job with panic message and stacktrace
 		stackBuf := make([]byte, 1024)
@@ -158,9 +165,10 @@ func recoverPanic(ctx context.Context, j *Job) {
 		fmt.Fprintln(buf, string(stackBuf[:n]))
 		fmt.Fprintln(buf, "[...]")
 		stacktrace := buf.String()
-		log.Printf("event=panic job_id=%d job_type=%s\n%s", j.ID, j.Type, stacktrace)
+
+		logger.Error("Job panicked", adapter.F("stacktrace", stacktrace))
 		if err := j.Error(ctx, stacktrace); err != nil {
-			log.Printf("attempting to save error on job %d: %v", j.ID, err)
+			logger.Error("Got an error on setting an error to a panicked job", adapter.Err(err))
 		}
 	}
 }
@@ -181,6 +189,7 @@ type WorkerPool struct {
 	c        *Client
 	workers  []*Worker
 	id       string
+	logger   adapter.Logger
 	mu       sync.Mutex
 	running  bool
 }
@@ -188,8 +197,8 @@ type WorkerPool struct {
 // NewWorkerPool creates a new WorkerPool with count workers using the Client c.
 //
 // Each Worker in the pool default to an interval of 5 seconds, which can be
-// overridden by PoolWakeInterval option. The default queue is the
-// nameless queue "", which can be overridden by PoolWorkerQueue option.
+// overridden by WithPoolWakeInterval option. The default queue is the
+// nameless queue "", which can be overridden by WithPoolQueue option.
 func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOption) *WorkerPool {
 	instance := WorkerPool{
 		wm:       wm,
@@ -197,6 +206,7 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 		queue:    defaultQueueName,
 		c:        c,
 		workers:  make([]*Worker, poolSize),
+		logger:   adapter.NoOpLogger{},
 	}
 
 	for _, option := range options {
@@ -206,6 +216,8 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 	if instance.id == "" {
 		instance.id = newID()
 	}
+
+	instance.logger = instance.logger.With(adapter.F("worker-pool-id", instance.id))
 
 	return &instance
 }
@@ -224,9 +236,14 @@ func (w *WorkerPool) Start(ctx context.Context) error {
 	cancelFunc := make([]context.CancelFunc, len(w.workers))
 	w.running = true
 	for i := range w.workers {
-		w.workers[i] = NewWorker(w.c, w.wm, WorkerID(fmt.Sprintf("%s/worker-%d", w.id, i)))
-		w.workers[i].interval = w.interval
-		w.workers[i].queue = w.queue
+		w.workers[i] = NewWorker(
+			w.c,
+			w.wm,
+			WithWakeInterval(w.interval),
+			WithQueue(w.queue),
+			WithID(fmt.Sprintf("%s/worker-%d", w.id, i)),
+			WithLogger(w.logger),
+		)
 
 		workerCtx[i], cancelFunc[i] = context.WithCancel(ctx)
 		if err := w.workers[i].Start(workerCtx[i]); err != nil {
@@ -237,7 +254,7 @@ func (w *WorkerPool) Start(ctx context.Context) error {
 	go func(cancelFunc []context.CancelFunc) {
 		defer func() {
 			w.running = false
-			log.Printf("worker pool[id=%s] done", w.id)
+			w.logger.Info("Worker pool finished")
 		}()
 
 		<-ctx.Done()
