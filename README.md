@@ -90,6 +90,16 @@ func main() {
 }
 ```
 
+## Logging
+
+Package supports several logging libraries using adapter interface internally.
+Currently, adapters for the following drivers have been implemented:
+- NoOp (`adapter.NoOpLogger`) - default adapter that does nothing, so it is basically `/dev/null` logger
+- Stdlib `log` - adapter that uses [`log`](https://golang.org/pkg/log/) logger for logs output.
+  Instantiate it with `adapter.NewStdLogger(...)`.
+- Uber `zap` - adapter that uses [`go.uber.org/zap`](https://pkg.go.dev/go.uber.org/zap) logger for logs output.
+  Instantiate it with `adapter.zap.New(...)`.
+
 ## Testing
 
 Linter and tests are running for every Pul Request, but it is possible to run linter
