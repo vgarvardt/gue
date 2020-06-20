@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgtype"
+	"github.com/vgarvardt/backoff"
 
 	"github.com/vgarvardt/gue/adapter"
 )
@@ -112,7 +113,14 @@ func (j *Job) Done(ctx context.Context) {
 // the pool.
 func (j *Job) Error(ctx context.Context, msg string) error {
 	errorCount := j.ErrorCount + 1
-	delay := intPow(int(errorCount), 4) + 3 // TODO: replace with exponential backoff
+
+	backOff := backoff.Exponential{Config: backoff.Config{
+		BaseDelay:  1.0 * time.Second,
+		Multiplier: 1.6,
+		Jitter:     0.2,
+		MaxDelay:   1.0 * time.Hour,
+	}}
+	delay := int(backOff.Backoff(int(errorCount)).Seconds())
 
 	_, err := j.conn.Exec(ctx, adapter.StmtSetError, errorCount, delay, msg, j.Queue, j.Priority, j.RunAt, j.ID)
 	if err != nil {
