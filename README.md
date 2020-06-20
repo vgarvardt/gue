@@ -14,6 +14,95 @@ Internally project maintains backward-compatibility with the original one - DB t
 and all the internal logic (queries, algorithms) remained the same.
 
 The name Gue is yet another silly word transformation: Queue -> Que, Go + Que -> Gue.
+
+## Usage Example
+
+```go
+package main
+
+import (
+    "context"
+    "encoding/json"
+    "fmt"
+    "log"
+    "os"
+    "time"
+
+    "github.com/jackc/pgx/v4/pgxpool"
+
+    "github.com/vgarvardt/gue"
+    "github.com/vgarvardt/gue/adapter/pgxv4"
+)
+
+type printNameArgs struct {
+    Name string
+}
+
+func main() {
+    printName := func(j *gue.Job) error {
+        var args printNameArgs
+        if err := json.Unmarshal(j.Args, &args); err != nil {
+            return err
+        }
+        fmt.Printf("Hello %s!\n", args.Name)
+        return nil
+    }
+
+    pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer pgxPool.Close()
+
+    poolAdapter := pgxv4.NewConnPool(pgxPool)
+
+    gc := gue.NewClient(poolAdapter)
+    wm := gue.WorkMap{
+        "PrintName": printName,
+    }
+    // create a pool w/ 2 workers
+    workers := gue.NewWorkerPool(gc, wm, 2, gue.WithPoolQueue("name_printer"))
+
+    ctx, shutdown := context.WithCancel(context.Background())
+
+    // work jobs in goroutine
+    if err := workers.Start(ctx); err != nil {
+        log.Fatal(err)
+    }
+
+    args, err := json.Marshal(printNameArgs{Name: "vgarvardt"})
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    j := &gue.Job{
+        Type:  "PrintName",
+        Args:  args,
+    }
+    if err := gc.Enqueue(context.Background(), j); err != nil {
+        log.Fatal(err)
+    }
+
+    j := &gue.Job{
+        Type:  "PrintName",
+        RunAt: time.Now().UTC().Add(30 * time.Second), // delay 30 seconds
+        Args:  args,
+    }
+    if err := gc.Enqueue(context.Background(), j); err != nil {
+        log.Fatal(err)
+    }
+
+    time.Sleep(30 * time.Second) // wait for while
+
+    // send shutdown signal to worker
+    shutdown()
+}
+```
  
 ## PostgreSQL drivers
 

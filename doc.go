@@ -14,72 +14,90 @@ Usage
 
 Here is a complete example showing worker setup for pgx/v4 and two jobs enqueued, one with a delay:
 
-    type printNameArgs struct {
-        Name string
-    }
+	package main
 
-    printName := func(j *gue.Job) error {
-        var args printNameArgs
-        if err := json.Unmarshal(j.Args, &args); err != nil {
-            return err
-        }
-        fmt.Printf("Hello %s!\n", args.Name)
-        return nil
-    }
+	import (
+		"context"
+		"encoding/json"
+		"fmt"
+		"log"
+		"os"
+		"time"
 
-    pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
-    if err != nil {
-        log.Fatal(err)
-    }
+		"github.com/jackc/pgx/v4/pgxpool"
 
-    pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer pgxPool.Close()
+		"github.com/vgarvardt/gue"
+		"github.com/vgarvardt/gue/adapter/pgxv4"
+	)
 
-    poolAdapter := pgxv4.NewConnPool(pgxPool)
+	type printNameArgs struct {
+		Name string
+	}
 
-    gc := gue.NewClient(poolAdapter)
-    wm := gue.WorkMap{
-        "PrintName": printName,
-    }
-    // create a pool w/ 2 workers
-    workers := gue.NewWorkerPool(gc, wm, 2, gue.WithPoolQueue("name_printer"))
+	func main() {
+		printName := func(j *gue.Job) error {
+			var args printNameArgs
+			if err := json.Unmarshal(j.Args, &args); err != nil {
+				return err
+			}
+			fmt.Printf("Hello %s!\n", args.Name)
+			return nil
+		}
 
-    ctx, shutdown := context.WithCancel(context.Background())
+		pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
+		if err != nil {
+			log.Fatal(err)
+		}
 
-    // work jobs in goroutine
-    if err := workers.Start(ctx); err != nil {
-        log.Fatal(err)
-    }
+		pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer pgxPool.Close()
 
-    args, err := json.Marshal(printNameArgs{Name: "vgarvardt"})
-    if err != nil {
-        log.Fatal(err)
-    }
+		poolAdapter := pgxv4.NewConnPool(pgxPool)
 
-    j := &gue.Job{
-        Type:  "PrintName",
-        Args:  args,
-    }
-    if err := gc.Enqueue(context.Background(), j); err != nil {
-        log.Fatal(err)
-    }
+		gc := gue.NewClient(poolAdapter)
+		wm := gue.WorkMap{
+			"PrintName": printName,
+		}
+		// create a pool w/ 2 workers
+		workers := gue.NewWorkerPool(gc, wm, 2, gue.WithPoolQueue("name_printer"))
 
-    j := &gue.Job{
-        Type:  "PrintName",
-        RunAt: time.Now().UTC().Add(30 * time.Second), // delay 30 seconds
-        Args:  args,
-    }
-    if err := gc.Enqueue(context.Background(), j); err != nil {
-        log.Fatal(err)
-    }
+		ctx, shutdown := context.WithCancel(context.Background())
 
-    time.Sleep(30 * time.Second) // wait for while
+		// work jobs in goroutine
+		if err := workers.Start(ctx); err != nil {
+			log.Fatal(err)
+		}
 
-    // send shutdown signal to worker
-    shutdown()
+		args, err := json.Marshal(printNameArgs{Name: "vgarvardt"})
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		j := &gue.Job{
+			Type:  "PrintName",
+			Args:  args,
+		}
+		if err := gc.Enqueue(context.Background(), j); err != nil {
+			log.Fatal(err)
+		}
+
+		j := &gue.Job{
+			Type:  "PrintName",
+			RunAt: time.Now().UTC().Add(30 * time.Second), // delay 30 seconds
+			Args:  args,
+		}
+		if err := gc.Enqueue(context.Background(), j); err != nil {
+			log.Fatal(err)
+		}
+
+		time.Sleep(30 * time.Second) // wait for while
+
+		// send shutdown signal to worker
+		shutdown()
+	}
 
 */
 package gue
