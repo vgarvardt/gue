@@ -12,7 +12,7 @@ import (
 	"github.com/vgarvardt/gue/adapter"
 )
 
-// Job is a single unit of work for Que to perform.
+// Job is a single unit of work for Gue to perform.
 type Job struct {
 	// ID is the unique database ID of the Job. It is ignored on job creation.
 	ID int64
@@ -229,7 +229,7 @@ var ErrAgain = errors.New("maximum number of LockJob attempts reached")
 // If a job is found, a session-level Postgres advisory lock is created for the
 // Job's ID. If no job is found, nil will be returned instead of an error.
 //
-// Because Que uses session-level advisory locks, we have to hold the
+// Because Gue uses session-level advisory locks, we have to hold the
 // same connection throughout the process of getting a job, working it,
 // deleting it, and removing the lock.
 //

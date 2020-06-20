@@ -5,11 +5,13 @@
 [![ReportCard](https://goreportcard.com/badge/github.com/vgarvardt/gue)](https://goreportcard.com/report/github.com/vgarvardt/gue)
 [![License](https://img.shields.io/npm/l/express.svg)](http://opensource.org/licenses/MIT)
 
-Gue is Golang queue that uses PostgreSQL's advisory locks.
+Gue is Golang queue on top of PostgreSQL.
 
-Originally this project used to a fork of [bgentry/que-go][bgentry/que-go]
+Originally this project used to be a fork of [bgentry/que-go][bgentry/que-go]
 but because of some backward-compatibility breaking changes and original library
 author not being very responsive for PRs I turned fork into standalone project.
+Internally project maintains backward-compatibility with the original one - DB table
+and all the internal logic (queries, algorithms) remained the same.
 
 The name Gue is yet another silly word transformation: Queue -> Que, Go + Que -> Gue.
  

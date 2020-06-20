@@ -45,7 +45,7 @@ Here is a complete example showing worker setup for pgx/v4 and two jobs enqueued
         "PrintName": printName,
     }
     // create a pool w/ 2 workers
-    workers := gue.NewWorkerPool(gc, wm, 2, que.WithPoolQueue("name_printer"))
+    workers := gue.NewWorkerPool(gc, wm, 2, gue.WithPoolQueue("name_printer"))
 
     ctx, shutdown := context.WithCancel(context.Background())
 
@@ -59,7 +59,7 @@ Here is a complete example showing worker setup for pgx/v4 and two jobs enqueued
         log.Fatal(err)
     }
 
-    j := &que.Job{
+    j := &gue.Job{
         Type:  "PrintName",
         Args:  args,
     }
@@ -67,7 +67,7 @@ Here is a complete example showing worker setup for pgx/v4 and two jobs enqueued
         log.Fatal(err)
     }
 
-    j := &que.Job{
+    j := &gue.Job{
         Type:  "PrintName",
         RunAt: time.Now().UTC().Add(30 * time.Second), // delay 30 seconds
         Args:  args,
