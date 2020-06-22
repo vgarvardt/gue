@@ -10,13 +10,13 @@ import (
 	"github.com/vgarvardt/gue/adapter"
 )
 
-// Row implements adapter.Row using github.com/jackc/pgx/v4
-type Row struct {
+// aRow implements adapter.Row using github.com/jackc/pgx/v4
+type aRow struct {
 	row pgx.Row
 }
 
 // Scan implements adapter.Row.Scan() using github.com/jackc/pgx/v4
-func (r *Row) Scan(dest ...interface{}) error {
+func (r *aRow) Scan(dest ...interface{}) error {
 	err := r.row.Scan(dest...)
 	if err == pgx.ErrNoRows {
 		return adapter.ErrNoRows
@@ -25,34 +25,39 @@ func (r *Row) Scan(dest ...interface{}) error {
 	return err
 }
 
-// CommandTag implements adapter.CommandTag using github.com/jackc/pgx/v4
-type CommandTag struct {
+// aCommandTag implements adapter.CommandTag using github.com/jackc/pgx/v4
+type aCommandTag struct {
 	ct pgconn.CommandTag
 }
 
 // RowsAffected implements adapter.CommandTag.RowsAffected() using github.com/jackc/pgx/v4
-func (ct CommandTag) RowsAffected() int64 {
+func (ct aCommandTag) RowsAffected() int64 {
 	return ct.ct.RowsAffected()
 }
 
-// Tx implements adapter.Tx using github.com/jackc/pgx/v4
-type Tx struct {
+// aTx implements adapter.Tx using github.com/jackc/pgx/v4
+type aTx struct {
 	tx pgx.Tx
 }
 
+// NewTx instantiates new adapter.Tx using github.com/jackc/pgx/v4
+func NewTx(tx pgx.Tx) adapter.Tx {
+	return &aTx{tx: tx}
+}
+
 // Exec implements adapter.Tx.Exec() using github.com/jackc/pgx/v4
-func (tx *Tx) Exec(ctx context.Context, sql string, arguments ...interface{}) (adapter.CommandTag, error) {
+func (tx *aTx) Exec(ctx context.Context, sql string, arguments ...interface{}) (adapter.CommandTag, error) {
 	ct, err := tx.tx.Exec(ctx, sql, arguments...)
-	return CommandTag{ct}, err
+	return aCommandTag{ct}, err
 }
 
 // QueryRow implements adapter.Tx.QueryRow() using github.com/jackc/pgx/v4
-func (tx *Tx) QueryRow(ctx context.Context, sql string, args ...interface{}) adapter.Row {
-	return &Row{tx.tx.QueryRow(ctx, sql, args...)}
+func (tx *aTx) QueryRow(ctx context.Context, sql string, args ...interface{}) adapter.Row {
+	return &aRow{tx.tx.QueryRow(ctx, sql, args...)}
 }
 
 // Rollback implements adapter.Tx.Rollback() using github.com/jackc/pgx/v4
-func (tx *Tx) Rollback(ctx context.Context) error {
+func (tx *aTx) Rollback(ctx context.Context) error {
 	err := tx.tx.Rollback(ctx)
 	if err == pgx.ErrTxClosed {
 		return adapter.ErrTxClosed
@@ -62,50 +67,50 @@ func (tx *Tx) Rollback(ctx context.Context) error {
 }
 
 // Commit implements adapter.Tx.Commit() using github.com/jackc/pgx/v4
-func (tx *Tx) Commit(ctx context.Context) error {
+func (tx *aTx) Commit(ctx context.Context) error {
 	return tx.tx.Commit(ctx)
 }
 
-// Conn implements adapter.Conn using github.com/jackc/pgx/v4,
+// aConn implements adapter.Conn using github.com/jackc/pgx/v4,
 // used for wrapping pool connection.
-type Conn struct {
+type aConn struct {
 	conn *pgxpool.Conn
 }
 
 // Exec implements adapter.Conn.Exec() using github.com/jackc/pgx/v4
-func (c *Conn) Exec(ctx context.Context, sql string, arguments ...interface{}) (adapter.CommandTag, error) {
+func (c *aConn) Exec(ctx context.Context, sql string, arguments ...interface{}) (adapter.CommandTag, error) {
 	ct, err := c.conn.Exec(ctx, sql, arguments...)
-	return CommandTag{ct}, err
+	return aCommandTag{ct}, err
 }
 
 // QueryRow implements adapter.Conn.QueryRow() using github.com/jackc/pgx/v4
-func (c *Conn) QueryRow(ctx context.Context, sql string, args ...interface{}) adapter.Row {
-	return &Row{c.conn.QueryRow(ctx, sql, args...)}
+func (c *aConn) QueryRow(ctx context.Context, sql string, args ...interface{}) adapter.Row {
+	return &aRow{c.conn.QueryRow(ctx, sql, args...)}
 }
 
 // Begin implements adapter.Conn.Begin() using github.com/jackc/pgx/v4
-func (c *Conn) Begin(ctx context.Context) (adapter.Tx, error) {
+func (c *aConn) Begin(ctx context.Context) (adapter.Tx, error) {
 	tx, err := c.conn.Begin(ctx)
-	return &Tx{tx}, err
+	return NewTx(tx), err
 }
 
 // Release implements adapter.Conn.Release() using github.com/jackc/pgx/v4
-func (c *Conn) Release() {
+func (c *aConn) Release() {
 	c.conn.Release()
 }
 
-// ConnPool implements adapter.ConnPool using github.com/jackc/pgx/v4
-type ConnPool struct {
+// connPool implements adapter.ConnPool using github.com/jackc/pgx/v4
+type connPool struct {
 	pool *pgxpool.Pool
 }
 
 // NewConnPool instantiates new adapter.ConnPool using github.com/jackc/pgx/v4
 func NewConnPool(pool *pgxpool.Pool) adapter.ConnPool {
-	return &ConnPool{pool}
+	return &connPool{pool}
 }
 
 // Acquire implements adapter.ConnPool.Acquire() using github.com/jackc/pgx/v4
-func (c *ConnPool) Acquire(ctx context.Context) (adapter.Conn, error) {
+func (c *connPool) Acquire(ctx context.Context) (adapter.Conn, error) {
 	conn, err := c.pool.Acquire(ctx)
 	if err != nil {
 		return nil, err
@@ -117,11 +122,11 @@ func (c *ConnPool) Acquire(ctx context.Context) (adapter.Conn, error) {
 		}
 	}
 
-	return &Conn{conn}, err
+	return &aConn{conn}, err
 }
 
 // Stat implements adapter.ConnPool.Stat() using github.com/jackc/pgx/v4
-func (c *ConnPool) Stat() adapter.ConnPoolStat {
+func (c *connPool) Stat() adapter.ConnPoolStat {
 	s := c.pool.Stat()
 	return adapter.ConnPoolStat{
 		MaxConnections:       int(s.MaxConns()),
@@ -131,7 +136,7 @@ func (c *ConnPool) Stat() adapter.ConnPoolStat {
 }
 
 // Close implements adapter.ConnPool.Close() using github.com/jackc/pgx/v4
-func (c *ConnPool) Close() error {
+func (c *connPool) Close() error {
 	c.pool.Close()
 	return nil
 }
