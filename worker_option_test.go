@@ -31,7 +31,7 @@ func (m *mockLogger) With(fields ...adapter.Field) adapter.Logger {
 	return args.Get(0).(adapter.Logger)
 }
 
-func TestWithWakeInterval(t *testing.T) {
+func TestWithPollInterval(t *testing.T) {
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
 			return nil
@@ -39,10 +39,10 @@ func TestWithWakeInterval(t *testing.T) {
 	}
 
 	workerWithDefaultInterval := NewWorker(nil, wm)
-	assert.Equal(t, defaultWakeInterval, workerWithDefaultInterval.interval)
+	assert.Equal(t, defaultPollInterval, workerWithDefaultInterval.interval)
 
 	customInterval := 12345 * time.Millisecond
-	workerWithCustomInterval := NewWorker(nil, wm, WithWakeInterval(customInterval))
+	workerWithCustomInterval := NewWorker(nil, wm, WithPollInterval(customInterval))
 	assert.Equal(t, customInterval, workerWithCustomInterval.interval)
 }
 
@@ -99,7 +99,7 @@ func TestWithLogger(t *testing.T) {
 	l.AssertExpectations(t)
 }
 
-func TestWithPoolWakeInterval(t *testing.T) {
+func TestWithPoolPollInterval(t *testing.T) {
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
 			return nil
@@ -107,10 +107,10 @@ func TestWithPoolWakeInterval(t *testing.T) {
 	}
 
 	workerPoolWithDefaultInterval := NewWorkerPool(nil, wm, 2)
-	assert.Equal(t, defaultWakeInterval, workerPoolWithDefaultInterval.interval)
+	assert.Equal(t, defaultPollInterval, workerPoolWithDefaultInterval.interval)
 
 	customInterval := 12345 * time.Millisecond
-	workerPoolWithCustomInterval := NewWorkerPool(nil, wm, 2, WithPoolWakeInterval(customInterval))
+	workerPoolWithCustomInterval := NewWorkerPool(nil, wm, 2, WithPoolPollInterval(customInterval))
 	assert.Equal(t, customInterval, workerPoolWithCustomInterval.interval)
 }
 

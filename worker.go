@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	defaultWakeInterval = 5 * time.Second
+	defaultPollInterval = 5 * time.Second
 	defaultQueueName    = ""
 )
 
@@ -43,13 +43,13 @@ type Worker struct {
 // them using WorkMap. If the type of Job is not registered in the WorkMap, it's
 // considered an error and the job is re-enqueued with a backoff.
 //
-// Workers default to an interval of 5 seconds, which can be overridden by
-// WithWakeInterval option.
+// Workers default to a poll interval of 5 seconds, which can be overridden by
+// WithPollInterval option.
 // The default queue is the nameless queue "", which can be overridden by
 // WithQueue option.
 func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) *Worker {
 	instance := Worker{
-		interval: defaultWakeInterval,
+		interval: defaultPollInterval,
 		queue:    defaultQueueName,
 		c:        c,
 		wm:       wm,
@@ -196,13 +196,13 @@ type WorkerPool struct {
 
 // NewWorkerPool creates a new WorkerPool with count workers using the Client c.
 //
-// Each Worker in the pool default to an interval of 5 seconds, which can be
-// overridden by WithPoolWakeInterval option. The default queue is the
+// Each Worker in the pool default to a poll interval of 5 seconds, which can be
+// overridden by WithPoolPollInterval option. The default queue is the
 // nameless queue "", which can be overridden by WithPoolQueue option.
 func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOption) *WorkerPool {
 	instance := WorkerPool{
 		wm:       wm,
-		interval: defaultWakeInterval,
+		interval: defaultPollInterval,
 		queue:    defaultQueueName,
 		c:        c,
 		workers:  make([]*Worker, poolSize),
@@ -239,7 +239,7 @@ func (w *WorkerPool) Start(ctx context.Context) error {
 		w.workers[i] = NewWorker(
 			w.c,
 			w.wm,
-			WithWakeInterval(w.interval),
+			WithPollInterval(w.interval),
 			WithQueue(w.queue),
 			WithID(fmt.Sprintf("%s/worker-%d", w.id, i)),
 			WithLogger(w.logger),

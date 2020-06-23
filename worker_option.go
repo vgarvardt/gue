@@ -12,8 +12,9 @@ type WorkerOption func(*Worker)
 // WorkerPoolOption defines a type that allows to set worker pool properties during the build-time.
 type WorkerPoolOption func(pool *WorkerPool)
 
-// WithWakeInterval overrides default wake interval with the given value.
-func WithWakeInterval(d time.Duration) WorkerOption {
+// WithPollInterval overrides default poll interval with the given value.
+// Poll interval is the "sleep" duration if there were no jobs found in the DB.
+func WithPollInterval(d time.Duration) WorkerOption {
 	return func(w *Worker) {
 		w.interval = d
 	}
@@ -40,8 +41,9 @@ func WithLogger(logger adapter.Logger) WorkerOption {
 	}
 }
 
-// WithPoolWakeInterval overrides default wake interval with the given value.
-func WithPoolWakeInterval(d time.Duration) WorkerPoolOption {
+// WithPoolPollInterval overrides default poll interval with the given value.
+// Poll interval is the "sleep" duration if there were no jobs found in the DB.
+func WithPoolPollInterval(d time.Duration) WorkerPoolOption {
 	return func(w *WorkerPool) {
 		w.interval = d
 	}
