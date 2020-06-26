@@ -75,7 +75,7 @@ func (j *Job) Delete(ctx context.Context) error {
 		return nil
 	}
 
-	_, err := j.tx.Exec(ctx, `DELETE FROM que_jobs WHERE job_id = $1::bigint`, j.ID)
+	_, err := j.tx.Exec(ctx, `DELETE FROM gue_jobs WHERE job_id = $1::bigint`, j.ID)
 	if err != nil {
 		return err
 	}
@@ -120,7 +120,7 @@ func (j *Job) Error(ctx context.Context, msg string) error {
 	}}
 	delay := int(backOff.Backoff(int(errorCount)).Seconds())
 
-	_, err := j.tx.Exec(ctx, `UPDATE que_jobs
+	_, err := j.tx.Exec(ctx, `UPDATE gue_jobs
 SET error_count = $1::integer,
     run_at      = now() + $2::bigint * '1 second'::interval,
     last_error  = $3::text,
@@ -199,7 +199,7 @@ func execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) error {
 		args.Status = pgtype.Present
 	}
 
-	_, err := q.Exec(ctx, `INSERT INTO que_jobs
+	_, err := q.Exec(ctx, `INSERT INTO gue_jobs
 (queue, priority, run_at, job_type, args)
 VALUES
 (coalesce($1::text, ''::text), coalesce($2::smallint, 100::smallint), coalesce($3::timestamptz, now()::timestamptz), $4::text, coalesce($5::json, '[]'::json))
@@ -227,7 +227,7 @@ func (c *Client) LockJob(ctx context.Context, queue string) (*Job, error) {
 	j := Job{pool: c.pool, tx: tx}
 
 	err = tx.QueryRow(ctx, `SELECT queue, priority, run_at, job_id, job_type, args, error_count
-FROM que_jobs
+FROM gue_jobs
 WHERE queue = $1::text AND run_at <= now()
 ORDER BY priority ASC
 LIMIT 1 FOR UPDATE SKIP LOCKED`, queue).Scan(
