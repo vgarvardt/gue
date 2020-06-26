@@ -36,7 +36,7 @@ func testEnqueueOnlyType(t *testing.T, connPool adapter.ConnPool) {
 	// check resulting job
 	assert.Greater(t, j.ID, int64(0))
 	assert.Equal(t, defaultQueueName, j.Queue)
-	assert.Equal(t, int16(100), j.Priority)
+	assert.Equal(t, int16(0), j.Priority)
 	assert.False(t, j.RunAt.IsZero())
 	assert.Equal(t, jobType, j.Type)
 	assert.Equal(t, []byte(`[]`), j.Args)

@@ -118,14 +118,14 @@ func (j *Job) Error(ctx context.Context, msg string) error {
 		Jitter:     0.2,
 		MaxDelay:   1.0 * time.Hour,
 	}}
-	delay := int(backOff.Backoff(int(errorCount)).Seconds())
+	newRunAt := time.Now().Add(backOff.Backoff(int(errorCount)))
 
 	_, err := j.tx.Exec(ctx, `UPDATE gue_jobs
 SET error_count = $1,
-    run_at      = now() + $2 * '1 second'::interval,
+    run_at      = $2,
     last_error  = $3,
-	updated_at  = now()
-WHERE job_id    = $4`, errorCount, delay, msg, j.ID)
+	updated_at  = $4
+WHERE job_id    = $5`, errorCount, newRunAt, msg, time.Now(), j.ID)
 
 	return err
 }
@@ -167,43 +167,20 @@ func execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) error {
 		return ErrMissingType
 	}
 
-	queue := &pgtype.Text{
-		String: j.Queue,
-		Status: pgtype.Null,
-	}
-	if j.Queue != "" {
-		queue.Status = pgtype.Present
+	runAt := j.RunAt
+	if runAt.IsZero() {
+		runAt = time.Now()
 	}
 
-	priority := &pgtype.Int2{
-		Int:    j.Priority,
-		Status: pgtype.Null,
-	}
-	if j.Priority != 0 {
-		priority.Status = pgtype.Present
-	}
-
-	runAt := &pgtype.Timestamptz{
-		Time:   j.RunAt,
-		Status: pgtype.Null,
-	}
-	if !j.RunAt.IsZero() {
-		runAt.Status = pgtype.Present
-	}
-
-	args := &pgtype.Bytea{
-		Bytes:  j.Args,
-		Status: pgtype.Null,
-	}
-	if len(j.Args) != 0 {
-		args.Status = pgtype.Present
+	if len(j.Args) == 0 {
+		j.Args = []byte(`[]`)
 	}
 
 	_, err := q.Exec(ctx, `INSERT INTO gue_jobs
-(queue, priority, run_at, job_type, args)
+(queue, priority, run_at, job_type, args, created_at, updated_at)
 VALUES
-($1, $2, coalesce($3::timestamptz, now()::timestamptz), $4, coalesce($5::json, '[]'::json))
-`, queue, priority, runAt, j.Type, args)
+($1, $2, $3, $4, $5, $6, $6)
+`, j.Queue, j.Priority, runAt, j.Type, j.Args, time.Now())
 
 	return err
 }
@@ -228,9 +205,9 @@ func (c *Client) LockJob(ctx context.Context, queue string) (*Job, error) {
 
 	err = tx.QueryRow(ctx, `SELECT queue, priority, run_at, job_id, job_type, args, error_count
 FROM gue_jobs
-WHERE queue = $1 AND run_at <= now()
+WHERE queue = $1 AND run_at <= $2
 ORDER BY priority ASC
-LIMIT 1 FOR UPDATE SKIP LOCKED`, queue).Scan(
+LIMIT 1 FOR UPDATE SKIP LOCKED`, queue, time.Now()).Scan(
 		&j.Queue,
 		&j.Priority,
 		&j.RunAt,
