@@ -4,131 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 	"time"
-
-	"github.com/jackc/pgtype"
-	"github.com/vgarvardt/backoff"
 
 	"github.com/vgarvardt/gue/adapter"
 )
-
-// Job is a single unit of work for Gue to perform.
-type Job struct {
-	// ID is the unique database ID of the Job. It is ignored on job creation.
-	ID int64
-
-	// Queue is the name of the queue. It defaults to the empty queue "".
-	Queue string
-
-	// Priority is the priority of the Job. The default priority is 0, and a
-	// lower number means a higher priority.
-	//
-	// The highest priority is -32768, the lowest one is +32767
-	Priority int16
-
-	// RunAt is the time that this job should be executed. It defaults to now(),
-	// meaning the job will execute immediately. Set it to a value in the future
-	// to delay a job's execution.
-	RunAt time.Time
-
-	// Type maps job to a worker func.
-	Type string
-
-	// Args must be the bytes of a valid JSON string
-	Args []byte
-
-	// ErrorCount is the number of times this job has attempted to run, but
-	// failed with an error. It is ignored on job creation.
-	ErrorCount int32
-
-	// LastError is the error message or stack trace from the last time the job
-	// failed. It is ignored on job creation.
-	LastError pgtype.Text
-
-	mu      sync.Mutex
-	deleted bool
-	pool    adapter.ConnPool
-	tx      adapter.Tx
-}
-
-// Tx returns DB transaction that this job is locked to. You may use
-// it as you please until you call Done(). At that point, this transaction
-// will be committed. This function will return nil if the Job's
-// transaction was closed with Done().
-func (j *Job) Tx() adapter.Tx {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-
-	return j.tx
-}
-
-// Delete marks this job as complete by deleting it form the database.
-//
-// You must also later call Done() to return this job's database connection to
-// the pool.
-func (j *Job) Delete(ctx context.Context) error {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-
-	if j.deleted {
-		return nil
-	}
-
-	_, err := j.tx.Exec(ctx, `DELETE FROM gue_jobs WHERE job_id = $1`, j.ID)
-	if err != nil {
-		return err
-	}
-
-	j.deleted = true
-	return nil
-}
-
-// Done commits transaction that marks job as done.
-func (j *Job) Done(ctx context.Context) {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-
-	if j.tx == nil || j.pool == nil {
-		// already marked as done
-		return
-	}
-
-	// TODO: log this error
-	_ = j.tx.Commit(ctx)
-
-	j.pool = nil
-	j.tx = nil
-}
-
-// Error marks the job as failed and schedules it to be reworked. An error
-// message or backtrace can be provided as msg, which will be saved on the job.
-// It will also increase the error count.
-//
-// This call marks job as done and releases (commits) transaction,
-//so calling Done() is not required, although calling it will not cause any issues.
-func (j *Job) Error(ctx context.Context, msg string) error {
-	defer j.Done(ctx)
-
-	errorCount := j.ErrorCount + 1
-
-	backOff := backoff.Exponential{Config: backoff.Config{
-		BaseDelay:  1.0 * time.Second,
-		Multiplier: 1.6,
-		Jitter:     0.2,
-		MaxDelay:   1.0 * time.Hour,
-	}}
-	newRunAt := time.Now().Add(backOff.Backoff(int(errorCount)))
-
-	_, err := j.tx.Exec(ctx, `UPDATE gue_jobs
-SET error_count = $1,
-    run_at      = $2,
-    last_error  = $3,
-	updated_at  = $4
-WHERE job_id    = $5`, errorCount, newRunAt, msg, time.Now(), j.ID)
-
-	return err
-}
 
 // ErrMissingType is returned when you attempt to enqueue a job with no Type
 // specified.
@@ -176,11 +55,11 @@ func execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) error {
 		j.Args = []byte(`[]`)
 	}
 
-	_, err := q.Exec(ctx, `INSERT INTO gue_jobs
+	err := q.QueryRow(ctx, `INSERT INTO gue_jobs
 (queue, priority, run_at, job_type, args, created_at, updated_at)
 VALUES
-($1, $2, $3, $4, $5, $6, $6)
-`, j.Queue, j.Priority, runAt, j.Type, j.Args, time.Now())
+($1, $2, $3, $4, $5, $6, $6) RETURNING job_id
+`, j.Queue, j.Priority, runAt, j.Type, j.Args, time.Now()).Scan(&j.ID)
 
 	return err
 }
@@ -203,15 +82,15 @@ func (c *Client) LockJob(ctx context.Context, queue string) (*Job, error) {
 
 	j := Job{pool: c.pool, tx: tx}
 
-	err = tx.QueryRow(ctx, `SELECT queue, priority, run_at, job_id, job_type, args, error_count
+	err = tx.QueryRow(ctx, `SELECT job_id, queue, priority, run_at, job_type, args, error_count
 FROM gue_jobs
 WHERE queue = $1 AND run_at <= $2
 ORDER BY priority ASC
 LIMIT 1 FOR UPDATE SKIP LOCKED`, queue, time.Now()).Scan(
+		&j.ID,
 		&j.Queue,
 		&j.Priority,
 		&j.RunAt,
-		&j.ID,
 		&j.Type,
 		&j.Args,
 		&j.ErrorCount,
