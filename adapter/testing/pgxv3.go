@@ -77,13 +77,8 @@ func testConnPGXv3Config(t testing.TB) pgx.ConnConfig {
 func truncateAndClose(t testing.TB, pool adapter.ConnPool) {
 	t.Helper()
 
-	conn, err := pool.Acquire(context.Background())
+	_, err := pool.Exec(context.Background(), "TRUNCATE TABLE que_jobs")
 	assert.NoError(t, err)
-
-	_, err = conn.Exec(context.Background(), "TRUNCATE TABLE que_jobs")
-	assert.NoError(t, err)
-
-	conn.Release()
 
 	err = pool.Close()
 	assert.NoError(t, err)

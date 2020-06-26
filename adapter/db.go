@@ -51,37 +51,11 @@ type Tx interface {
 	Commit(ctx context.Context) error
 }
 
-// Conn is a PostgreSQL connection handle. It is not safe for concurrent usage.
-// Use ConnPool to manage access to multiple database connections from multiple
-// goroutines.
-type Conn interface {
-	Queryable
-	// Begin starts a transaction with the default transaction mode for the
-	// current connection.
-	Begin(ctx context.Context) (Tx, error)
-	// Release returns c to the pool it was acquired from.
-	// Once Release has been called, other methods must not be called.
-	Release()
-}
-
-// ConnPoolStat is the connection pool statistics
-type ConnPoolStat struct {
-	// MaxConnections - max simultaneous connections to use
-	MaxConnections int
-	// CurrentConnections - current live connections
-	CurrentConnections int
-	// AvailableConnections - unused live connections
-	AvailableConnections int
-}
-
 // ConnPool is a PostgreSQL connection pool handle.
 type ConnPool interface {
-	// Acquire takes exclusive use of a connection until it is released.
-	// Pool is responsible for preparing named statements for every connection it
-	// returns to the caller.
-	Acquire(ctx context.Context) (Conn, error)
-	// Stat returns connection pool statistics
-	Stat() ConnPoolStat
+	Queryable
+	// Begin starts a transaction with the default transaction mode.
+	Begin(ctx context.Context) (Tx, error)
 	// Close ends the use of a connection pool. It prevents any new connections from
 	// being acquired and closes available underlying connections. Any acquired
 	// connections will be closed when they are released.

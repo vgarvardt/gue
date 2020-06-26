@@ -160,12 +160,6 @@ func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
 	c := NewClient(connPool)
 	ctx := context.Background()
 
-	connService, err := connPool.Acquire(ctx)
-	require.NoError(t, err)
-	defer func() {
-		connService.Release()
-	}()
-
 	called := 0
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
@@ -178,21 +172,14 @@ func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
 	didWork := w.WorkOne(ctx)
 	assert.False(t, didWork)
 
-	err = c.Enqueue(ctx, &Job{Type: "MyJob"})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
 	didWork = w.WorkOne(ctx)
 	assert.True(t, didWork)
 	assert.Equal(t, 1, called)
 
-	tx, err := connService.Begin(ctx)
-	require.NoError(t, err)
-	defer func() {
-		err := tx.Rollback(ctx)
-		assert.NoError(t, err)
-	}()
-
-	j := findOneJob(t, tx)
+	j := findOneJob(t, connPool)
 	require.NotNil(t, j)
 
 	assert.Equal(t, int32(1), j.ErrorCount)
@@ -213,12 +200,6 @@ func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
 	c := NewClient(connPool)
 	ctx := context.Background()
 
-	connService, err := connPool.Acquire(ctx)
-	require.NoError(t, err)
-	defer func() {
-		connService.Release()
-	}()
-
 	called := 0
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
@@ -228,20 +209,13 @@ func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
 	}
 	w := NewWorker(c, wm)
 
-	err = c.Enqueue(ctx, &Job{Type: "MyJob"})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
 	w.WorkOne(ctx)
 	assert.Equal(t, 1, called)
 
-	tx, err := connService.Begin(ctx)
-	require.NoError(t, err)
-	defer func() {
-		err := tx.Rollback(ctx)
-		assert.NoError(t, err)
-	}()
-
-	j := findOneJob(t, tx)
+	j := findOneJob(t, connPool)
 	require.NotNil(t, j)
 
 	assert.Equal(t, int32(1), j.ErrorCount)
@@ -265,9 +239,6 @@ func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
 	c := NewClient(connPool)
 	ctx := context.Background()
 
-	currentConns := c.pool.Stat().CurrentConnections
-	availConns := c.pool.Stat().AvailableConnections
-
 	wm := WorkMap{}
 	w := NewWorker(c, wm)
 
@@ -280,23 +251,7 @@ func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
 	didWork = w.WorkOne(ctx)
 	assert.True(t, didWork)
 
-	assert.Equal(t, currentConns, c.pool.Stat().CurrentConnections)
-	assert.Equal(t, availConns, c.pool.Stat().AvailableConnections)
-
-	connService, err := connPool.Acquire(ctx)
-	require.NoError(t, err)
-	defer func() {
-		connService.Release()
-	}()
-
-	tx, err := connService.Begin(ctx)
-	require.NoError(t, err)
-	defer func() {
-		err := tx.Rollback(ctx)
-		assert.NoError(t, err)
-	}()
-
-	j := findOneJob(t, tx)
+	j := findOneJob(t, connPool)
 	require.NotNil(t, j)
 
 	assert.Equal(t, int32(1), j.ErrorCount)
