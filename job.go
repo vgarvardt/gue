@@ -2,6 +2,7 @@ package gue
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -83,20 +84,23 @@ func (j *Job) Delete(ctx context.Context) error {
 }
 
 // Done commits transaction that marks job as done.
-func (j *Job) Done(ctx context.Context) {
+func (j *Job) Done(ctx context.Context) error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
 	if j.tx == nil || j.pool == nil {
 		// already marked as done
-		return
+		return nil
 	}
 
-	// TODO: log this error
-	_ = j.tx.Commit(ctx)
+	if err := j.tx.Commit(ctx); err != nil {
+		return err
+	}
 
 	j.pool = nil
 	j.tx = nil
+
+	return nil
 }
 
 // Error marks the job as failed and schedules it to be reworked. An error
@@ -105,8 +109,13 @@ func (j *Job) Done(ctx context.Context) {
 //
 // This call marks job as done and releases (commits) transaction,
 //so calling Done() is not required, although calling it will not cause any issues.
-func (j *Job) Error(ctx context.Context, msg string) error {
-	defer j.Done(ctx)
+func (j *Job) Error(ctx context.Context, msg string) (err error) {
+	defer func() {
+		doneErr := j.Done(ctx)
+		if doneErr != nil {
+			err = fmt.Errorf("failed to mark job as done (original error: %v): %w", err, doneErr)
+		}
+	}()
 
 	errorCount := j.ErrorCount + 1
 
@@ -118,7 +127,7 @@ func (j *Job) Error(ctx context.Context, msg string) error {
 	}}
 	newRunAt := time.Now().Add(backOff.Backoff(int(errorCount)))
 
-	_, err := j.tx.Exec(ctx, `UPDATE gue_jobs
+	_, err = j.tx.Exec(ctx, `UPDATE gue_jobs
 SET error_count = $1,
     run_at      = $2,
     last_error  = $3,
