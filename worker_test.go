@@ -21,6 +21,9 @@ func TestWorkerWorkOne(t *testing.T) {
 	t.Run("pgx/v4", func(t *testing.T) {
 		testWorkerWorkOne(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testWorkerWorkOne(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
 }
 
 func testWorkerWorkOne(t *testing.T, connPool adapter.ConnPool) {
@@ -54,6 +57,9 @@ func TestWorker_Start(t *testing.T) {
 	t.Run("pgx/v4", func(t *testing.T) {
 		testWorkerStart(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testWorkerStart(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
 }
 
 func testWorkerStart(t *testing.T, connPool adapter.ConnPool) {
@@ -84,6 +90,9 @@ func TestWorkerPool_Start(t *testing.T) {
 	})
 	t.Run("pgx/v4", func(t *testing.T) {
 		testWorkerPoolStart(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testWorkerPoolStart(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
 }
 
@@ -123,6 +132,9 @@ func BenchmarkWorker(b *testing.B) {
 	b.Run("pgx/v4", func(b *testing.B) {
 		benchmarkWorker(b, adapterTesting.OpenTestPoolPGXv4(b))
 	})
+	b.Run("lib/pq", func(b *testing.B) {
+		benchmarkWorker(b, adapterTesting.OpenTestPoolLibPQ(b))
+	})
 }
 
 func benchmarkWorker(b *testing.B, connPool adapter.ConnPool) {
@@ -153,6 +165,9 @@ func TestWorkerWorkReturnsError(t *testing.T) {
 	})
 	t.Run("pgx/v4", func(t *testing.T) {
 		testWorkerWorkReturnsError(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testWorkerWorkReturnsError(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
 }
 
@@ -194,6 +209,9 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 	t.Run("pgx/v4", func(t *testing.T) {
 		testWorkerWorkRescuesPanic(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testWorkerWorkRescuesPanic(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
 }
 
 func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
@@ -232,6 +250,9 @@ func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
 	})
 	t.Run("pgx/v4", func(t *testing.T) {
 		testWorkerWorkOneTypeNotInMap(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testWorkerWorkOneTypeNotInMap(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
 }
 

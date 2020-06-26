@@ -7,6 +7,7 @@ require (
 	github.com/jackc/pgtype v1.3.0
 	github.com/jackc/pgx v3.6.2+incompatible
 	github.com/jackc/pgx/v4 v4.0.0-pre1.0.20190824185557-6972a5742186
+	github.com/lib/pq v1.7.0
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/stretchr/testify v1.6.1
 	github.com/vgarvardt/backoff v1.0.0

@@ -7,7 +7,7 @@
 
 Gue is Golang queue on top of PostgreSQL that uses transaction-level locks.
 
-Originally this project used to be a fork of [bgentry/que-go][bgentry/que-go]
+Originally this project used to be a fork of [bgentry/que-go](https://github.com/bgentry/que-go)
 but because of some backward-compatibility breaking changes and original library
 author not being very responsive for PRs I turned fork into standalone project.
 Version 2 breaks backward-compatibility with the original project - DB table
@@ -108,43 +108,9 @@ func main() {
 
 Package supports several PostgreSQL drivers using adapter interface internally.
 Currently, adapters for the following drivers have been implemented:
-- [github.com/jackc/pgx/v3][pgx]
-- [github.com/jackc/pgx/v4][pgx]
-
-### `pgx/v3`
-
-```go
-package main
-
-import(
-    "log"
-    "os"
-
-    "github.com/jackc/pgx"
-
-    "github.com/vgarvardt/gue"
-    "github.com/vgarvardt/gue/adapter/pgxv3"
-)
-
-func main() {
-    pgxCfg, err := pgx.ParseURI(os.Getenv("DATABASE_URL"))
-    if err != nil {
-        log.Fatal(err)
-    }
-    pgxPool, err := pgx.NewConnPool(pgx.ConnPoolConfig{
-        ConnConfig:   pgxCfg,
-    })
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer pgxPool.Close()
-
-    poolAdapter := pgxv3.NewConnPool(pgxPool)
-
-    gc := gue.NewClient(poolAdapter)
-    ...
-}
-```
+- [github.com/jackc/pgx/v4](https://github.com/jackc/pgx)
+- [github.com/jackc/pgx/v3](https://github.com/jackc/pgx)
+- [github.com/lib/pq](https://github.com/lib/pq)
 
 ### `pgx/v4`
 
@@ -181,6 +147,71 @@ func main() {
 }
 ```
 
+### `pgx/v3`
+
+```go
+package main
+
+import(
+    "log"
+    "os"
+
+    "github.com/jackc/pgx"
+
+    "github.com/vgarvardt/gue"
+    "github.com/vgarvardt/gue/adapter/pgxv3"
+)
+
+func main() {
+    pgxCfg, err := pgx.ParseURI(os.Getenv("DATABASE_URL"))
+    if err != nil {
+        log.Fatal(err)
+    }
+    pgxPool, err := pgx.NewConnPool(pgx.ConnPoolConfig{
+        ConnConfig:   pgxCfg,
+    })
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer pgxPool.Close()
+
+    poolAdapter := pgxv3.NewConnPool(pgxPool)
+
+    gc := gue.NewClient(poolAdapter)
+    ...
+}
+```
+
+### `lib/pq`
+
+```go
+package main
+
+import(
+    "database/sql"
+    "log"
+    "os"
+
+    _ "github.com/lib/pq" // register postgres driver
+
+    "github.com/vgarvardt/gue"
+    "github.com/vgarvardt/gue/adapter/libpq"
+)
+
+func main() {
+    db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer db.Close()
+
+    poolAdapter := libpq.NewConnPool(db)
+
+    gc := gue.NewClient(poolAdapter)
+    ...
+}
+```
+
 ## Logging
 
 Package supports several logging libraries using adapter interface internally.
@@ -201,7 +232,4 @@ source code mounted.
 
 Run tests: `make test`. This command runs project dependencies in docker containers
 if they are not started yet and runs go tests with coverage.
-
-[bgentry/que-go]: https://github.com/bgentry/que-go
-[pgx]: https://github.com/jackc/pgx
-[pq]: https://github.com/lib/pq
+ 

@@ -20,6 +20,9 @@ func TestLockJob(t *testing.T) {
 	t.Run("pgx/v4", func(t *testing.T) {
 		testLockJob(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testLockJob(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
 }
 
 func testLockJob(t *testing.T, connPool adapter.ConnPool) {
@@ -55,6 +58,9 @@ func TestLockJobAlreadyLocked(t *testing.T) {
 	t.Run("pgx/v4", func(t *testing.T) {
 		testLockJobAlreadyLocked(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testLockJobAlreadyLocked(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
 }
 
 func testLockJobAlreadyLocked(t *testing.T, connPool adapter.ConnPool) {
@@ -82,6 +88,9 @@ func TestLockJobNoJob(t *testing.T) {
 	t.Run("pgx/v4", func(t *testing.T) {
 		testLockJobNoJob(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testLockJobNoJob(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
 }
 
 func testLockJobNoJob(t *testing.T, connPool adapter.ConnPool) {
@@ -99,6 +108,9 @@ func TestLockJobCustomQueue(t *testing.T) {
 	})
 	t.Run("pgx/v4", func(t *testing.T) {
 		testLockJobCustomQueue(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testLockJobCustomQueue(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
 }
 
@@ -132,6 +144,9 @@ func TestJobTx(t *testing.T) {
 	t.Run("pgx/v4", func(t *testing.T) {
 		testJobTx(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testJobTx(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
 }
 
 func testJobTx(t *testing.T, connPool adapter.ConnPool) {
@@ -155,6 +170,9 @@ func TestJobConnRace(t *testing.T) {
 	})
 	t.Run("pgx/v4", func(t *testing.T) {
 		testJobConnRace(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testJobConnRace(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
 }
 
@@ -192,6 +210,9 @@ func TestJobDelete(t *testing.T) {
 	t.Run("pgx/v4", func(t *testing.T) {
 		testJobDelete(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testJobDelete(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
 }
 
 func testJobDelete(t *testing.T, connPool adapter.ConnPool) {
@@ -221,6 +242,9 @@ func TestJobDone(t *testing.T) {
 	t.Run("pgx/v4", func(t *testing.T) {
 		testJobDone(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testJobDone(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
 }
 
 func testJobDone(t *testing.T, connPool adapter.ConnPool) {
@@ -248,6 +272,9 @@ func TestJobDoneMultiple(t *testing.T) {
 	t.Run("pgx/v4", func(t *testing.T) {
 		testJobDoneMultiple(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testJobDoneMultiple(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
 }
 
 func testJobDoneMultiple(t *testing.T, connPool adapter.ConnPool) {
@@ -272,6 +299,9 @@ func TestJobError(t *testing.T) {
 	})
 	t.Run("pgx/v4", func(t *testing.T) {
 		testJobError(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testJobError(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
 }
 
