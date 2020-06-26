@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/vgarvardt/gue/adapter"
-	"github.com/vgarvardt/gue/adapter/pgxv3"
+	"github.com/vgarvardt/gue/v2/adapter"
+	"github.com/vgarvardt/gue/v2/adapter/pgxv3"
 )
 
 const defaultPoolConns = 5

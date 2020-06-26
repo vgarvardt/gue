@@ -7,8 +7,8 @@ import (
 	_ "github.com/lib/pq" // register postgres driver
 	"github.com/stretchr/testify/require"
 
-	"github.com/vgarvardt/gue/adapter"
-	"github.com/vgarvardt/gue/adapter/libpq"
+	"github.com/vgarvardt/gue/v2/adapter"
+	"github.com/vgarvardt/gue/v2/adapter/libpq"
 )
 
 // OpenTestPoolMaxConnsLibPQ opens connections pool user in testing

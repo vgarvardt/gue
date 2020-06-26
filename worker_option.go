@@ -3,7 +3,7 @@ package gue
 import (
 	"time"
 
-	"github.com/vgarvardt/gue/adapter"
+	"github.com/vgarvardt/gue/v2/adapter"
 )
 
 // WorkerOption defines a type that allows to set worker properties during the build-time.

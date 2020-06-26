@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vgarvardt/gue/adapter"
+	"github.com/vgarvardt/gue/v2/adapter"
 )
 
 // ErrMissingType is returned when you attempt to enqueue a job with no Type

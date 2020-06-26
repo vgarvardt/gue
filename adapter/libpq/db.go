@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/vgarvardt/gue/adapter"
+	"github.com/vgarvardt/gue/v2/adapter"
 )
 
 // aRow implements adapter.Row using github.com/lib/pq

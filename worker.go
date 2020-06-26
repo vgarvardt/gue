@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vgarvardt/gue/adapter"
+	"github.com/vgarvardt/gue/v2/adapter"
 )
 
 const (

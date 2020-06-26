@@ -30,8 +30,8 @@ import (
 
     "github.com/jackc/pgx/v4/pgxpool"
 
-    "github.com/vgarvardt/gue"
-    "github.com/vgarvardt/gue/adapter/pgxv4"
+    "github.com/vgarvardt/gue/v2"
+    "github.com/vgarvardt/gue/v2/adapter/pgxv4"
 )
 
 type printNameArgs struct {
@@ -124,8 +124,8 @@ import(
 
     "github.com/jackc/pgx/v4/pgxpool"
 
-    "github.com/vgarvardt/gue"
-    "github.com/vgarvardt/gue/adapter/pgxv4"
+    "github.com/vgarvardt/gue/v2"
+    "github.com/vgarvardt/gue/v2/adapter/pgxv4"
 )
 
 func main() {
@@ -158,8 +158,8 @@ import(
 
     "github.com/jackc/pgx"
 
-    "github.com/vgarvardt/gue"
-    "github.com/vgarvardt/gue/adapter/pgxv3"
+    "github.com/vgarvardt/gue/v2"
+    "github.com/vgarvardt/gue/v2/adapter/pgxv3"
 )
 
 func main() {
@@ -194,8 +194,8 @@ import(
 
     _ "github.com/lib/pq" // register postgres driver
 
-    "github.com/vgarvardt/gue"
-    "github.com/vgarvardt/gue/adapter/libpq"
+    "github.com/vgarvardt/gue/v2"
+    "github.com/vgarvardt/gue/v2/adapter/libpq"
 )
 
 func main() {

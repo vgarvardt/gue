@@ -7,8 +7,8 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/stretchr/testify/require"
 
-	"github.com/vgarvardt/gue/adapter"
-	"github.com/vgarvardt/gue/adapter/pgxv4"
+	"github.com/vgarvardt/gue/v2/adapter"
+	"github.com/vgarvardt/gue/v2/adapter/pgxv4"
 )
 
 // OpenTestPoolMaxConnsPGXv4 opens connections pool user in testing

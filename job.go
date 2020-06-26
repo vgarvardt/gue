@@ -7,7 +7,8 @@ import (
 
 	"github.com/jackc/pgtype"
 	"github.com/vgarvardt/backoff"
-	"github.com/vgarvardt/gue/adapter"
+
+	"github.com/vgarvardt/gue/v2/adapter"
 )
 
 // Job is a single unit of work for Gue to perform.

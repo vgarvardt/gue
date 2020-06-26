@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/vgarvardt/gue/adapter"
-	adapterTesting "github.com/vgarvardt/gue/adapter/testing"
+	"github.com/vgarvardt/gue/v2/adapter"
+	adapterTesting "github.com/vgarvardt/gue/v2/adapter/testing"
 )
 
 func TestEnqueueOnlyType(t *testing.T) {

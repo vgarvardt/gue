@@ -7,8 +7,9 @@ PostgreSQL drivers
 
 Package supports several PostgreSQL drivers using adapter interface internally.
 Currently, adapters for the following drivers have been implemented:
-- github.com/jackc/pgx v3
 - github.com/jackc/pgx v4
+- github.com/jackc/pgx v3
+- github.com/lib/pq
 
 Usage
 
@@ -26,8 +27,8 @@ Here is a complete example showing worker setup for pgx/v4 and two jobs enqueued
 
 		"github.com/jackc/pgx/v4/pgxpool"
 
-		"github.com/vgarvardt/gue"
-		"github.com/vgarvardt/gue/adapter/pgxv4"
+		"github.com/vgarvardt/gue/v2"
+		"github.com/vgarvardt/gue/v2/adapter/pgxv4"
 	)
 
 	type printNameArgs struct {
