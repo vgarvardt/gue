@@ -1,11 +1,15 @@
 package gue
 
 import (
+	"reflect"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
 	"github.com/vgarvardt/gue/v2/adapter"
+	"github.com/vgarvardt/gue/v2/adapter/exponential"
 )
 
 func TestWithClientID(t *testing.T) {
@@ -32,4 +36,22 @@ func TestWithClientLogger(t *testing.T) {
 	clientWithCustomLogger.logger.Info(logMessage)
 
 	l.AssertExpectations(t)
+}
+
+func TestWithClientBackoff(t *testing.T) {
+	customBackoff := func(retries int) time.Duration {
+		return time.Duration(retries) * time.Second
+	}
+
+	defaultPtr := reflect.ValueOf(exponential.Default).Pointer()
+	customPtr := reflect.ValueOf(customBackoff).Pointer()
+
+	clientWithDefaultBackoff := NewClient(nil)
+	clientWithDefaultBackoffPtr := reflect.ValueOf(clientWithDefaultBackoff.backoff).Pointer()
+
+	assert.Equal(t, defaultPtr, clientWithDefaultBackoffPtr)
+
+	clientWithCustomBackoff := NewClient(nil, WithClientBackoff(customBackoff))
+	assert.Equal(t, customBackoff(123), clientWithCustomBackoff.backoff(123))
+	assert.NotEqual(t, defaultPtr, customPtr)
 }

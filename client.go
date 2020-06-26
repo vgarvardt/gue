@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/vgarvardt/gue/v2/adapter"
+	"github.com/vgarvardt/gue/v2/adapter/exponential"
 )
 
 // ErrMissingType is returned when you attempt to enqueue a job with no Type
@@ -18,16 +19,18 @@ var ErrMissingType = errors.New("job type must be specified")
 // Client is a Que client that can add jobs to the queue and remove jobs from
 // the queue.
 type Client struct {
-	pool   adapter.ConnPool
-	logger adapter.Logger
-	id     string
+	pool    adapter.ConnPool
+	logger  adapter.Logger
+	id      string
+	backoff Backoff
 }
 
 // NewClient creates a new Client that uses the pgx pool.
 func NewClient(pool adapter.ConnPool, options ...ClientOption) *Client {
 	instance := Client{
-		pool:   pool,
-		logger: adapter.NoOpLogger{},
+		pool:    pool,
+		logger:  adapter.NoOpLogger{},
+		backoff: exponential.Default,
 	}
 
 	for _, option := range options {
@@ -63,9 +66,11 @@ func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) e
 		return ErrMissingType
 	}
 
+	now := time.Now()
+
 	runAt := j.RunAt
 	if runAt.IsZero() {
-		runAt = time.Now()
+		j.RunAt = now
 	}
 
 	if len(j.Args) == 0 {
@@ -76,7 +81,7 @@ func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) e
 (queue, priority, run_at, job_type, args, created_at, updated_at)
 VALUES
 ($1, $2, $3, $4, $5, $6, $6) RETURNING job_id
-`, j.Queue, j.Priority, runAt, j.Type, j.Args, time.Now()).Scan(&j.ID)
+`, j.Queue, j.Priority, j.RunAt, j.Type, j.Args, now).Scan(&j.ID)
 
 	c.logger.Debug(
 		"Tried to enqueue a job",
@@ -104,7 +109,7 @@ func (c *Client) LockJob(ctx context.Context, queue string) (*Job, error) {
 		return nil, err
 	}
 
-	j := Job{pool: c.pool, tx: tx}
+	j := Job{pool: c.pool, tx: tx, backoff: c.backoff}
 
 	err = tx.QueryRow(ctx, `SELECT job_id, queue, priority, run_at, job_type, args, error_count
 FROM gue_jobs

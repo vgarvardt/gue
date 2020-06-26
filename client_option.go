@@ -18,3 +18,11 @@ func WithClientID(id string) ClientOption {
 		c.id = id
 	}
 }
+
+// WithClientBackoff sets backoff implementation that will be applied to errored jobs
+// within current client session.
+func WithClientBackoff(backoff Backoff) ClientOption {
+	return func(c *Client) {
+		c.backoff = backoff
+	}
+}

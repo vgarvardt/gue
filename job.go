@@ -7,10 +7,12 @@ import (
 	"time"
 
 	"github.com/jackc/pgtype"
-	"github.com/vgarvardt/backoff"
-
 	"github.com/vgarvardt/gue/v2/adapter"
 )
+
+// Backoff is the interface for backoff implementation that will be used
+// to reschedule errored jobs.
+type Backoff func(retries int) time.Duration
 
 // Job is a single unit of work for Gue to perform.
 type Job struct {
@@ -49,6 +51,7 @@ type Job struct {
 	deleted bool
 	pool    adapter.ConnPool
 	tx      adapter.Tx
+	backoff Backoff
 }
 
 // Tx returns DB transaction that this job is locked to. You may use
@@ -119,13 +122,7 @@ func (j *Job) Error(ctx context.Context, msg string) (err error) {
 
 	errorCount := j.ErrorCount + 1
 
-	backOff := backoff.Exponential{Config: backoff.Config{
-		BaseDelay:  1.0 * time.Second,
-		Multiplier: 1.6,
-		Jitter:     0.2,
-		MaxDelay:   1.0 * time.Hour,
-	}}
-	newRunAt := time.Now().Add(backOff.Backoff(int(errorCount)))
+	newRunAt := time.Now().Add(j.backoff(int(errorCount)))
 
 	_, err = j.tx.Exec(ctx, `UPDATE gue_jobs
 SET error_count = $1,

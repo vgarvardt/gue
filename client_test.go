@@ -4,6 +4,7 @@ import (
 	"context"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgtype"
 	"github.com/stretchr/testify/assert"
@@ -331,16 +332,13 @@ func testJobError(t *testing.T, connPool adapter.ConnPool) {
 	c := NewClient(connPool)
 	ctx := context.Background()
 
-	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
+	job := &Job{Type: "MyJob"}
+	err := c.Enqueue(ctx, job)
 	require.NoError(t, err)
 
 	j, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
 	require.NotNil(t, j)
-	defer func() {
-		err := j.Done(ctx)
-		assert.NoError(t, err)
-	}()
 
 	msg := "world\nended"
 	err = j.Error(ctx, msg)
@@ -357,6 +355,54 @@ func testJobError(t *testing.T, connPool adapter.ConnPool) {
 	assert.NotEqual(t, pgtype.Null, j2.LastError.Status)
 	assert.Equal(t, msg, j2.LastError.String)
 	assert.Equal(t, int32(1), j2.ErrorCount)
+	assert.Greater(t, j2.RunAt.Unix(), job.RunAt.Unix())
+}
+
+func TestJobErrorCustomBackoff(t *testing.T) {
+	t.Run("pgx/v3", func(t *testing.T) {
+		testJobErrorCustomBackoff(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testJobErrorCustomBackoff(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testJobErrorCustomBackoff(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+}
+
+func testJobErrorCustomBackoff(t *testing.T, connPool adapter.ConnPool) {
+	customBackoff := func(retries int) time.Duration {
+		return time.Duration(retries) * time.Hour
+	}
+
+	c := NewClient(connPool, WithClientBackoff(customBackoff))
+	ctx := context.Background()
+
+	job := &Job{Type: "MyJob"}
+	err := c.Enqueue(ctx, job)
+	require.NoError(t, err)
+
+	j, err := c.LockJob(ctx, "")
+	require.NoError(t, err)
+	require.NotNil(t, j)
+
+	msg := "world\nended"
+	err = j.Error(ctx, msg)
+	require.NoError(t, err)
+
+	// make sure job was not deleted
+	j2 := findOneJob(t, connPool)
+	require.NotNil(t, j2)
+	defer func() {
+		err := j2.Done(ctx)
+		assert.NoError(t, err)
+	}()
+
+	assert.NotEqual(t, pgtype.Null, j2.LastError.Status)
+	assert.Equal(t, msg, j2.LastError.String)
+	assert.Equal(t, int32(1), j2.ErrorCount)
+	assert.Greater(t, j2.RunAt.Unix(), job.RunAt.Unix())
+	assert.Equal(t, job.RunAt.Add(time.Hour).Unix(), j2.RunAt.Unix())
 }
 
 func findOneJob(t testing.TB, q adapter.Queryable) *Job {
