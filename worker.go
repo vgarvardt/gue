@@ -3,8 +3,6 @@ package gue
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
 	"runtime"
 	"sync"
@@ -43,10 +41,10 @@ type Worker struct {
 // them using WorkMap. If the type of Job is not registered in the WorkMap, it's
 // considered an error and the job is re-enqueued with a backoff.
 //
-// Workers default to a poll interval of 5 seconds, which can be overridden by
-// WithPollInterval option.
+// Worker defaults to a poll interval of 5 seconds, which can be overridden by
+// WithWorkerPollInterval option.
 // The default queue is the nameless queue "", which can be overridden by
-// WithQueue option.
+// WithWorkerQueue option.
 func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) *Worker {
 	instance := Worker{
 		interval: defaultPollInterval,
@@ -177,13 +175,6 @@ func recoverPanic(ctx context.Context, logger adapter.Logger, j *Job) {
 	}
 }
 
-func newID() string {
-	hasher := md5.New()
-	// nolint:errcheck
-	hasher.Write([]byte(time.Now().Format(time.RFC3339Nano)))
-	return hex.EncodeToString(hasher.Sum(nil))[:6]
-}
-
 // WorkerPool is a pool of Workers, each working jobs from the queue queue
 // at the specified interval using the WorkMap.
 type WorkerPool struct {
@@ -243,10 +234,10 @@ func (w *WorkerPool) Start(ctx context.Context) error {
 		w.workers[i] = NewWorker(
 			w.c,
 			w.wm,
-			WithPollInterval(w.interval),
-			WithQueue(w.queue),
-			WithID(fmt.Sprintf("%s/worker-%d", w.id, i)),
-			WithLogger(w.logger),
+			WithWorkerPollInterval(w.interval),
+			WithWorkerQueue(w.queue),
+			WithWorkerID(fmt.Sprintf("%s/worker-%d", w.id, i)),
+			WithWorkerLogger(w.logger),
 		)
 
 		workerCtx[i], cancelFunc[i] = context.WithCancel(ctx)

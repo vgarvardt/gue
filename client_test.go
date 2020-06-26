@@ -29,9 +29,12 @@ func testLockJob(t *testing.T, connPool adapter.ConnPool) {
 	c := NewClient(connPool)
 	ctx := context.Background()
 
-	jobType := "MyJob"
-	err := c.Enqueue(ctx, &Job{Type: jobType})
+	newJob := &Job{
+		Type: "MyJob",
+	}
+	err := c.Enqueue(ctx, newJob)
 	require.NoError(t, err)
+	require.Greater(t, newJob.ID, int64(0))
 
 	j, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
@@ -44,11 +47,11 @@ func testLockJob(t *testing.T, connPool adapter.ConnPool) {
 	}()
 
 	// check values of returned Job
-	assert.Greater(t, j.ID, int64(0))
+	assert.Equal(t, newJob.ID, j.ID)
 	assert.Equal(t, defaultQueueName, j.Queue)
 	assert.Equal(t, int16(0), j.Priority)
 	assert.False(t, j.RunAt.IsZero())
-	assert.Equal(t, jobType, j.Type)
+	assert.Equal(t, newJob.Type, j.Type)
 	assert.Equal(t, []byte(`[]`), j.Args)
 	assert.Equal(t, int32(0), j.ErrorCount)
 	assert.NotEqual(t, pgtype.Present, j.LastError.Status)

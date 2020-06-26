@@ -31,7 +31,7 @@ func (m *mockLogger) With(fields ...adapter.Field) adapter.Logger {
 	return args.Get(0).(adapter.Logger)
 }
 
-func TestWithPollInterval(t *testing.T) {
+func TestWithWorkerPollInterval(t *testing.T) {
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
 			return nil
@@ -42,11 +42,11 @@ func TestWithPollInterval(t *testing.T) {
 	assert.Equal(t, defaultPollInterval, workerWithDefaultInterval.interval)
 
 	customInterval := 12345 * time.Millisecond
-	workerWithCustomInterval := NewWorker(nil, wm, WithPollInterval(customInterval))
+	workerWithCustomInterval := NewWorker(nil, wm, WithWorkerPollInterval(customInterval))
 	assert.Equal(t, customInterval, workerWithCustomInterval.interval)
 }
 
-func TestWithQueue(t *testing.T) {
+func TestWithWorkerQueue(t *testing.T) {
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
 			return nil
@@ -57,11 +57,11 @@ func TestWithQueue(t *testing.T) {
 	assert.Equal(t, defaultQueueName, workerWithDefaultQueue.queue)
 
 	customQueue := "fooBarBaz"
-	workerWithCustomQueue := NewWorker(nil, wm, WithQueue(customQueue))
+	workerWithCustomQueue := NewWorker(nil, wm, WithWorkerQueue(customQueue))
 	assert.Equal(t, customQueue, workerWithCustomQueue.queue)
 }
 
-func TestWithID(t *testing.T) {
+func TestWithWorkerID(t *testing.T) {
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
 			return nil
@@ -72,11 +72,11 @@ func TestWithID(t *testing.T) {
 	assert.NotEmpty(t, workerWithDefaultID.id)
 
 	customID := "some-meaningful-id"
-	workerWithCustomID := NewWorker(nil, wm, WithID(customID))
+	workerWithCustomID := NewWorker(nil, wm, WithWorkerID(customID))
 	assert.Equal(t, customID, workerWithCustomID.id)
 }
 
-func TestWithLogger(t *testing.T) {
+func TestWithWorkerLogger(t *testing.T) {
 	wm := WorkMap{
 		"MyJob": func(j *Job) error {
 			return nil
@@ -93,7 +93,7 @@ func TestWithLogger(t *testing.T) {
 	// worker sets id as default logger field
 	l.On("With", mock.Anything).Return(l)
 
-	workerWithCustomLogger := NewWorker(nil, wm, WithLogger(l))
+	workerWithCustomLogger := NewWorker(nil, wm, WithWorkerLogger(l))
 	workerWithCustomLogger.logger.Info(logMessage)
 
 	l.AssertExpectations(t)
