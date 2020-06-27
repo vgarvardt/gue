@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/vgarvardt/gue/adapter"
-	adapterTesting "github.com/vgarvardt/gue/adapter/testing"
+	"github.com/vgarvardt/gue/v2/adapter"
+	adapterTesting "github.com/vgarvardt/gue/v2/adapter/testing"
 )
 
 func TestEnqueueOnlyType(t *testing.T) {
@@ -30,19 +30,13 @@ func testEnqueueOnlyType(t *testing.T, connPool adapter.ConnPool) {
 	err := c.Enqueue(ctx, &Job{Type: jobType})
 	require.NoError(t, err)
 
-	conn, err := connPool.Acquire(ctx)
-	require.NoError(t, err)
-	defer func() {
-		conn.Release()
-	}()
-
-	j := findOneJob(t, conn)
+	j := findOneJob(t, connPool)
 	require.NotNil(t, j)
 
 	// check resulting job
 	assert.Greater(t, j.ID, int64(0))
 	assert.Equal(t, defaultQueueName, j.Queue)
-	assert.Equal(t, int16(100), j.Priority)
+	assert.Equal(t, int16(0), j.Priority)
 	assert.False(t, j.RunAt.IsZero())
 	assert.Equal(t, jobType, j.Type)
 	assert.Equal(t, []byte(`[]`), j.Args)
@@ -67,13 +61,7 @@ func testEnqueueWithPriority(t *testing.T, connPool adapter.ConnPool) {
 	err := c.Enqueue(ctx, &Job{Type: "MyJob", Priority: want})
 	require.NoError(t, err)
 
-	conn, err := connPool.Acquire(ctx)
-	require.NoError(t, err)
-	defer func() {
-		conn.Release()
-	}()
-
-	j := findOneJob(t, conn)
+	j := findOneJob(t, connPool)
 	require.NotNil(t, j)
 
 	assert.Equal(t, want, j.Priority)
@@ -96,13 +84,7 @@ func testEnqueueWithRunAt(t *testing.T, connPool adapter.ConnPool) {
 	err := c.Enqueue(ctx, &Job{Type: "MyJob", RunAt: want})
 	require.NoError(t, err)
 
-	conn, err := connPool.Acquire(ctx)
-	require.NoError(t, err)
-	defer func() {
-		conn.Release()
-	}()
-
-	j := findOneJob(t, conn)
+	j := findOneJob(t, connPool)
 	require.NotNil(t, j)
 
 	// truncate to the microsecond as postgres driver does
@@ -127,13 +109,7 @@ func testEnqueueWithArgs(t *testing.T, connPool adapter.ConnPool) {
 	err := c.Enqueue(ctx, &Job{Type: "MyJob", Args: want})
 	require.NoError(t, err)
 
-	conn, err := connPool.Acquire(ctx)
-	require.NoError(t, err)
-	defer func() {
-		conn.Release()
-	}()
-
-	j := findOneJob(t, conn)
+	j := findOneJob(t, connPool)
 	require.NotNil(t, j)
 
 	assert.Equal(t, want, j.Args)
@@ -156,13 +132,7 @@ func testEnqueueWithQueue(t *testing.T, connPool adapter.ConnPool) {
 	err := c.Enqueue(ctx, &Job{Type: "MyJob", Queue: want})
 	require.NoError(t, err)
 
-	conn, err := connPool.Acquire(ctx)
-	require.NoError(t, err)
-	defer func() {
-		conn.Release()
-	}()
-
-	j := findOneJob(t, conn)
+	j := findOneJob(t, connPool)
 	require.NotNil(t, j)
 
 	assert.Equal(t, want, j.Queue)
@@ -198,13 +168,7 @@ func testEnqueueInTx(t *testing.T, connPool adapter.ConnPool) {
 	c := NewClient(connPool)
 	ctx := context.Background()
 
-	connService, err := connPool.Acquire(ctx)
-	require.NoError(t, err)
-	defer func() {
-		connService.Release()
-	}()
-
-	tx, err := connService.Begin(ctx)
+	tx, err := connPool.Begin(ctx)
 	require.NoError(t, err)
 
 	err = c.EnqueueInTx(ctx, &Job{Type: "MyJob"}, tx)
@@ -216,6 +180,6 @@ func testEnqueueInTx(t *testing.T, connPool adapter.ConnPool) {
 	err = tx.Rollback(ctx)
 	require.NoError(t, err)
 
-	j = findOneJob(t, connService)
+	j = findOneJob(t, connPool)
 	require.Nil(t, j)
 }

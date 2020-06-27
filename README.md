@@ -5,15 +5,23 @@
 [![ReportCard](https://goreportcard.com/badge/github.com/vgarvardt/gue)](https://goreportcard.com/report/github.com/vgarvardt/gue)
 [![License](https://img.shields.io/npm/l/express.svg)](http://opensource.org/licenses/MIT)
 
-Gue is Golang queue on top of PostgreSQL.
+Gue is Golang queue on top of PostgreSQL that uses transaction-level locks.
 
-Originally this project used to be a fork of [bgentry/que-go][bgentry/que-go]
+Originally this project used to be a fork of [bgentry/que-go](https://github.com/bgentry/que-go)
 but because of some backward-compatibility breaking changes and original library
 author not being very responsive for PRs I turned fork into standalone project.
-Internally project maintains backward-compatibility with the original one - DB table
-and all the internal logic (queries, algorithms) remained the same.
+Version 2 breaks internal backward-compatibility with the original project - DB table
+and all the internal logic (queries, algorithms) is completely rewritten.
 
 The name Gue is yet another silly word transformation: Queue -> Que, Go + Que -> Gue.
+
+## Install
+
+```
+go get -u github.com/vgarvardt/gue/v2
+```
+
+Additionally, you need to apply [DB migration](./schema.sql).
 
 ## Usage Example
 
@@ -30,8 +38,8 @@ import (
 
     "github.com/jackc/pgx/v4/pgxpool"
 
-    "github.com/vgarvardt/gue"
-    "github.com/vgarvardt/gue/adapter/pgxv4"
+    "github.com/vgarvardt/gue/v2"
+    "github.com/vgarvardt/gue/v2/adapter/pgxv4"
 )
 
 type printNameArgs struct {
@@ -108,8 +116,44 @@ func main() {
 
 Package supports several PostgreSQL drivers using adapter interface internally.
 Currently, adapters for the following drivers have been implemented:
-- [github.com/jackc/pgx/v3][pgx]
-- [github.com/jackc/pgx/v4][pgx]
+- [github.com/jackc/pgx/v4](https://github.com/jackc/pgx)
+- [github.com/jackc/pgx/v3](https://github.com/jackc/pgx)
+- [github.com/lib/pq](https://github.com/lib/pq)
+
+### `pgx/v4`
+
+```go
+package main
+
+import(
+    "context"
+    "log"
+    "os"
+
+    "github.com/jackc/pgx/v4/pgxpool"
+
+    "github.com/vgarvardt/gue/v2"
+    "github.com/vgarvardt/gue/v2/adapter/pgxv4"
+)
+
+func main() {
+    pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
+    if err != nil {
+        log.Fatal(err)
+    }
+    defer pgxPool.Close()
+
+    poolAdapter := pgxv4.NewConnPool(pgxPool)
+
+    gc := gue.NewClient(poolAdapter)
+    ...
+}
+```
 
 ### `pgx/v3`
 
@@ -122,8 +166,8 @@ import(
 
     "github.com/jackc/pgx"
 
-    "github.com/vgarvardt/gue"
-    "github.com/vgarvardt/gue/adapter/pgxv3"
+    "github.com/vgarvardt/gue/v2"
+    "github.com/vgarvardt/gue/v2/adapter/pgxv3"
 )
 
 func main() {
@@ -146,35 +190,30 @@ func main() {
 }
 ```
 
-### `pgx/v4`
+### `lib/pq`
 
 ```go
 package main
 
 import(
-    "context"
+    "database/sql"
     "log"
     "os"
 
-    "github.com/jackc/pgx/v4/pgxpool"
+    _ "github.com/lib/pq" // register postgres driver
 
-    "github.com/vgarvardt/gue"
-    "github.com/vgarvardt/gue/adapter/pgxv4"
+    "github.com/vgarvardt/gue/v2"
+    "github.com/vgarvardt/gue/v2/adapter/libpq"
 )
 
 func main() {
-    pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
+    db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
     if err != nil {
         log.Fatal(err)
     }
+    defer db.Close()
 
-    pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer pgxPool.Close()
-
-    poolAdapter := pgxv4.NewConnPool(pgxPool)
+    poolAdapter := libpq.NewConnPool(db)
 
     gc := gue.NewClient(poolAdapter)
     ...
@@ -201,7 +240,4 @@ source code mounted.
 
 Run tests: `make test`. This command runs project dependencies in docker containers
 if they are not started yet and runs go tests with coverage.
-
-[bgentry/que-go]: https://github.com/bgentry/que-go
-[pgx]: https://github.com/jackc/pgx
-[pq]: https://github.com/lib/pq
+ 

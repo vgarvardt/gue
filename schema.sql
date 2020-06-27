@@ -1,15 +1,17 @@
-CREATE TABLE IF NOT EXISTS que_jobs
+CREATE TABLE IF NOT EXISTS gue_jobs
 (
-  priority    smallint    NOT NULL DEFAULT 100,
-  run_at      timestamptz NOT NULL DEFAULT now(),
-  job_id      bigserial   NOT NULL,
-  job_class   text        NOT NULL,
-  args        json        NOT NULL DEFAULT '[]'::json,
-  error_count integer     NOT NULL DEFAULT 0,
-  last_error  text,
-  queue       text        NOT NULL DEFAULT '',
-
-  CONSTRAINT que_jobs_pkey PRIMARY KEY (queue, priority, run_at, job_id)
+    job_id      bigserial   NOT NULL PRIMARY KEY,
+    priority    smallint    NOT NULL,
+    run_at      timestamptz NOT NULL,
+    job_type    text        NOT NULL,
+    args        json        NOT NULL,
+    error_count integer     NOT NULL DEFAULT 0,
+    last_error  text,
+    queue       text        NOT NULL,
+    created_at  timestamptz NOT NULL,
+    updated_at  timestamptz NOT NULL
 );
 
-COMMENT ON TABLE que_jobs IS '3';
+CREATE INDEX IF NOT EXISTS "idx_gue_jobs_selector" ON "gue_jobs" ("queue", "run_at", "priority");
+
+COMMENT ON TABLE gue_jobs IS '1';

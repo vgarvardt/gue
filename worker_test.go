@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/vgarvardt/gue/adapter"
-	adapterTesting "github.com/vgarvardt/gue/adapter/testing"
+	"github.com/vgarvardt/gue/v2/adapter"
+	adapterTesting "github.com/vgarvardt/gue/v2/adapter/testing"
 )
 
 func TestWorkerWorkOne(t *testing.T) {
@@ -20,6 +20,9 @@ func TestWorkerWorkOne(t *testing.T) {
 	})
 	t.Run("pgx/v4", func(t *testing.T) {
 		testWorkerWorkOne(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testWorkerWorkOne(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
 }
 
@@ -54,6 +57,9 @@ func TestWorker_Start(t *testing.T) {
 	t.Run("pgx/v4", func(t *testing.T) {
 		testWorkerStart(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testWorkerStart(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
 }
 
 func testWorkerStart(t *testing.T, connPool adapter.ConnPool) {
@@ -84,6 +90,9 @@ func TestWorkerPool_Start(t *testing.T) {
 	})
 	t.Run("pgx/v4", func(t *testing.T) {
 		testWorkerPoolStart(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testWorkerPoolStart(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
 }
 
@@ -123,6 +132,9 @@ func BenchmarkWorker(b *testing.B) {
 	b.Run("pgx/v4", func(b *testing.B) {
 		benchmarkWorker(b, adapterTesting.OpenTestPoolPGXv4(b))
 	})
+	b.Run("lib/pq", func(b *testing.B) {
+		benchmarkWorker(b, adapterTesting.OpenTestPoolLibPQ(b))
+	})
 }
 
 func benchmarkWorker(b *testing.B, connPool adapter.ConnPool) {
@@ -154,17 +166,14 @@ func TestWorkerWorkReturnsError(t *testing.T) {
 	t.Run("pgx/v4", func(t *testing.T) {
 		testWorkerWorkReturnsError(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testWorkerWorkReturnsError(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
 }
 
 func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
 	c := NewClient(connPool)
 	ctx := context.Background()
-
-	connService, err := connPool.Acquire(ctx)
-	require.NoError(t, err)
-	defer func() {
-		connService.Release()
-	}()
 
 	called := 0
 	wm := WorkMap{
@@ -178,21 +187,14 @@ func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
 	didWork := w.WorkOne(ctx)
 	assert.False(t, didWork)
 
-	err = c.Enqueue(ctx, &Job{Type: "MyJob"})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
 	didWork = w.WorkOne(ctx)
 	assert.True(t, didWork)
 	assert.Equal(t, 1, called)
 
-	tx, err := connService.Begin(ctx)
-	require.NoError(t, err)
-	defer func() {
-		err := tx.Rollback(ctx)
-		assert.NoError(t, err)
-	}()
-
-	j := findOneJob(t, tx)
+	j := findOneJob(t, connPool)
 	require.NotNil(t, j)
 
 	assert.Equal(t, int32(1), j.ErrorCount)
@@ -207,17 +209,14 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 	t.Run("pgx/v4", func(t *testing.T) {
 		testWorkerWorkRescuesPanic(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testWorkerWorkRescuesPanic(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
 }
 
 func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
 	c := NewClient(connPool)
 	ctx := context.Background()
-
-	connService, err := connPool.Acquire(ctx)
-	require.NoError(t, err)
-	defer func() {
-		connService.Release()
-	}()
 
 	called := 0
 	wm := WorkMap{
@@ -228,20 +227,13 @@ func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
 	}
 	w := NewWorker(c, wm)
 
-	err = c.Enqueue(ctx, &Job{Type: "MyJob"})
+	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
 	w.WorkOne(ctx)
 	assert.Equal(t, 1, called)
 
-	tx, err := connService.Begin(ctx)
-	require.NoError(t, err)
-	defer func() {
-		err := tx.Rollback(ctx)
-		assert.NoError(t, err)
-	}()
-
-	j := findOneJob(t, tx)
+	j := findOneJob(t, connPool)
 	require.NotNil(t, j)
 
 	assert.Equal(t, int32(1), j.ErrorCount)
@@ -259,14 +251,14 @@ func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
 	t.Run("pgx/v4", func(t *testing.T) {
 		testWorkerWorkOneTypeNotInMap(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testWorkerWorkOneTypeNotInMap(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
 }
 
 func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
 	c := NewClient(connPool)
 	ctx := context.Background()
-
-	currentConns := c.pool.Stat().CurrentConnections
-	availConns := c.pool.Stat().AvailableConnections
 
 	wm := WorkMap{}
 	w := NewWorker(c, wm)
@@ -280,23 +272,7 @@ func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
 	didWork = w.WorkOne(ctx)
 	assert.True(t, didWork)
 
-	assert.Equal(t, currentConns, c.pool.Stat().CurrentConnections)
-	assert.Equal(t, availConns, c.pool.Stat().AvailableConnections)
-
-	connService, err := connPool.Acquire(ctx)
-	require.NoError(t, err)
-	defer func() {
-		connService.Release()
-	}()
-
-	tx, err := connService.Begin(ctx)
-	require.NoError(t, err)
-	defer func() {
-		err := tx.Rollback(ctx)
-		assert.NoError(t, err)
-	}()
-
-	j := findOneJob(t, tx)
+	j := findOneJob(t, connPool)
 	require.NotNil(t, j)
 
 	assert.Equal(t, int32(1), j.ErrorCount)

@@ -3,14 +3,12 @@ package gue
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
-	"encoding/hex"
 	"fmt"
 	"runtime"
 	"sync"
 	"time"
 
-	"github.com/vgarvardt/gue/adapter"
+	"github.com/vgarvardt/gue/v2/adapter"
 )
 
 const (
@@ -43,10 +41,10 @@ type Worker struct {
 // them using WorkMap. If the type of Job is not registered in the WorkMap, it's
 // considered an error and the job is re-enqueued with a backoff.
 //
-// Workers default to a poll interval of 5 seconds, which can be overridden by
-// WithPollInterval option.
+// Worker defaults to a poll interval of 5 seconds, which can be overridden by
+// WithWorkerPollInterval option.
 // The default queue is the nameless queue "", which can be overridden by
-// WithQueue option.
+// WithWorkerQueue option.
 func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) *Worker {
 	instance := Worker{
 		interval: defaultPollInterval,
@@ -124,7 +122,11 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 
 	ll := w.logger.With(adapter.F("job-id", j.ID), adapter.F("job-type", j.Type))
 
-	defer j.Done(ctx)
+	defer func() {
+		if err := j.Done(ctx); err != nil {
+			ll.Error("Failed to mark job as done", adapter.Err(err))
+		}
+	}()
 	defer recoverPanic(ctx, ll, j)
 
 	didWork = true
@@ -171,13 +173,6 @@ func recoverPanic(ctx context.Context, logger adapter.Logger, j *Job) {
 			logger.Error("Got an error on setting an error to a panicked job", adapter.Err(err))
 		}
 	}
-}
-
-func newID() string {
-	hasher := md5.New()
-	// nolint:errcheck
-	hasher.Write([]byte(time.Now().Format(time.RFC3339Nano)))
-	return hex.EncodeToString(hasher.Sum(nil))[:6]
 }
 
 // WorkerPool is a pool of Workers, each working jobs from the queue queue
@@ -239,10 +234,10 @@ func (w *WorkerPool) Start(ctx context.Context) error {
 		w.workers[i] = NewWorker(
 			w.c,
 			w.wm,
-			WithPollInterval(w.interval),
-			WithQueue(w.queue),
-			WithID(fmt.Sprintf("%s/worker-%d", w.id, i)),
-			WithLogger(w.logger),
+			WithWorkerPollInterval(w.interval),
+			WithWorkerQueue(w.queue),
+			WithWorkerID(fmt.Sprintf("%s/worker-%d", w.id, i)),
+			WithWorkerLogger(w.logger),
 		)
 
 		workerCtx[i], cancelFunc[i] = context.WithCancel(ctx)

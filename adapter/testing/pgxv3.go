@@ -13,8 +13,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/vgarvardt/gue/adapter"
-	"github.com/vgarvardt/gue/adapter/pgxv3"
+	"github.com/vgarvardt/gue/v2/adapter"
+	"github.com/vgarvardt/gue/v2/adapter/pgxv3"
 )
 
 const defaultPoolConns = 5
@@ -77,13 +77,8 @@ func testConnPGXv3Config(t testing.TB) pgx.ConnConfig {
 func truncateAndClose(t testing.TB, pool adapter.ConnPool) {
 	t.Helper()
 
-	conn, err := pool.Acquire(context.Background())
+	_, err := pool.Exec(context.Background(), "TRUNCATE TABLE gue_jobs")
 	assert.NoError(t, err)
-
-	_, err = conn.Exec(context.Background(), "TRUNCATE TABLE que_jobs")
-	assert.NoError(t, err)
-
-	conn.Release()
 
 	err = pool.Close()
 	assert.NoError(t, err)
