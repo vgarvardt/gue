@@ -16,7 +16,7 @@ import (
 // specified.
 var ErrMissingType = errors.New("job type must be specified")
 
-// Client is a Que client that can add jobs to the queue and remove jobs from
+// Client is a Gue client that can add jobs to the queue and remove jobs from
 // the queue.
 type Client struct {
 	pool    adapter.ConnPool

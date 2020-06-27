@@ -10,10 +10,18 @@ Gue is Golang queue on top of PostgreSQL that uses transaction-level locks.
 Originally this project used to be a fork of [bgentry/que-go](https://github.com/bgentry/que-go)
 but because of some backward-compatibility breaking changes and original library
 author not being very responsive for PRs I turned fork into standalone project.
-Version 2 breaks backward-compatibility with the original project - DB table
+Version 2 breaks internal backward-compatibility with the original project - DB table
 and all the internal logic (queries, algorithms) is completely rewritten.
 
 The name Gue is yet another silly word transformation: Queue -> Que, Go + Que -> Gue.
+
+## Install
+
+```
+go get -u github.com/vgarvardt/gue/v2
+```
+
+Additionally, you need to apply [DB migration](./schema.sql).
 
 ## Usage Example
 

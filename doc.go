@@ -1,15 +1,14 @@
 /*
-Package gue is based on the github.com/bgentry/que-go and adds some
-additional functionality like several PostgreSQL drivers support, slightly
-more idiomatic Go API (opinionated) and some minor improvements.
+Package gue implements Golang queue on top of PostgreSQL.
+It uses transaction-level locks for concurrent work.
 
 PostgreSQL drivers
 
 Package supports several PostgreSQL drivers using adapter interface internally.
 Currently, adapters for the following drivers have been implemented:
-- github.com/jackc/pgx v4
-- github.com/jackc/pgx v3
-- github.com/lib/pq
+ - github.com/jackc/pgx v4
+ - github.com/jackc/pgx v3
+ - github.com/lib/pq
 
 Usage
 
