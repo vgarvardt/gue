@@ -155,23 +155,23 @@ func testEnqueueWithEmptyType(t *testing.T, connPool adapter.ConnPool) {
 	require.Equal(t, ErrMissingType, err)
 }
 
-func TestEnqueueInTx(t *testing.T) {
+func TestEnqueueTx(t *testing.T) {
 	t.Run("pgx/v3", func(t *testing.T) {
-		testEnqueueInTx(t, adapterTesting.OpenTestPoolPGXv3(t))
+		testEnqueueTx(t, adapterTesting.OpenTestPoolPGXv3(t))
 	})
 	t.Run("pgx/v4", func(t *testing.T) {
-		testEnqueueInTx(t, adapterTesting.OpenTestPoolPGXv4(t))
+		testEnqueueTx(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
 }
 
-func testEnqueueInTx(t *testing.T, connPool adapter.ConnPool) {
+func testEnqueueTx(t *testing.T, connPool adapter.ConnPool) {
 	c := NewClient(connPool)
 	ctx := context.Background()
 
 	tx, err := connPool.Begin(ctx)
 	require.NoError(t, err)
 
-	err = c.EnqueueInTx(ctx, &Job{Type: "MyJob"}, tx)
+	err = c.EnqueueTx(ctx, &Job{Type: "MyJob"}, tx)
 	require.NoError(t, err)
 
 	j := findOneJob(t, tx)

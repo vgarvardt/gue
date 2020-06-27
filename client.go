@@ -51,13 +51,13 @@ func (c *Client) Enqueue(ctx context.Context, j *Job) error {
 	return c.execEnqueue(ctx, j, c.pool)
 }
 
-// EnqueueInTx adds a job to the queue within the scope of the transaction tx.
+// EnqueueTx adds a job to the queue within the scope of the transaction.
 // This allows you to guarantee that an enqueued job will either be committed or
 // rolled back atomically with other changes in the course of this transaction.
 //
 // It is the caller's responsibility to Commit or Rollback the transaction after
 // this function is called.
-func (c *Client) EnqueueInTx(ctx context.Context, j *Job, tx adapter.Tx) error {
+func (c *Client) EnqueueTx(ctx context.Context, j *Job, tx adapter.Tx) error {
 	return c.execEnqueue(ctx, j, tx)
 }
 
