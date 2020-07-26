@@ -232,7 +232,7 @@ Currently, adapters for the following drivers have been implemented:
 
 ## Testing
 
-Linter and tests are running for every Pul Request, but it is possible to run linter
+Linter and tests are running for every Pull Request, but it is possible to run linter
 and tests locally using `docker` and `make`.
 
 Run linter: `make link`. This command runs liner in docker container with the project
