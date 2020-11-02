@@ -43,6 +43,11 @@ type Tx struct {
 	tx *sql.Tx
 }
 
+// NewTx instantiates new adapter.Tx github.com/lib/pq
+func NewTx(tx *sql.Tx) adapter.Tx {
+	return &Tx{tx: tx}
+}
+
 // Exec implements adapter.Tx.Exec() using github.com/lib/pq
 func (tx *Tx) Exec(ctx context.Context, sql string, arguments ...interface{}) (adapter.CommandTag, error) {
 	ct, err := tx.tx.ExecContext(ctx, sql, arguments...)
@@ -93,7 +98,7 @@ func (c *connPool) QueryRow(ctx context.Context, sql string, args ...interface{}
 // Begin implements adapter.ConnPool.Begin() using github.com/lib/pq
 func (c *connPool) Begin(ctx context.Context) (adapter.Tx, error) {
 	tx, err := c.pool.BeginTx(ctx, nil)
-	return &Tx{tx}, err
+	return NewTx(tx), err
 }
 
 // Close implements adapter.ConnPool.Close() using github.com/lib/pq
