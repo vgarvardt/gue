@@ -43,7 +43,7 @@ func TestNe(t *testing.T) {
 				{
 					Key:       "debug-key",
 					String:    "debug-val",
-					Type:      15,
+					Type:      zapcore.StringType,
 					Interface: i,
 				},
 			},
@@ -56,7 +56,7 @@ func TestNe(t *testing.T) {
 				{
 					Key:       "info-key",
 					String:    "info-val",
-					Type:      15,
+					Type:      zapcore.StringType,
 					Interface: i,
 				},
 			},
@@ -69,7 +69,7 @@ func TestNe(t *testing.T) {
 				{
 					Key:       "error-key",
 					String:    "error-val",
-					Type:      15,
+					Type:      zapcore.StringType,
 					Interface: i,
 				},
 			},
@@ -81,7 +81,7 @@ func TestNe(t *testing.T) {
 			Context: []zapcore.Field{
 				{
 					Key:       adapter.KeyError,
-					Type:      25,
+					Type:      zapcore.ErrorType,
 					Interface: err,
 				},
 			},
@@ -94,12 +94,12 @@ func TestNe(t *testing.T) {
 				{
 					Key:       "nested-key",
 					String:    "nested-val",
-					Type:      15,
+					Type:      zapcore.StringType,
 					Interface: i,
 				}, {
 					Key:       "info-key-2",
 					String:    "info-val-2",
-					Type:      15,
+					Type:      zapcore.StringType,
 					Interface: i,
 				},
 			},
