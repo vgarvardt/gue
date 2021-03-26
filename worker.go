@@ -35,6 +35,7 @@ type Worker struct {
 	logger   adapter.Logger
 	mu       sync.Mutex
 	running  bool
+	schema   string
 }
 
 // NewWorker returns a Worker that fetches Jobs from the Client and executes
@@ -52,6 +53,7 @@ func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) *Worker {
 		c:        c,
 		wm:       wm,
 		logger:   adapter.NoOpLogger{},
+		schema:   "public",
 	}
 
 	for _, option := range options {
@@ -147,7 +149,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 		return
 	}
 
-	if err = j.Delete(ctx); err != nil {
+	if err = j.Delete(ctx, w.schema); err != nil {
 		ll.Error("Got an error on deleting a job", adapter.Err(err))
 	}
 	ll.Debug("Job finished")
@@ -187,6 +189,7 @@ type WorkerPool struct {
 	logger   adapter.Logger
 	mu       sync.Mutex
 	running  bool
+	schema   string
 }
 
 // NewWorkerPool creates a new WorkerPool with count workers using the Client c.
@@ -202,6 +205,7 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 		c:        c,
 		workers:  make([]*Worker, poolSize),
 		logger:   adapter.NoOpLogger{},
+		schema:   "public",
 	}
 
 	for _, option := range options {
@@ -238,6 +242,7 @@ func (w *WorkerPool) Start(ctx context.Context) error {
 			WithWorkerQueue(w.queue),
 			WithWorkerID(fmt.Sprintf("%s/worker-%d", w.id, i)),
 			WithWorkerLogger(w.logger),
+			WithWorkerSchema(w.schema),
 		)
 
 		workerCtx[i], cancelFunc[i] = context.WithCancel(ctx)

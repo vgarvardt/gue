@@ -23,6 +23,9 @@ type Client struct {
 	logger  adapter.Logger
 	id      string
 	backoff Backoff
+	// schema holds PostgreSQL database schema name.
+	// The default is public.
+	schema string
 }
 
 // NewClient creates a new Client that uses the pgx pool.
@@ -31,6 +34,7 @@ func NewClient(pool adapter.ConnPool, options ...ClientOption) *Client {
 		pool:    pool,
 		logger:  adapter.NoOpLogger{},
 		backoff: exponential.Default,
+		schema:  "public",
 	}
 
 	for _, option := range options {
@@ -77,11 +81,11 @@ func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) e
 		j.Args = []byte(`[]`)
 	}
 
-	err := q.QueryRow(ctx, `INSERT INTO gue_jobs
+	query := fmt.Sprintf(`INSERT INTO %s.gue_jobs
 (queue, priority, run_at, job_type, args, created_at, updated_at)
 VALUES
-($1, $2, $3, $4, $5, $6, $6) RETURNING job_id
-`, j.Queue, j.Priority, j.RunAt, j.Type, j.Args, now).Scan(&j.ID)
+($1, $2, $3, $4, $5, $6, $6) RETURNING job_id`, c.schema)
+	err := q.QueryRow(ctx, query, j.Queue, j.Priority, j.RunAt, j.Type, j.Args, now).Scan(&j.ID)
 
 	c.logger.Debug(
 		"Tried to enqueue a job",
@@ -111,11 +115,12 @@ func (c *Client) LockJob(ctx context.Context, queue string) (*Job, error) {
 
 	j := Job{pool: c.pool, tx: tx, backoff: c.backoff}
 
-	err = tx.QueryRow(ctx, `SELECT job_id, queue, priority, run_at, job_type, args, error_count
-FROM gue_jobs
+	query := fmt.Sprintf(`SELECT job_id, queue, priority, run_at, job_type, args, error_count
+FROM %s.gue_jobs
 WHERE queue = $1 AND run_at <= $2
 ORDER BY priority ASC
-LIMIT 1 FOR UPDATE SKIP LOCKED`, queue, time.Now()).Scan(
+LIMIT 1 FOR UPDATE SKIP LOCKED`, c.schema)
+	err = tx.QueryRow(ctx, query, queue, time.Now()).Scan(
 		&j.ID,
 		&j.Queue,
 		&j.Priority,

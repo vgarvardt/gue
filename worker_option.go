@@ -41,6 +41,13 @@ func WithWorkerLogger(logger adapter.Logger) WorkerOption {
 	}
 }
 
+// WithWorkerSchema sets database schema name.  Default schema name is "public".
+func WithWorkerSchema(schema string) WorkerOption {
+	return func(w *Worker) {
+		w.schema = schema
+	}
+}
+
 // WithPoolPollInterval overrides default poll interval with the given value.
 // Poll interval is the "sleep" duration if there were no jobs found in the DB.
 func WithPoolPollInterval(d time.Duration) WorkerPoolOption {
@@ -67,5 +74,12 @@ func WithPoolID(id string) WorkerPoolOption {
 func WithPoolLogger(logger adapter.Logger) WorkerPoolOption {
 	return func(w *WorkerPool) {
 		w.logger = logger
+	}
+}
+
+// WithPoolSchema sets database schema name.  Default schema name is "public".
+func WithPoolSchema(schema string) WorkerPoolOption {
+	return func(w *WorkerPool) {
+		w.schema = schema
 	}
 }

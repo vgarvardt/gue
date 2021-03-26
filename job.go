@@ -69,7 +69,7 @@ func (j *Job) Tx() adapter.Tx {
 //
 // You must also later call Done() to return this job's database connection to
 // the pool.
-func (j *Job) Delete(ctx context.Context) error {
+func (j *Job) Delete(ctx context.Context, schema string) error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -77,7 +77,8 @@ func (j *Job) Delete(ctx context.Context) error {
 		return nil
 	}
 
-	_, err := j.tx.Exec(ctx, `DELETE FROM gue_jobs WHERE job_id = $1`, j.ID)
+	query := fmt.Sprintf(`DELETE FROM %s.gue_jobs WHERE job_id = $1`, schema)
+	_, err := j.tx.Exec(ctx, query, j.ID)
 	if err != nil {
 		return err
 	}

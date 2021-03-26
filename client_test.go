@@ -143,7 +143,7 @@ func testLockJobCustomQueue(t *testing.T, connPool adapter.ConnPool) {
 	}()
 	require.NotNil(t, j)
 
-	err = j.Delete(ctx)
+	err = j.Delete(ctx, c.schema)
 	require.NoError(t, err)
 }
 
@@ -244,7 +244,7 @@ func testJobDelete(t *testing.T, connPool adapter.ConnPool) {
 	require.NoError(t, err)
 	require.NotNil(t, j)
 
-	err = j.Delete(ctx)
+	err = j.Delete(ctx, c.schema)
 	require.NoError(t, err)
 
 	err = j.Done(ctx)
