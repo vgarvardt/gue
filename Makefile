@@ -1,6 +1,6 @@
 lint:
 	@echo "$(OK_COLOR)==> Linting with golangci-lint$(NO_COLOR)"
-	@docker run --rm -v `pwd`:/app -w /app golangci/golangci-lint:v1.27.0 golangci-lint run -v
+	@docker run --rm -v `pwd`:/app -w /app golangci/golangci-lint golangci-lint run -v
 
 test:
 	@echo "$(OK_COLOR)==> Running tests using docker-compose deps$(NO_COLOR)"
