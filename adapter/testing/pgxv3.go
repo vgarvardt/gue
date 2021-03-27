@@ -1,12 +1,14 @@
 package testing
 
 import (
+	"bytes"
 	"context"
 	"database/sql"
-	"io/ioutil"
+	"fmt"
 	"os"
 	"sync"
 	"testing"
+	"text/template"
 
 	"github.com/jackc/pgx"
 	_ "github.com/jackc/pgx/stdlib" // register pgx sql driver
@@ -18,17 +20,23 @@ import (
 )
 
 const defaultPoolConns = 5
+const defaultSchema = "public"
 
 var (
-	applyMigrations sync.Once
+	migrations sync.Map
 )
 
+func applyMigrations(schema string) *sync.Once {
+	once, _ := migrations.LoadOrStore(schema, &sync.Once{})
+	return once.(*sync.Once)
+}
+
 // OpenTestPoolMaxConnsPGXv3 opens connections pool user in testing
-func OpenTestPoolMaxConnsPGXv3(t testing.TB, maxConnections int) adapter.ConnPool {
+func OpenTestPoolMaxConnsPGXv3(t testing.TB, maxConnections int, schema string) adapter.ConnPool {
 	t.Helper()
 
-	applyMigrations.Do(func() {
-		doApplyMigrations(t)
+	applyMigrations(schema).Do(func() {
+		doApplyMigrations(t, schema)
 	})
 
 	connPoolConfig := pgx.ConnPoolConfig{
@@ -41,7 +49,7 @@ func OpenTestPoolMaxConnsPGXv3(t testing.TB, maxConnections int) adapter.ConnPoo
 	pool := pgxv3.NewConnPool(poolPGXv3)
 
 	t.Cleanup(func() {
-		truncateAndClose(t, pool)
+		truncateAndClose(t, pool, schema)
 	})
 
 	return pool
@@ -51,7 +59,7 @@ func OpenTestPoolMaxConnsPGXv3(t testing.TB, maxConnections int) adapter.ConnPoo
 func OpenTestPoolPGXv3(t testing.TB) adapter.ConnPool {
 	t.Helper()
 
-	return OpenTestPoolMaxConnsPGXv3(t, defaultPoolConns)
+	return OpenTestPoolMaxConnsPGXv3(t, defaultPoolConns, defaultSchema)
 }
 
 func testConnDSN(t testing.TB) string {
@@ -74,17 +82,18 @@ func testConnPGXv3Config(t testing.TB) pgx.ConnConfig {
 	return cfg
 }
 
-func truncateAndClose(t testing.TB, pool adapter.ConnPool) {
+func truncateAndClose(t testing.TB, pool adapter.ConnPool, schema string) {
 	t.Helper()
 
-	_, err := pool.Exec(context.Background(), "TRUNCATE TABLE gue_jobs")
+	sql := fmt.Sprintf("TRUNCATE TABLE \"%s\".gue_jobs", schema)
+	_, err := pool.Exec(context.Background(), sql)
 	assert.NoError(t, err)
 
 	err = pool.Close()
 	assert.NoError(t, err)
 }
 
-func doApplyMigrations(t testing.TB) {
+func doApplyMigrations(t testing.TB, schema string) {
 	t.Helper()
 
 	migrationsConn, err := sql.Open("pgx", testConnDSN(t))
@@ -94,9 +103,14 @@ func doApplyMigrations(t testing.TB) {
 		assert.NoError(t, err)
 	}()
 
-	migrationSQL, err := ioutil.ReadFile("./schema.sql")
+	sqlTemplate, err := template.ParseFiles("./schema.sql")
 	require.NoError(t, err)
 
-	_, err = migrationsConn.Exec(string(migrationSQL))
+	var buffer bytes.Buffer
+	err = sqlTemplate.Execute(&buffer, &TemplateContext{Schema: schema})
+	require.NoError(t, err)
+
+	t.Log(buffer.String())
+	_, err = migrationsConn.Exec(buffer.String())
 	require.NoError(t, err)
 }

@@ -34,7 +34,7 @@ func NewClient(pool adapter.ConnPool, options ...ClientOption) *Client {
 		pool:    pool,
 		logger:  adapter.NoOpLogger{},
 		backoff: exponential.Default,
-		schema:  "public",
+		schema:  defaultSchemaName,
 	}
 
 	for _, option := range options {

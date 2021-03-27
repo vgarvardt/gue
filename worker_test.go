@@ -15,19 +15,26 @@ import (
 )
 
 func TestWorkerWorkOne(t *testing.T) {
+	const defaultPoolConns = 5
+	const defaultSchema = "public"
+	const customSchema = "tasks"
+
 	t.Run("pgx/v3", func(t *testing.T) {
-		testWorkerWorkOne(t, adapterTesting.OpenTestPoolPGXv3(t))
+		testWorkerWorkOne(t, adapterTesting.OpenTestPoolMaxConnsPGXv3(t, defaultPoolConns, defaultSchema), defaultSchema)
+		testWorkerWorkOne(t, adapterTesting.OpenTestPoolMaxConnsPGXv3(t, defaultPoolConns, customSchema), customSchema)
 	})
 	t.Run("pgx/v4", func(t *testing.T) {
-		testWorkerWorkOne(t, adapterTesting.OpenTestPoolPGXv4(t))
+		testWorkerWorkOne(t, adapterTesting.OpenTestPoolMaxConnsPGXv4(t, defaultPoolConns, defaultSchema), defaultSchema)
+		testWorkerWorkOne(t, adapterTesting.OpenTestPoolMaxConnsPGXv4(t, defaultPoolConns, customSchema), customSchema)
 	})
 	t.Run("lib/pq", func(t *testing.T) {
-		testWorkerWorkOne(t, adapterTesting.OpenTestPoolLibPQ(t))
+		testWorkerWorkOne(t, adapterTesting.OpenTestPoolMaxConnsLibPQ(t, defaultPoolConns, defaultSchema), defaultSchema)
+		testWorkerWorkOne(t, adapterTesting.OpenTestPoolMaxConnsLibPQ(t, defaultPoolConns, customSchema), customSchema)
 	})
 }
 
-func testWorkerWorkOne(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
+func testWorkerWorkOne(t *testing.T, connPool adapter.ConnPool, schema string) {
+	c := NewClient(connPool, WithClientSchema(schema))
 	ctx := context.Background()
 
 	success := false
@@ -37,7 +44,7 @@ func testWorkerWorkOne(t *testing.T, connPool adapter.ConnPool) {
 			return nil
 		},
 	}
-	w := NewWorker(c, wm)
+	w := NewWorker(c, wm, WithWorkerSchema(schema))
 
 	didWork := w.WorkOne(ctx)
 	assert.False(t, didWork)

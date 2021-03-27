@@ -12,11 +12,11 @@ import (
 )
 
 // OpenTestPoolMaxConnsLibPQ opens connections pool user in testing
-func OpenTestPoolMaxConnsLibPQ(t testing.TB, maxConnections int) adapter.ConnPool {
+func OpenTestPoolMaxConnsLibPQ(t testing.TB, maxConnections int, schema string) adapter.ConnPool {
 	t.Helper()
 
-	applyMigrations.Do(func() {
-		doApplyMigrations(t)
+	applyMigrations(schema).Do(func() {
+		doApplyMigrations(t, schema)
 	})
 
 	db, err := sql.Open("postgres", testConnDSN(t))
@@ -27,7 +27,7 @@ func OpenTestPoolMaxConnsLibPQ(t testing.TB, maxConnections int) adapter.ConnPoo
 	pool := libpq.NewConnPool(db)
 
 	t.Cleanup(func() {
-		truncateAndClose(t, pool)
+		truncateAndClose(t, pool, schema)
 	})
 
 	return pool
@@ -37,5 +37,5 @@ func OpenTestPoolMaxConnsLibPQ(t testing.TB, maxConnections int) adapter.ConnPoo
 func OpenTestPoolLibPQ(t testing.TB) adapter.ConnPool {
 	t.Helper()
 
-	return OpenTestPoolMaxConnsLibPQ(t, defaultPoolConns)
+	return OpenTestPoolMaxConnsLibPQ(t, defaultPoolConns, defaultSchema)
 }

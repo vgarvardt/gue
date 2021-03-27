@@ -12,11 +12,11 @@ import (
 )
 
 // OpenTestPoolMaxConnsPGXv4 opens connections pool user in testing
-func OpenTestPoolMaxConnsPGXv4(t testing.TB, maxConnections int32) adapter.ConnPool {
+func OpenTestPoolMaxConnsPGXv4(t testing.TB, maxConnections int32, schema string) adapter.ConnPool {
 	t.Helper()
 
-	applyMigrations.Do(func() {
-		doApplyMigrations(t)
+	applyMigrations(schema).Do(func() {
+		doApplyMigrations(t, schema)
 	})
 
 	connPoolConfig, err := pgxpool.ParseConfig(testConnDSN(t))
@@ -30,7 +30,7 @@ func OpenTestPoolMaxConnsPGXv4(t testing.TB, maxConnections int32) adapter.ConnP
 	pool := pgxv4.NewConnPool(poolPGXv4)
 
 	t.Cleanup(func() {
-		truncateAndClose(t, pool)
+		truncateAndClose(t, pool, schema)
 	})
 
 	return pool
@@ -40,5 +40,5 @@ func OpenTestPoolMaxConnsPGXv4(t testing.TB, maxConnections int32) adapter.ConnP
 func OpenTestPoolPGXv4(t testing.TB) adapter.ConnPool {
 	t.Helper()
 
-	return OpenTestPoolMaxConnsPGXv4(t, defaultPoolConns)
+	return OpenTestPoolMaxConnsPGXv4(t, defaultPoolConns, defaultSchema)
 }

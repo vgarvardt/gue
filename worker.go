@@ -14,6 +14,7 @@ import (
 const (
 	defaultPollInterval = 5 * time.Second
 	defaultQueueName    = ""
+	defaultSchemaName   = "public"
 )
 
 // WorkFunc is a function that performs a Job. If an error is returned, the job
@@ -53,7 +54,7 @@ func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) *Worker {
 		c:        c,
 		wm:       wm,
 		logger:   adapter.NoOpLogger{},
-		schema:   "public",
+		schema:   defaultSchemaName,
 	}
 
 	for _, option := range options {
@@ -205,7 +206,7 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 		c:        c,
 		workers:  make([]*Worker, poolSize),
 		logger:   adapter.NoOpLogger{},
-		schema:   "public",
+		schema:   defaultSchemaName,
 	}
 
 	for _, option := range options {

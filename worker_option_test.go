@@ -166,3 +166,18 @@ func TestWithPoolLogger(t *testing.T) {
 
 	l.AssertExpectations(t)
 }
+
+func TestWithSchema(t *testing.T) {
+	wm := WorkMap{
+		"MyJob": func(j *Job) error {
+			return nil
+		},
+	}
+
+	workerWithDefaultSchema := NewWorker(nil, wm)
+	assert.Equal(t, defaultSchemaName, workerWithDefaultSchema.schema)
+
+	customSchema := "tasks"
+	workerWithCustomQueue := NewWorker(nil, wm, WithWorkerQueue(customSchema))
+	assert.Equal(t, customSchema, workerWithCustomQueue.queue)
+}

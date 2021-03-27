@@ -55,3 +55,12 @@ func TestWithClientBackoff(t *testing.T) {
 	assert.Equal(t, customBackoff(123), clientWithCustomBackoff.backoff(123))
 	assert.NotEqual(t, defaultPtr, customPtr)
 }
+
+func TestWithClientSchema(t *testing.T) {
+	clientWithDefaultSchema := NewClient(nil)
+	assert.Equal(t, defaultSchemaName, clientWithDefaultSchema.schema)
+
+	schema := "tasks"
+	clientWithCustomSchema := NewClient(nil, WithClientSchema(schema))
+	assert.Equal(t, schema, clientWithCustomSchema.schema)
+}

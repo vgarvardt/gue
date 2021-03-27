@@ -28,7 +28,7 @@ func WithClientBackoff(backoff Backoff) ClientOption {
 }
 
 // WithSchema sets database schema name that contains 'gue_jobs' table.
-func WithSchema(schema string) ClientOption {
+func WithClientSchema(schema string) ClientOption {
 	return func(c *Client) {
 		c.schema = schema
 	}
