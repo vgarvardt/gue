@@ -20,15 +20,20 @@ import (
 const defaultPoolConns = 5
 
 var (
-	applyMigrations sync.Once
+	migrations sync.Map
 )
+
+func applyMigrations(schema string) *sync.Once {
+	once, _ := migrations.LoadOrStore(schema, &sync.Once{})
+	return once.(*sync.Once)
+}
 
 // OpenTestPoolMaxConnsPGXv3 opens connections pool user in testing
 func OpenTestPoolMaxConnsPGXv3(t testing.TB, maxConnections int) adapter.ConnPool {
 	t.Helper()
 
-	applyMigrations.Do(func() {
-		doApplyMigrations(t)
+	applyMigrations("").Do(func() {
+		doApplyMigrations(t, "")
 	})
 
 	connPoolConfig := pgx.ConnPoolConfig{
@@ -61,8 +66,8 @@ func testConnDSN(t testing.TB) string {
 	require.True(t, found, "TEST_POSTGRES env var is not set")
 	require.NotEmpty(t, testPgConnString, "TEST_POSTGRES env var is empty")
 
-	//return `postgres://test:test@localhost:32769/test?sslmode=disable`
 	return testPgConnString
+	//return `postgres://test:test@localhost:54823/test?sslmode=disable`
 }
 
 func testConnPGXv3Config(t testing.TB) pgx.ConnConfig {
@@ -84,10 +89,16 @@ func truncateAndClose(t testing.TB, pool adapter.ConnPool) {
 	assert.NoError(t, err)
 }
 
-func doApplyMigrations(t testing.TB) {
+func doApplyMigrations(t testing.TB, schema string) {
 	t.Helper()
 
-	migrationsConn, err := sql.Open("pgx", testConnDSN(t))
+	dsn := testConnDSN(t)
+	if schema != "" {
+		dsn += "&search_path=" + schema
+		t.Logf("doApplyMigrations dsn: %s", dsn)
+	}
+
+	migrationsConn, err := sql.Open("pgx", dsn)
 	require.NoError(t, err)
 	defer func() {
 		err := migrationsConn.Close()
@@ -96,6 +107,11 @@ func doApplyMigrations(t testing.TB) {
 
 	migrationSQL, err := ioutil.ReadFile("./schema.sql")
 	require.NoError(t, err)
+
+	if schema != "" {
+		_, err := migrationsConn.Exec("CREATE SCHEMA IF NOT EXISTS " + schema)
+		require.NoError(t, err)
+	}
 
 	_, err = migrationsConn.Exec(string(migrationSQL))
 	require.NoError(t, err)

@@ -27,6 +27,7 @@ jobs:
         ports:
           - "5432"
         env:
+          LC_ALL: C.UTF-8
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
           POSTGRES_DB: test

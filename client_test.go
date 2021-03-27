@@ -429,3 +429,36 @@ func findOneJob(t testing.TB, q adapter.Queryable) *Job {
 
 	return j
 }
+
+func TestMultiSchema(t *testing.T) {
+	connPool := adapterTesting.OpenTestPoolLibPQCustomSchemas(t, "gue", "foo")
+	ctx := context.Background()
+
+	// create table with the explicitly set second schema as gue table was already created in the first one
+	_, err := connPool.Exec(ctx, "CREATE TABLE IF NOT EXISTS foo.bar ( id serial NOT NULL PRIMARY KEY, data text NOT NULL )")
+	require.NoError(t, err)
+
+	// insert into created table w/out setting schema explicitly - search_path should take care of this
+	_, err = connPool.Exec(ctx, "INSERT INTO bar (data) VALUES ('baz')")
+	require.NoError(t, err)
+
+	// run basic gue client test to ensure it works as expected in its own schema known to search_path
+	c := NewClient(connPool)
+
+	newJob := &Job{
+		Type: "MyJob",
+	}
+	err = c.Enqueue(ctx, newJob)
+	require.NoError(t, err)
+	require.Greater(t, newJob.ID, int64(0))
+
+	j, err := c.LockJob(ctx, "")
+	require.NoError(t, err)
+
+	require.NotNil(t, j.tx)
+	require.NotNil(t, j.pool)
+	defer func() {
+		err := j.Done(ctx)
+		assert.NoError(t, err)
+	}()
+}
