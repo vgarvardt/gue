@@ -278,10 +278,10 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 func (w *WorkerPool) Start(ctx context.Context) error {
 	errc := make(chan error, 1)
 	go func() {
-		// Note that the previous behavior was start workers sequentially
+		// Note that the previous behavior was to start workers sequentially
 		// and return on first error without shutting down all previously
 		// started workers. The current behavior is correct, i.e. workers
-		// are shut down on any error, but it doesn’t return an error on
+		// are shut down on any error, but we don’t return an error on
 		// startup. That said, the Start method actually never returned
 		// non-nil error from worker in previous implementation so it’s
 		// OK to just use runGroup here.
