@@ -161,7 +161,7 @@ func testWorkerPoolRun(t *testing.T, connPool adapter.ConnPool) {
 
 	cancel()
 
-	assert.NoError(t, grp.Wait())
+	require.NoError(t, grp.Wait())
 
 	assert.False(t, w.running)
 	for i := range w.workers {
