@@ -37,6 +37,7 @@ import (
     "time"
 
     "github.com/jackc/pgx/v4/pgxpool"
+    "golang.org/x/sync/errgroup"
 
     "github.com/vgarvardt/gue/v2"
     "github.com/vgarvardt/gue/v2/adapter/pgxv4"
@@ -79,9 +80,17 @@ func main() {
     ctx, shutdown := context.WithCancel(context.Background())
 
     // work jobs in goroutine
-    if err := workers.Start(ctx); err != nil {
-        log.Fatal(err)
-    }
+    g, gctx := errgroup.WithContext(ctx)
+    g.Go(func() error {
+        err := workers.Run(gctx)
+        if err != nil {
+            // In a real-world applications, use a better way to shut down
+            // application on unrecoverable error. E.g. fx.Shutdowner from
+            // go.uber.org/fx module.
+            log.Fatal(err)
+        }
+        return err
+    })
 
     args, err := json.Marshal(printNameArgs{Name: "vgarvardt"})
     if err != nil {
@@ -109,6 +118,9 @@ func main() {
 
     // send shutdown signal to worker
     shutdown()
+    if err := g.Wait(); err != nil {
+        log.Fatal(err)
+    }
 }
 ```
  

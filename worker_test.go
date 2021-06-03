@@ -9,6 +9,7 @@ import (
 	"github.com/jackc/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/vgarvardt/gue/v2/adapter"
 	adapterTesting "github.com/vgarvardt/gue/v2/adapter/testing"
@@ -50,6 +51,44 @@ func testWorkerWorkOne(t *testing.T, connPool adapter.ConnPool) {
 	assert.True(t, success)
 }
 
+func TestWorker_Run(t *testing.T) {
+	t.Run("pgx/v3", func(t *testing.T) {
+		testWorkerRun(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testWorkerRun(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testWorkerRun(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+}
+
+func testWorkerRun(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
+
+	w := NewWorker(c, WorkMap{})
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	var grp errgroup.Group
+	grp.Go(func() error {
+		return w.Run(ctx)
+	})
+
+	// give worker time to start
+	time.Sleep(time.Second)
+
+	assert.True(t, w.running)
+
+	// try to start one more time to get an error about already running worker
+	assert.Error(t, w.Run(context.Background()))
+
+	cancel()
+	assert.NoError(t, grp.Wait())
+
+	assert.False(t, w.running)
+}
+
 func TestWorker_Start(t *testing.T) {
 	t.Run("pgx/v3", func(t *testing.T) {
 		testWorkerStart(t, adapterTesting.OpenTestPoolPGXv3(t))
@@ -84,6 +123,52 @@ func testWorkerStart(t *testing.T, connPool adapter.ConnPool) {
 	assert.False(t, w.running)
 }
 
+func TestWorkerPool_Run(t *testing.T) {
+	t.Run("pgx/v3", func(t *testing.T) {
+		testWorkerPoolRun(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testWorkerPoolRun(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testWorkerPoolRun(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+}
+
+func testWorkerPoolRun(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
+
+	poolSize := 2
+	w := NewWorkerPool(c, WorkMap{}, poolSize)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	var grp errgroup.Group
+	grp.Go(func() error {
+		return w.Run(ctx)
+	})
+
+	// give worker time to start
+	time.Sleep(time.Second)
+
+	assert.True(t, w.running)
+	for i := range w.workers {
+		assert.True(t, w.workers[i].running)
+	}
+
+	// try to start one more time to get an error about already running worker pool
+	assert.Error(t, w.Run(context.Background()))
+
+	cancel()
+
+	assert.NoError(t, grp.Wait())
+
+	assert.False(t, w.running)
+	for i := range w.workers {
+		assert.False(t, w.workers[i].running)
+	}
+}
+
 func TestWorkerPool_Start(t *testing.T) {
 	t.Run("pgx/v3", func(t *testing.T) {
 		testWorkerPoolStart(t, adapterTesting.OpenTestPoolPGXv3(t))
@@ -106,6 +191,9 @@ func testWorkerPoolStart(t *testing.T, connPool adapter.ConnPool) {
 	err := w.Start(ctx)
 	require.NoError(t, err)
 
+	// give worker time to start
+	time.Sleep(time.Second)
+
 	assert.True(t, w.running)
 	for i := range w.workers {
 		assert.True(t, w.workers[i].running)
@@ -119,6 +207,7 @@ func testWorkerPoolStart(t *testing.T, connPool adapter.ConnPool) {
 
 	// give worker time to get a signal and stop
 	time.Sleep(time.Second)
+
 	assert.False(t, w.running)
 	for i := range w.workers {
 		assert.False(t, w.workers[i].running)
