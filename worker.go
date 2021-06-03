@@ -132,9 +132,6 @@ func (w *Worker) runLoop(ctx context.Context) error {
 		// Reset or create the timer; time.After is leaky
 		// on context cancellation since we can’t stop it.
 		if timer != nil {
-			if !timer.Stop() {
-				<-timer.C
-			}
 			timer.Reset(w.interval)
 		} else {
 			timer = time.NewTimer(w.interval)
