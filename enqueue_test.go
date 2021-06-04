@@ -87,11 +87,6 @@ func TestEnqueueWithRunAt(t *testing.T) {
 		testEnqueueWithRunAt(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
 	t.Run("lib/pq", func(t *testing.T) {
-		// FIXME: looks like lib/pq does not default to UTC timezone and generally
-		// handles timezones poorly. The test still passes sometimes though so skipping
-		// it as flaky for now.
-		t.Skip("skipping flaky lib/pq timezone test")
-
 		testEnqueueWithRunAt(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
 	t.Run("go-pg/v10", func(t *testing.T) {
@@ -111,8 +106,7 @@ func testEnqueueWithRunAt(t *testing.T, connPool adapter.ConnPool) {
 	require.NotNil(t, j)
 
 	// truncate to the microsecond as postgres driver does
-	want = want.Truncate(time.Microsecond)
-	assert.True(t, want.Equal(j.RunAt))
+	assert.WithinDuration(t, want, j.RunAt, time.Microsecond)
 }
 
 func TestEnqueueWithArgs(t *testing.T) {
@@ -141,7 +135,7 @@ func testEnqueueWithArgs(t *testing.T, connPool adapter.ConnPool) {
 	j := findOneJob(t, connPool)
 	require.NotNil(t, j)
 
-	assert.Equal(t, want, j.Args)
+	assert.JSONEq(t, string(want), string(j.Args))
 }
 
 func TestEnqueueWithQueue(t *testing.T) {

@@ -19,9 +19,7 @@ import (
 
 const defaultPoolConns = 5
 
-var (
-	migrations sync.Map
-)
+var migrations sync.Map
 
 func applyMigrations(schema string) *sync.Once {
 	once, _ := migrations.LoadOrStore(schema, &sync.Once{})
@@ -67,7 +65,7 @@ func testConnDSN(t testing.TB) string {
 	require.NotEmpty(t, testPgConnString, "TEST_POSTGRES env var is empty")
 
 	return testPgConnString
-	//return `postgres://test:test@localhost:54823/test?sslmode=disable`
+	// return `postgres://test:test@localhost:54823/test?sslmode=disable`
 }
 
 func testConnPGXv3Config(t testing.TB) pgx.ConnConfig {

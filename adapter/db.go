@@ -16,7 +16,7 @@ var (
 type Row interface {
 	// Scan reads the values from the current row into dest values positionally.
 	// If no rows were found it returns ErrNoRows. If multiple rows are returned it
-	//ignores all but the first.
+	// ignores all but the first.
 	Scan(dest ...interface{}) error
 }
 

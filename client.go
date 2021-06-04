@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -81,7 +82,7 @@ func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) e
 (queue, priority, run_at, job_type, args, created_at, updated_at)
 VALUES
 ($1, $2, $3, $4, $5, $6, $6) RETURNING job_id
-`, j.Queue, j.Priority, j.RunAt, j.Type, j.Args, now).Scan(&j.ID)
+`, j.Queue, j.Priority, j.RunAt, j.Type, json.RawMessage(j.Args), now).Scan(&j.ID)
 
 	c.logger.Debug(
 		"Tried to enqueue a job",
@@ -123,7 +124,7 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`, queue, now).Scan(
 		&j.Priority,
 		&j.RunAt,
 		&j.Type,
-		&j.Args,
+		(*json.RawMessage)(&j.Args),
 		&j.ErrorCount,
 	)
 	if err == nil {
