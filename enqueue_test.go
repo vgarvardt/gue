@@ -106,7 +106,7 @@ func testEnqueueWithRunAt(t *testing.T, connPool adapter.ConnPool) {
 	require.NotNil(t, j)
 
 	// truncate to the microsecond as postgres driver does
-	assert.True(t, want.Sub(j.RunAt) <= time.Microsecond)
+	assert.WithinDuration(t, want, j.RunAt, time.Microsecond)
 }
 
 func TestEnqueueWithArgs(t *testing.T) {
