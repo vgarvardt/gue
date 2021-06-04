@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/vgarvardt/gue/v2/adapter"
 )
 
@@ -46,7 +48,7 @@ type Worker struct {
 // The default queue is the nameless queue "", which can be overridden by
 // WithWorkerQueue option.
 func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) *Worker {
-	instance := Worker{
+	w := Worker{
 		interval: defaultPollInterval,
 		queue:    defaultQueueName,
 		c:        c,
@@ -55,58 +57,95 @@ func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) *Worker {
 	}
 
 	for _, option := range options {
-		option(&instance)
+		option(&w)
 	}
 
-	if instance.id == "" {
-		instance.id = newID()
+	if w.id == "" {
+		w.id = newID()
 	}
 
-	instance.logger = instance.logger.With(adapter.F("worker-id", instance.id))
+	w.logger = w.logger.With(adapter.F("worker-id", w.id))
 
-	return &instance
+	return &w
 }
 
 // Start pulls jobs off the Worker's queue at its interval. This function runs
 // in its own goroutine, use cancel context to shut it down.
+//
+// Deprecated: use Run instead of Start. Start leaks resources and does not wait
+// for shutdown to complete.
 func (w *Worker) Start(ctx context.Context) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+	errc := make(chan error, 1)
+	go func() {
+		errc <- w.runLock(ctx, func(ctx context.Context) error {
+			errc <- nil
+			return w.runLoop(ctx)
+		})
+	}()
+	return <-errc
+}
 
+// Run pulls jobs off the Worker's queue at its interval. This function does
+// not run in its own goroutine so it’s possible to wait for completion. Use
+// context cancellation to shut it down.
+func (w *Worker) Run(ctx context.Context) error {
+	return w.runLock(ctx, w.runLoop)
+}
+
+// runLock runs function f under a run lock. Any attempt to call runLock concurrently
+// will return an error.
+func (w *Worker) runLock(ctx context.Context, f func(ctx context.Context) error) error {
+	w.mu.Lock()
 	if w.running {
+		w.mu.Unlock()
 		return fmt.Errorf("worker[id=%s] is already running", w.id)
 	}
-
 	w.running = true
-	go func() {
-		defer func() {
-			w.running = false
-			w.logger.Info("Worker finished")
-		}()
+	w.mu.Unlock()
 
-		for {
-			// Try to work a job
-			if w.WorkOne(ctx) {
-				// Since we just did work, non-blocking check whether we should exit
-				select {
-				case <-ctx.Done():
-					return
-				default:
-					// continue in loop
-				}
-			} else {
-				// No work found, block until exit or timer expires
-				select {
-				case <-ctx.Done():
-					return
-				case <-time.After(w.interval):
-					// continue in loop
-				}
-			}
-		}
+	defer func() {
+		w.mu.Lock()
+		w.running = false
+		w.mu.Unlock()
 	}()
 
-	return nil
+	return f(ctx)
+}
+
+// runLoop pulls jobs off the Worker's queue at its interval.
+func (w *Worker) runLoop(ctx context.Context) error {
+	defer w.logger.Info("Worker finished")
+
+	var timer *time.Timer
+	for {
+		// Try to work a job
+		if w.WorkOne(ctx) {
+			// Since we just did work, non-blocking check whether we should exit
+			select {
+			case <-ctx.Done():
+				return nil
+			default:
+				continue
+			}
+		}
+
+		// Reset or create the timer; time.After is leaky
+		// on context cancellation since we can’t stop it.
+		if timer != nil {
+			timer.Reset(w.interval)
+		} else {
+			timer = time.NewTimer(w.interval)
+			defer timer.Stop()
+		}
+
+		// No work found, block until exit or timer expires
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-timer.C:
+			continue
+		}
+	}
 }
 
 // WorkOne tries to consume single message from the queue.
@@ -195,7 +234,7 @@ type WorkerPool struct {
 // overridden by WithPoolPollInterval option. The default queue is the
 // nameless queue "", which can be overridden by WithPoolQueue option.
 func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOption) *WorkerPool {
-	instance := WorkerPool{
+	w := WorkerPool{
 		wm:       wm,
 		interval: defaultPollInterval,
 		queue:    defaultQueueName,
@@ -205,31 +244,15 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 	}
 
 	for _, option := range options {
-		option(&instance)
+		option(&w)
 	}
 
-	if instance.id == "" {
-		instance.id = newID()
+	if w.id == "" {
+		w.id = newID()
 	}
 
-	instance.logger = instance.logger.With(adapter.F("worker-pool-id", instance.id))
+	w.logger = w.logger.With(adapter.F("worker-pool-id", w.id))
 
-	return &instance
-}
-
-// Start starts all of the Workers in the WorkerPool in own goroutines.
-// Use cancel context to shut them down
-func (w *WorkerPool) Start(ctx context.Context) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	if w.running {
-		return fmt.Errorf("worker pool[id=%s] already running", w.id)
-	}
-
-	workerCtx := make([]context.Context, len(w.workers))
-	cancelFunc := make([]context.CancelFunc, len(w.workers))
-	w.running = true
 	for i := range w.workers {
 		w.workers[i] = NewWorker(
 			w.c,
@@ -239,21 +262,73 @@ func (w *WorkerPool) Start(ctx context.Context) error {
 			WithWorkerID(fmt.Sprintf("%s/worker-%d", w.id, i)),
 			WithWorkerLogger(w.logger),
 		)
-
-		workerCtx[i], cancelFunc[i] = context.WithCancel(ctx)
-		if err := w.workers[i].Start(workerCtx[i]); err != nil {
-			return err
-		}
 	}
 
-	go func(cancelFunc []context.CancelFunc) {
-		defer func() {
-			w.running = false
-			w.logger.Info("Worker pool finished")
-		}()
+	return &w
+}
 
-		<-ctx.Done()
-	}(cancelFunc)
+// Start starts all of the Workers in the WorkerPool in own goroutines.
+// Use cancel context to shut them down.
+//
+// Deprecated: use Run instead of Start. Start leaks resources and does not wait
+// for shutdown to complete.
+func (w *WorkerPool) Start(ctx context.Context) error {
+	errc := make(chan error, 1)
+	go func() {
+		// Note that the previous behavior was to start workers sequentially
+		// and return on first error without shutting down all previously
+		// started workers. The current behavior is correct, i.e. workers
+		// are shut down on any error, but we don’t return an error on
+		// startup. That said, the Start method actually never returned
+		// non-nil error from worker in previous implementation so it’s
+		// OK to just use runGroup here.
+		//
+		errc <- w.runLock(ctx, func(ctx context.Context) error {
+			errc <- nil
+			return w.runGroup(ctx)
+		})
+	}()
+	return <-errc
+}
 
-	return nil
+// Run runs all of the Workers in the WorkerPool in own goroutines.
+// Run blocks until all workers exit. Use context cancellation for
+// shutdown.
+func (w *WorkerPool) Run(ctx context.Context) error {
+	return w.runLock(ctx, w.runGroup)
+}
+
+// runLock runs function f under a run lock. Any attempt to call runLock concurrently
+// will return an error.
+func (w *WorkerPool) runLock(ctx context.Context, f func(ctx context.Context) error) error {
+	w.mu.Lock()
+	if w.running {
+		w.mu.Unlock()
+		return fmt.Errorf("worker pool[id=%s] already running", w.id)
+	}
+	w.running = true
+	w.mu.Unlock()
+
+	defer func() {
+		w.mu.Lock()
+		w.running = false
+		w.mu.Unlock()
+	}()
+
+	return f(ctx)
+}
+
+// runGroup starts all of the Workers in the WorkerPool in own goroutines
+// managed by errgroup.Group.
+func (w *WorkerPool) runGroup(ctx context.Context) error {
+	defer w.logger.Info("Worker pool finished")
+
+	grp, ctx := errgroup.WithContext(ctx)
+	for i := range w.workers {
+		worker := w.workers[i]
+		grp.Go(func() error {
+			return worker.Run(ctx)
+		})
+	}
+	return grp.Wait()
 }
