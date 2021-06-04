@@ -141,7 +141,7 @@ func testEnqueueWithArgs(t *testing.T, connPool adapter.ConnPool) {
 	j := findOneJob(t, connPool)
 	require.NotNil(t, j)
 
-	assert.Equal(t, want, j.Args)
+	assert.JSONEq(t, string(want), string(j.Args))
 }
 
 func TestEnqueueWithQueue(t *testing.T) {

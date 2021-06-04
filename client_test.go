@@ -2,6 +2,7 @@ package gue
 
 import (
 	"context"
+	"encoding/json"
 	"sync"
 	"testing"
 	"time"
@@ -450,7 +451,7 @@ func findOneJob(t testing.TB, q adapter.Queryable) *Job {
 		&j.RunAt,
 		&j.ID,
 		&j.Type,
-		&j.Args,
+		(*json.RawMessage)(&j.Args),
 		&j.ErrorCount,
 		&j.LastError,
 		&j.Queue,

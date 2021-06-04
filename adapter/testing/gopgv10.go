@@ -40,5 +40,5 @@ func OpenTestPoolMaxConnsGoPGv10(t testing.TB, maxConnections int32) adapter.Con
 func OpenTestPoolGoPGv10(t testing.TB) adapter.ConnPool {
 	t.Helper()
 
-	return OpenTestPoolMaxConnsPGXv4(t, defaultPoolConns)
+	return OpenTestPoolMaxConnsGoPGv10(t, defaultPoolConns)
 }
