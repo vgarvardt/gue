@@ -3,6 +3,7 @@ module github.com/vgarvardt/gue/v2
 go 1.14
 
 require (
+	github.com/go-pg/pg/v10 v10.10.0
 	github.com/jackc/fake v0.0.0-20150926172116-812a484cc733 // indirect
 	github.com/jackc/pgconn v1.8.1
 	github.com/jackc/pgproto3/v2 v2.0.7 // indirect

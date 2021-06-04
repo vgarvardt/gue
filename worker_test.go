@@ -25,6 +25,9 @@ func TestWorkerWorkOne(t *testing.T) {
 	t.Run("lib/pq", func(t *testing.T) {
 		testWorkerWorkOne(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testWorkerWorkOne(t, adapterTesting.OpenTestPoolGoPGv10(t))
+	})
 }
 
 func testWorkerWorkOne(t *testing.T, connPool adapter.ConnPool) {
@@ -60,6 +63,9 @@ func TestWorker_Run(t *testing.T) {
 	})
 	t.Run("lib/pq", func(t *testing.T) {
 		testWorkerRun(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testWorkerRun(t, adapterTesting.OpenTestPoolGoPGv10(t))
 	})
 }
 
@@ -99,6 +105,9 @@ func TestWorker_Start(t *testing.T) {
 	t.Run("lib/pq", func(t *testing.T) {
 		testWorkerStart(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testWorkerStart(t, adapterTesting.OpenTestPoolGoPGv10(t))
+	})
 }
 
 func testWorkerStart(t *testing.T, connPool adapter.ConnPool) {
@@ -132,6 +141,9 @@ func TestWorkerPool_Run(t *testing.T) {
 	})
 	t.Run("lib/pq", func(t *testing.T) {
 		testWorkerPoolRun(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testWorkerPoolRun(t, adapterTesting.OpenTestPoolGoPGv10(t))
 	})
 }
 
@@ -179,6 +191,9 @@ func TestWorkerPool_Start(t *testing.T) {
 	t.Run("lib/pq", func(t *testing.T) {
 		testWorkerPoolStart(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testWorkerPoolStart(t, adapterTesting.OpenTestPoolGoPGv10(t))
+	})
 }
 
 func testWorkerPoolStart(t *testing.T, connPool adapter.ConnPool) {
@@ -224,6 +239,9 @@ func BenchmarkWorker(b *testing.B) {
 	b.Run("lib/pq", func(b *testing.B) {
 		benchmarkWorker(b, adapterTesting.OpenTestPoolLibPQ(b))
 	})
+	b.Run("go-pg/v10", func(b *testing.B) {
+		benchmarkWorker(b, adapterTesting.OpenTestPoolGoPGv10(b))
+	})
 }
 
 func benchmarkWorker(b *testing.B, connPool adapter.ConnPool) {
@@ -257,6 +275,9 @@ func TestWorkerWorkReturnsError(t *testing.T) {
 	})
 	t.Run("lib/pq", func(t *testing.T) {
 		testWorkerWorkReturnsError(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testWorkerWorkReturnsError(t, adapterTesting.OpenTestPoolGoPGv10(t))
 	})
 }
 
@@ -301,6 +322,9 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 	t.Run("lib/pq", func(t *testing.T) {
 		testWorkerWorkRescuesPanic(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testWorkerWorkRescuesPanic(t, adapterTesting.OpenTestPoolGoPGv10(t))
+	})
 }
 
 func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
@@ -342,6 +366,9 @@ func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
 	})
 	t.Run("lib/pq", func(t *testing.T) {
 		testWorkerWorkOneTypeNotInMap(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testWorkerWorkOneTypeNotInMap(t, adapterTesting.OpenTestPoolGoPGv10(t))
 	})
 }
 
