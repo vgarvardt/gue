@@ -122,14 +122,15 @@ func (j *Job) Error(ctx context.Context, msg string) (err error) {
 
 	errorCount := j.ErrorCount + 1
 
-	newRunAt := time.Now().Add(j.backoff(int(errorCount)))
+	now := time.Now().UTC()
+	newRunAt := now.Add(j.backoff(int(errorCount)))
 
 	_, err = j.tx.Exec(ctx, `UPDATE gue_jobs
 SET error_count = $1,
     run_at      = $2,
     last_error  = $3,
-	updated_at  = $4
-WHERE job_id    = $5`, errorCount, newRunAt, msg, time.Now(), j.ID)
+    updated_at  = $4
+WHERE job_id    = $5`, errorCount, newRunAt, msg, now, j.ID)
 
 	return err
 }

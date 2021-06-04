@@ -66,7 +66,7 @@ func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) e
 		return ErrMissingType
 	}
 
-	now := time.Now()
+	now := time.Now().UTC()
 
 	runAt := j.RunAt
 	if runAt.IsZero() {
@@ -109,13 +109,15 @@ func (c *Client) LockJob(ctx context.Context, queue string) (*Job, error) {
 		return nil, err
 	}
 
+	now := time.Now().UTC()
+
 	j := Job{pool: c.pool, tx: tx, backoff: c.backoff}
 
 	err = tx.QueryRow(ctx, `SELECT job_id, queue, priority, run_at, job_type, args, error_count
 FROM gue_jobs
 WHERE queue = $1 AND run_at <= $2
 ORDER BY priority ASC
-LIMIT 1 FOR UPDATE SKIP LOCKED`, queue, time.Now()).Scan(
+LIMIT 1 FOR UPDATE SKIP LOCKED`, queue, now).Scan(
 		&j.ID,
 		&j.Queue,
 		&j.Priority,
