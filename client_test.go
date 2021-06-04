@@ -24,6 +24,9 @@ func TestLockJob(t *testing.T) {
 	t.Run("lib/pq", func(t *testing.T) {
 		testLockJob(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testLockJob(t, adapterTesting.OpenTestPoolGoPGv10(t))
+	})
 }
 
 func testLockJob(t *testing.T, connPool adapter.ConnPool) {
@@ -68,6 +71,9 @@ func TestLockJobAlreadyLocked(t *testing.T) {
 	t.Run("lib/pq", func(t *testing.T) {
 		testLockJobAlreadyLocked(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testLockJobAlreadyLocked(t, adapterTesting.OpenTestPoolGoPGv10(t))
+	})
 }
 
 func testLockJobAlreadyLocked(t *testing.T, connPool adapter.ConnPool) {
@@ -101,6 +107,9 @@ func TestLockJobNoJob(t *testing.T) {
 	t.Run("lib/pq", func(t *testing.T) {
 		testLockJobNoJob(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testLockJobNoJob(t, adapterTesting.OpenTestPoolGoPGv10(t))
+	})
 }
 
 func testLockJobNoJob(t *testing.T, connPool adapter.ConnPool) {
@@ -121,6 +130,9 @@ func TestLockJobCustomQueue(t *testing.T) {
 	})
 	t.Run("lib/pq", func(t *testing.T) {
 		testLockJobCustomQueue(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testLockJobCustomQueue(t, adapterTesting.OpenTestPoolGoPGv10(t))
 	})
 }
 
@@ -157,6 +169,9 @@ func TestJobTx(t *testing.T) {
 	t.Run("lib/pq", func(t *testing.T) {
 		testJobTx(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testJobTx(t, adapterTesting.OpenTestPoolGoPGv10(t))
+	})
 }
 
 func testJobTx(t *testing.T, connPool adapter.ConnPool) {
@@ -186,6 +201,9 @@ func TestJobConnRace(t *testing.T) {
 	})
 	t.Run("lib/pq", func(t *testing.T) {
 		testJobConnRace(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testJobConnRace(t, adapterTesting.OpenTestPoolGoPGv10(t))
 	})
 }
 
@@ -231,6 +249,9 @@ func TestJobDelete(t *testing.T) {
 	t.Run("lib/pq", func(t *testing.T) {
 		testJobDelete(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testJobDelete(t, adapterTesting.OpenTestPoolGoPGv10(t))
+	})
 }
 
 func testJobDelete(t *testing.T, connPool adapter.ConnPool) {
@@ -265,6 +286,9 @@ func TestJobDone(t *testing.T) {
 	t.Run("lib/pq", func(t *testing.T) {
 		testJobDone(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testJobDone(t, adapterTesting.OpenTestPoolGoPGv10(t))
+	})
 }
 
 func testJobDone(t *testing.T, connPool adapter.ConnPool) {
@@ -296,6 +320,9 @@ func TestJobDoneMultiple(t *testing.T) {
 	t.Run("lib/pq", func(t *testing.T) {
 		testJobDoneMultiple(t, adapterTesting.OpenTestPoolLibPQ(t))
 	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testJobDoneMultiple(t, adapterTesting.OpenTestPoolGoPGv10(t))
+	})
 }
 
 func testJobDoneMultiple(t *testing.T, connPool adapter.ConnPool) {
@@ -325,6 +352,9 @@ func TestJobError(t *testing.T) {
 	})
 	t.Run("lib/pq", func(t *testing.T) {
 		testJobError(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testJobError(t, adapterTesting.OpenTestPoolGoPGv10(t))
 	})
 }
 
@@ -367,6 +397,9 @@ func TestJobErrorCustomBackoff(t *testing.T) {
 	})
 	t.Run("lib/pq", func(t *testing.T) {
 		testJobErrorCustomBackoff(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testJobErrorCustomBackoff(t, adapterTesting.OpenTestPoolGoPGv10(t))
 	})
 }
 

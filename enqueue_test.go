@@ -20,6 +20,12 @@ func TestEnqueueOnlyType(t *testing.T) {
 	t.Run("pgx/v4", func(t *testing.T) {
 		testEnqueueOnlyType(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testEnqueueOnlyType(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testEnqueueOnlyType(t, adapterTesting.OpenTestPoolGoPGv10(t))
+	})
 }
 
 func testEnqueueOnlyType(t *testing.T, connPool adapter.ConnPool) {
@@ -51,6 +57,12 @@ func TestEnqueueWithPriority(t *testing.T) {
 	t.Run("pgx/v4", func(t *testing.T) {
 		testEnqueueWithPriority(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testEnqueueWithPriority(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testEnqueueWithPriority(t, adapterTesting.OpenTestPoolGoPGv10(t))
+	})
 }
 
 func testEnqueueWithPriority(t *testing.T, connPool adapter.ConnPool) {
@@ -73,6 +85,12 @@ func TestEnqueueWithRunAt(t *testing.T) {
 	})
 	t.Run("pgx/v4", func(t *testing.T) {
 		testEnqueueWithRunAt(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testEnqueueWithRunAt(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testEnqueueWithRunAt(t, adapterTesting.OpenTestPoolGoPGv10(t))
 	})
 }
 
@@ -99,6 +117,12 @@ func TestEnqueueWithArgs(t *testing.T) {
 	t.Run("pgx/v4", func(t *testing.T) {
 		testEnqueueWithArgs(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testEnqueueWithArgs(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testEnqueueWithArgs(t, adapterTesting.OpenTestPoolGoPGv10(t))
+	})
 }
 
 func testEnqueueWithArgs(t *testing.T, connPool adapter.ConnPool) {
@@ -121,6 +145,12 @@ func TestEnqueueWithQueue(t *testing.T) {
 	})
 	t.Run("pgx/v4", func(t *testing.T) {
 		testEnqueueWithQueue(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testEnqueueWithQueue(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testEnqueueWithQueue(t, adapterTesting.OpenTestPoolGoPGv10(t))
 	})
 }
 
@@ -145,6 +175,12 @@ func TestEnqueueWithEmptyType(t *testing.T) {
 	t.Run("pgx/v4", func(t *testing.T) {
 		testEnqueueWithEmptyType(t, adapterTesting.OpenTestPoolPGXv4(t))
 	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testEnqueueWithEmptyType(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testEnqueueWithEmptyType(t, adapterTesting.OpenTestPoolGoPGv10(t))
+	})
 }
 
 func testEnqueueWithEmptyType(t *testing.T, connPool adapter.ConnPool) {
@@ -161,6 +197,12 @@ func TestEnqueueTx(t *testing.T) {
 	})
 	t.Run("pgx/v4", func(t *testing.T) {
 		testEnqueueTx(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testEnqueueTx(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testEnqueueTx(t, adapterTesting.OpenTestPoolGoPGv10(t))
 	})
 }
 

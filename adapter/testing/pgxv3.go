@@ -28,7 +28,7 @@ func applyMigrations(schema string) *sync.Once {
 	return once.(*sync.Once)
 }
 
-// OpenTestPoolMaxConnsPGXv3 opens connections pool user in testing
+// OpenTestPoolMaxConnsPGXv3 opens connections pool used in testing
 func OpenTestPoolMaxConnsPGXv3(t testing.TB, maxConnections int) adapter.ConnPool {
 	t.Helper()
 
@@ -52,7 +52,7 @@ func OpenTestPoolMaxConnsPGXv3(t testing.TB, maxConnections int) adapter.ConnPoo
 	return pool
 }
 
-// OpenTestPoolPGXv3 opens connections pool user in testing
+// OpenTestPoolPGXv3 opens connections pool used in testing
 func OpenTestPoolPGXv3(t testing.TB) adapter.ConnPool {
 	t.Helper()
 

@@ -11,7 +11,7 @@ import (
 	"github.com/vgarvardt/gue/v2/adapter/pgxv4"
 )
 
-// OpenTestPoolMaxConnsPGXv4 opens connections pool user in testing
+// OpenTestPoolMaxConnsPGXv4 opens connections pool used in testing
 func OpenTestPoolMaxConnsPGXv4(t testing.TB, maxConnections int32) adapter.ConnPool {
 	t.Helper()
 
@@ -36,7 +36,7 @@ func OpenTestPoolMaxConnsPGXv4(t testing.TB, maxConnections int32) adapter.ConnP
 	return pool
 }
 
-// OpenTestPoolPGXv4 opens connections pool user in testing
+// OpenTestPoolPGXv4 opens connections pool used in testing
 func OpenTestPoolPGXv4(t testing.TB) adapter.ConnPool {
 	t.Helper()
 
