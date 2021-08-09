@@ -99,6 +99,7 @@ func main() {
 
     j := &gue.Job{
         Type:  "PrintName",
+        Queue: "name_printer",
         Args:  args,
     }
     if err := gc.Enqueue(context.Background(), j); err != nil {
@@ -107,6 +108,7 @@ func main() {
 
     j := &gue.Job{
         Type:  "PrintName",
+        Queue: "name_printer",
         RunAt: time.Now().UTC().Add(30 * time.Second), // delay 30 seconds
         Args:  args,
     }
