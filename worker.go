@@ -20,7 +20,7 @@ const (
 
 // WorkFunc is a function that performs a Job. If an error is returned, the job
 // is re-enqueued with exponential backoff.
-type WorkFunc func(j *Job) error
+type WorkFunc func(ctx context.Context, j *Job) error
 
 // WorkMap is a map of Job names to WorkFuncs that are used to perform Jobs of a
 // given type.
@@ -179,7 +179,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 		return
 	}
 
-	if err = wf(j); err != nil {
+	if err = wf(ctx, j); err != nil {
 		if jErr := j.Error(ctx, err.Error()); jErr != nil {
 			ll.Error("Got an error on setting an error to an errored job", adapter.Err(jErr), adapter.F("job-error", err))
 		}

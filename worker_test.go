@@ -36,7 +36,7 @@ func testWorkerWorkOne(t *testing.T, connPool adapter.ConnPool) {
 
 	success := false
 	wm := WorkMap{
-		"MyJob": func(j *Job) error {
+		"MyJob": func(ctx context.Context, j *Job) error {
 			success = true
 			return nil
 		},
@@ -262,7 +262,7 @@ func benchmarkWorker(b *testing.B, connPool adapter.ConnPool) {
 	}
 }
 
-func nilWorker(j *Job) error {
+func nilWorker(ctx context.Context, j *Job) error {
 	return nil
 }
 
@@ -287,7 +287,7 @@ func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
 
 	called := 0
 	wm := WorkMap{
-		"MyJob": func(j *Job) error {
+		"MyJob": func(ctx context.Context, j *Job) error {
 			called++
 			return errors.New("the error msg")
 		},
@@ -333,7 +333,7 @@ func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
 
 	called := 0
 	wm := WorkMap{
-		"MyJob": func(j *Job) error {
+		"MyJob": func(ctx context.Context, j *Job) error {
 			called++
 			panic("the panic msg")
 		},

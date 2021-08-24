@@ -1,6 +1,7 @@
 package gue
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -33,7 +34,7 @@ func (m *mockLogger) With(fields ...adapter.Field) adapter.Logger {
 
 func TestWithWorkerPollInterval(t *testing.T) {
 	wm := WorkMap{
-		"MyJob": func(j *Job) error {
+		"MyJob": func(ctx context.Context, j *Job) error {
 			return nil
 		},
 	}
@@ -48,7 +49,7 @@ func TestWithWorkerPollInterval(t *testing.T) {
 
 func TestWithWorkerQueue(t *testing.T) {
 	wm := WorkMap{
-		"MyJob": func(j *Job) error {
+		"MyJob": func(ctx context.Context, j *Job) error {
 			return nil
 		},
 	}
@@ -63,7 +64,7 @@ func TestWithWorkerQueue(t *testing.T) {
 
 func TestWithWorkerID(t *testing.T) {
 	wm := WorkMap{
-		"MyJob": func(j *Job) error {
+		"MyJob": func(ctx context.Context, j *Job) error {
 			return nil
 		},
 	}
@@ -78,7 +79,7 @@ func TestWithWorkerID(t *testing.T) {
 
 func TestWithWorkerLogger(t *testing.T) {
 	wm := WorkMap{
-		"MyJob": func(j *Job) error {
+		"MyJob": func(ctx context.Context, j *Job) error {
 			return nil
 		},
 	}
@@ -101,7 +102,7 @@ func TestWithWorkerLogger(t *testing.T) {
 
 func TestWithPoolPollInterval(t *testing.T) {
 	wm := WorkMap{
-		"MyJob": func(j *Job) error {
+		"MyJob": func(ctx context.Context, j *Job) error {
 			return nil
 		},
 	}
@@ -116,7 +117,7 @@ func TestWithPoolPollInterval(t *testing.T) {
 
 func TestWithPoolQueue(t *testing.T) {
 	wm := WorkMap{
-		"MyJob": func(j *Job) error {
+		"MyJob": func(ctx context.Context, j *Job) error {
 			return nil
 		},
 	}
@@ -131,7 +132,7 @@ func TestWithPoolQueue(t *testing.T) {
 
 func TestWithPoolID(t *testing.T) {
 	wm := WorkMap{
-		"MyJob": func(j *Job) error {
+		"MyJob": func(ctx context.Context, j *Job) error {
 			return nil
 		},
 	}
@@ -146,7 +147,7 @@ func TestWithPoolID(t *testing.T) {
 
 func TestWithPoolLogger(t *testing.T) {
 	wm := WorkMap{
-		"MyJob": func(j *Job) error {
+		"MyJob": func(ctx context.Context, j *Job) error {
 			return nil
 		},
 	}
