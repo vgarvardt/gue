@@ -38,29 +38,29 @@ func (ct aCommandTag) RowsAffected() int64 {
 	return ra
 }
 
-// Tx implements adapter.Tx using github.com/lib/pq
-type Tx struct {
+// aTx implements adapter.Tx using github.com/lib/pq
+type aTx struct {
 	tx *sql.Tx
 }
 
-// NewTx instantiates new adapter.Tx github.com/lib/pq
+// NewTx instantiates new adapter.Tx using github.com/lib/pq
 func NewTx(tx *sql.Tx) adapter.Tx {
-	return &Tx{tx: tx}
+	return &aTx{tx: tx}
 }
 
 // Exec implements adapter.Tx.Exec() using github.com/lib/pq
-func (tx *Tx) Exec(ctx context.Context, sql string, arguments ...interface{}) (adapter.CommandTag, error) {
+func (tx *aTx) Exec(ctx context.Context, sql string, arguments ...interface{}) (adapter.CommandTag, error) {
 	ct, err := tx.tx.ExecContext(ctx, sql, arguments...)
 	return aCommandTag{ct}, err
 }
 
 // QueryRow implements adapter.Tx.QueryRow() using github.com/lib/pq
-func (tx *Tx) QueryRow(ctx context.Context, sql string, args ...interface{}) adapter.Row {
+func (tx *aTx) QueryRow(ctx context.Context, sql string, args ...interface{}) adapter.Row {
 	return &aRow{tx.tx.QueryRowContext(ctx, sql, args...)}
 }
 
 // Rollback implements adapter.Tx.Rollback() using github.com/lib/pq
-func (tx *Tx) Rollback(ctx context.Context) error {
+func (tx *aTx) Rollback(ctx context.Context) error {
 	err := tx.tx.Rollback()
 	if err == sql.ErrTxDone {
 		return adapter.ErrTxClosed
@@ -70,7 +70,7 @@ func (tx *Tx) Rollback(ctx context.Context) error {
 }
 
 // Commit implements adapter.Tx.Commit() using github.com/lib/pq
-func (tx *Tx) Commit(ctx context.Context) error {
+func (tx *aTx) Commit(ctx context.Context) error {
 	return tx.tx.Commit()
 }
 
