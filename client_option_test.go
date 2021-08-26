@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
-	"github.com/vgarvardt/gue/v2/adapter"
-	"github.com/vgarvardt/gue/v2/adapter/exponential"
+	"github.com/vgarvardt/gue/v3/adapter"
+	"github.com/vgarvardt/gue/v3/adapter/exponential"
 )
 
 func TestWithClientID(t *testing.T) {

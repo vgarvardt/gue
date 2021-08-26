@@ -9,7 +9,7 @@ import (
 	"github.com/go-pg/pg/v10"
 	"github.com/go-pg/pg/v10/orm"
 
-	"github.com/vgarvardt/gue/v2/adapter"
+	"github.com/vgarvardt/gue/v3/adapter"
 )
 
 // BUG: using Scan actually executes the query. That’s not an issue given

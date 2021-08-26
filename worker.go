@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/vgarvardt/gue/v2/adapter"
+	"github.com/vgarvardt/gue/v3/adapter"
 )
 
 const (

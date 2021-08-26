@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgtype"
-	"github.com/vgarvardt/gue/v2/adapter"
+	"github.com/vgarvardt/gue/v3/adapter"
 )
 
 // Backoff is the interface for backoff implementation that will be used

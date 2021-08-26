@@ -3,7 +3,7 @@ package zap
 import (
 	uberZap "go.uber.org/zap"
 
-	"github.com/vgarvardt/gue/v2/adapter"
+	"github.com/vgarvardt/gue/v3/adapter"
 )
 
 type zap struct {

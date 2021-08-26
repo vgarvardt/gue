@@ -1,6 +1,6 @@
 # gue
 
-[![GoDev](https://img.shields.io/static/v1?label=godev&message=reference&color=00add8)](https://pkg.go.dev/github.com/vgarvardt/gue/v2)
+[![GoDev](https://img.shields.io/static/v1?label=godev&message=reference&color=00add8)](https://pkg.go.dev/github.com/vgarvardt/gue/v3)
 [![Coverage Status](https://codecov.io/gh/vgarvardt/gue/branch/master/graph/badge.svg)](https://codecov.io/gh/vgarvardt/gue)
 [![ReportCard](https://goreportcard.com/badge/github.com/vgarvardt/gue)](https://goreportcard.com/report/github.com/vgarvardt/gue)
 [![License](https://img.shields.io/npm/l/express.svg)](http://opensource.org/licenses/MIT)
@@ -18,7 +18,7 @@ The name Gue is yet another silly word transformation: Queue -> Que, Go + Que ->
 ## Install
 
 ```
-go get -u github.com/vgarvardt/gue/v2
+go get -u github.com/vgarvardt/gue/v3
 ```
 
 Additionally, you need to apply [DB migration](./schema.sql).
@@ -39,8 +39,8 @@ import (
     "github.com/jackc/pgx/v4/pgxpool"
     "golang.org/x/sync/errgroup"
 
-    "github.com/vgarvardt/gue/v2"
-    "github.com/vgarvardt/gue/v2/adapter/pgxv4"
+    "github.com/vgarvardt/gue/v3"
+    "github.com/vgarvardt/gue/v3/adapter/pgxv4"
 )
 
 type printNameArgs struct {
@@ -147,8 +147,8 @@ import (
 
     "github.com/jackc/pgx/v4/pgxpool"
 
-    "github.com/vgarvardt/gue/v2"
-    "github.com/vgarvardt/gue/v2/adapter/pgxv4"
+    "github.com/vgarvardt/gue/v3"
+    "github.com/vgarvardt/gue/v3/adapter/pgxv4"
 )
 
 func main() {
@@ -181,8 +181,8 @@ import (
 
     "github.com/jackc/pgx"
 
-    "github.com/vgarvardt/gue/v2"
-    "github.com/vgarvardt/gue/v2/adapter/pgxv3"
+    "github.com/vgarvardt/gue/v3"
+    "github.com/vgarvardt/gue/v3/adapter/pgxv3"
 )
 
 func main() {
@@ -217,8 +217,8 @@ import (
 
     _ "github.com/lib/pq" // register postgres driver
 
-    "github.com/vgarvardt/gue/v2"
-    "github.com/vgarvardt/gue/v2/adapter/libpq"
+    "github.com/vgarvardt/gue/v3"
+    "github.com/vgarvardt/gue/v3/adapter/libpq"
 )
 
 func main() {
@@ -246,8 +246,8 @@ import (
 
     "github.com/go-pg/pg/v10"
 
-    "github.com/vgarvardt/gue/v2"
-    "github.com/vgarvardt/gue/v2/adapter/gopgv10"
+    "github.com/vgarvardt/gue/v3"
+    "github.com/vgarvardt/gue/v3/adapter/gopgv10"
 )
 
 func main() {
@@ -286,4 +286,3 @@ source code mounted.
 
 Run tests: `make test`. This command runs project dependencies in docker containers
 if they are not started yet and runs go tests with coverage.
- 
