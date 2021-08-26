@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/vgarvardt/gue/v2/adapter"
-	adapterTesting "github.com/vgarvardt/gue/v2/adapter/testing"
+	"github.com/vgarvardt/gue/v3/adapter"
+	adapterTesting "github.com/vgarvardt/gue/v3/adapter/testing"
 )
 
 func TestWorkerWorkOne(t *testing.T) {
