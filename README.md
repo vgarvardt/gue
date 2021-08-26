@@ -48,7 +48,7 @@ type printNameArgs struct {
 }
 
 func main() {
-    printName := func(j *gue.Job) error {
+    printName := func(ctx context.Context, j *gue.Job) error {
         var args printNameArgs
         if err := json.Unmarshal(j.Args, &args); err != nil {
             return err
