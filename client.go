@@ -139,6 +139,44 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`, queue, now).Scan(
 	return nil, fmt.Errorf("could not lock a job (rollback result: %v): %w", rbErr, err)
 }
 
+// LockJobByID attempts to retrieve a specific Job from the database.
+// If the job is found, it will be locked on the transactional level, so other workers
+// will be skipping it. If the job is not found, an error will be returned
+//
+// Because Gue uses transaction-level locks, we have to hold the
+// same transaction throughout the process of getting the job, working it,
+// deleting it, and releasing the lock.
+//
+// After the Job has been worked, you must call either Done() or Error() on it
+// in order to commit transaction to persist Job changes (remove or update it).
+func (c *Client) LockJobByID(ctx context.Context, id int64) (*Job, error) {
+	tx, err := c.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	j := Job{pool: c.pool, tx: tx, backoff: c.backoff}
+
+	err = tx.QueryRow(ctx, `SELECT job_id, queue, priority, run_at, job_type, args, error_count
+FROM gue_jobs
+WHERE job_id = $1 FOR UPDATE SKIP LOCKED`, id).Scan(
+		&j.ID,
+		&j.Queue,
+		&j.Priority,
+		&j.RunAt,
+		&j.Type,
+		(*json.RawMessage)(&j.Args),
+		&j.ErrorCount,
+	)
+	if err == nil {
+		return &j, nil
+	}
+
+	rbErr := tx.Rollback(ctx)
+
+	return nil, fmt.Errorf("could not lock the job (rollback result: %v): %w", rbErr, err)
+}
+
 func newID() string {
 	hasher := md5.New()
 	// nolint:errcheck
