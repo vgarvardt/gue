@@ -14,8 +14,10 @@ import (
 )
 
 const (
-	defaultPollInterval = 5 * time.Second
-	defaultQueueName    = ""
+	defaultPollInterval       = 5 * time.Second
+	defaultQueueName          = ""
+	defaultPollStrategy       = "OrderByPriority"
+	nextScheduledPollStrategy = "OrderByRunAtPriority"
 )
 
 // WorkFunc is a function that performs a Job. If an error is returned, the job
@@ -29,14 +31,15 @@ type WorkMap map[string]WorkFunc
 // Worker is a single worker that pulls jobs off the specified queue. If no Job
 // is found, the Worker will sleep for interval seconds.
 type Worker struct {
-	wm       WorkMap
-	interval time.Duration
-	queue    string
-	c        *Client
-	id       string
-	logger   adapter.Logger
-	mu       sync.Mutex
-	running  bool
+	wm           WorkMap
+	interval     time.Duration
+	queue        string
+	c            *Client
+	id           string
+	logger       adapter.Logger
+	mu           sync.Mutex
+	running      bool
+	pollStrategy string
 }
 
 // NewWorker returns a Worker that fetches Jobs from the Client and executes
@@ -62,6 +65,10 @@ func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) *Worker {
 
 	if w.id == "" {
 		w.id = newID()
+	}
+
+	if w.pollStrategy == "" {
+		w.pollStrategy = defaultPollStrategy
 	}
 
 	w.logger = w.logger.With(adapter.F("worker-id", w.id))
@@ -150,7 +157,15 @@ func (w *Worker) runLoop(ctx context.Context) error {
 
 // WorkOne tries to consume single message from the queue.
 func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
-	j, err := w.c.LockJob(ctx, w.queue)
+	var j *Job
+	var err error
+	switch w.pollStrategy {
+	case nextScheduledPollStrategy:
+		j, err = w.c.LockNextScheduledJob(ctx, w.queue)
+	default:
+		j, err = w.c.LockJob(ctx, w.queue)
+	}
+
 	if err != nil {
 		w.logger.Error("Worker failed to lock a job", adapter.Err(err))
 		return
@@ -217,15 +232,16 @@ func recoverPanic(ctx context.Context, logger adapter.Logger, j *Job) {
 // WorkerPool is a pool of Workers, each working jobs from the queue queue
 // at the specified interval using the WorkMap.
 type WorkerPool struct {
-	wm       WorkMap
-	interval time.Duration
-	queue    string
-	c        *Client
-	workers  []*Worker
-	id       string
-	logger   adapter.Logger
-	mu       sync.Mutex
-	running  bool
+	wm           WorkMap
+	interval     time.Duration
+	queue        string
+	c            *Client
+	workers      []*Worker
+	id           string
+	logger       adapter.Logger
+	mu           sync.Mutex
+	running      bool
+	pollStrategy string
 }
 
 // NewWorkerPool creates a new WorkerPool with count workers using the Client c.
@@ -251,6 +267,10 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 		w.id = newID()
 	}
 
+	if w.pollStrategy == "" {
+		w.pollStrategy = defaultPollStrategy
+	}
+
 	w.logger = w.logger.With(adapter.F("worker-pool-id", w.id))
 
 	for i := range w.workers {
@@ -261,9 +281,9 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 			WithWorkerQueue(w.queue),
 			WithWorkerID(fmt.Sprintf("%s/worker-%d", w.id, i)),
 			WithWorkerLogger(w.logger),
+			setWorkerPollStrategy(w.pollStrategy),
 		)
 	}
-
 	return &w
 }
 

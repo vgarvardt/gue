@@ -41,6 +41,25 @@ func WithWorkerLogger(logger adapter.Logger) WorkerOption {
 	}
 }
 
+// WithWorkerNextScheduledPollStrategy sets pollStrategy as nextScheduledPollStrategy
+func WithWorkerNextScheduledPollStrategy() WorkerOption {
+	return func(w *Worker) {
+		w.pollStrategy = nextScheduledPollStrategy
+	}
+}
+
+// setWorkerPollStrategy setter method for worker pollStrategy
+func setWorkerPollStrategy(strategy string) WorkerOption {
+	switch strategy {
+	case nextScheduledPollStrategy:
+		return WithWorkerNextScheduledPollStrategy()
+	default:
+		return func(w *Worker) {
+			w.pollStrategy = defaultPollStrategy
+		}
+	}
+}
+
 // WithPoolPollInterval overrides default poll interval with the given value.
 // Poll interval is the "sleep" duration if there were no jobs found in the DB.
 func WithPoolPollInterval(d time.Duration) WorkerPoolOption {
@@ -67,5 +86,12 @@ func WithPoolID(id string) WorkerPoolOption {
 func WithPoolLogger(logger adapter.Logger) WorkerPoolOption {
 	return func(w *WorkerPool) {
 		w.logger = logger
+	}
+}
+
+// WithPoolNextScheduledPollStrategy sets pollStrategy as nextScheduledPollStrategy
+func WithPoolNextScheduledPollStrategy() WorkerPoolOption {
+	return func(w *WorkerPool) {
+		w.pollStrategy = nextScheduledPollStrategy
 	}
 }
