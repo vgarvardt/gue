@@ -13,6 +13,7 @@ import (
 	"github.com/vgarvardt/gue/v3/adapter"
 )
 
+// PollStrategy determines how the DB is queried for the next job to work on
 type PollStrategy string
 
 const (
@@ -34,7 +35,7 @@ type WorkFunc func(ctx context.Context, j *Job) error
 // given type.
 type WorkMap map[string]WorkFunc
 
-// pollFunc is a function that polls the db for a job to be worked on
+// pollFunc is a function that queries the DB for the next job to work on
 type pollFunc func(context.Context, string) (*Job, error)
 
 // Worker is a single worker that pulls jobs off the specified queue. If no Job
