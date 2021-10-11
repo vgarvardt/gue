@@ -271,6 +271,114 @@ func testLockJobByIDNoJob(t *testing.T, connPool adapter.ConnPool) {
 	require.Nil(t, j)
 }
 
+func TestLockNextScheduledJob(t *testing.T) {
+	t.Run("pgx/v3", func(t *testing.T) {
+		testLockNextScheduledJob(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testLockNextScheduledJob(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testLockNextScheduledJob(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testLockNextScheduledJob(t, adapterTesting.OpenTestPoolGoPGv10(t))
+	})
+}
+
+func testLockNextScheduledJob(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
+	ctx := context.Background()
+
+	newJob := &Job{
+		Type:  "MyJob",
+		RunAt: time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC),
+	}
+	err := c.Enqueue(ctx, newJob)
+	require.NoError(t, err)
+	require.Greater(t, newJob.ID, int64(0))
+
+	j, err := c.LockNextScheduledJob(ctx, "")
+	require.NoError(t, err)
+
+	require.NotNil(t, j.tx)
+	require.NotNil(t, j.pool)
+	defer func() {
+		err := j.Done(ctx)
+		assert.NoError(t, err)
+	}()
+
+	// check values of returned Job
+	assert.Equal(t, newJob.ID, j.ID)
+	assert.Equal(t, defaultQueueName, j.Queue)
+	assert.Equal(t, int16(0), j.Priority)
+	assert.False(t, j.RunAt.IsZero())
+	assert.Equal(t, newJob.Type, j.Type)
+	assert.Equal(t, []byte(`[]`), j.Args)
+	assert.Equal(t, int32(0), j.ErrorCount)
+	assert.NotEqual(t, pgtype.Present, j.LastError.Status)
+}
+
+func TestLockNextScheduledJobAlreadyLocked(t *testing.T) {
+	t.Run("pgx/v3", func(t *testing.T) {
+		testLockNextScheduledJobAlreadyLocked(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testLockNextScheduledJobAlreadyLocked(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testLockNextScheduledJobAlreadyLocked(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testLockNextScheduledJobAlreadyLocked(t, adapterTesting.OpenTestPoolGoPGv10(t))
+	})
+}
+
+func testLockNextScheduledJobAlreadyLocked(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
+	ctx := context.Background()
+
+	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
+	require.NoError(t, err)
+
+	j, err := c.LockNextScheduledJob(ctx, "")
+	require.NoError(t, err)
+
+	defer func() {
+		err := j.Done(ctx)
+		assert.NoError(t, err)
+	}()
+	require.NotNil(t, j)
+
+	j2, err := c.LockNextScheduledJob(ctx, "")
+	require.NoError(t, err)
+	require.Nil(t, j2)
+}
+
+func TestLockNextScheduledJobNoJob(t *testing.T) {
+	t.Run("pgx/v3", func(t *testing.T) {
+		testLockNextScheduledJobNoJob(t, adapterTesting.OpenTestPoolPGXv3(t))
+	})
+	t.Run("pgx/v4", func(t *testing.T) {
+		testLockNextScheduledJobNoJob(t, adapterTesting.OpenTestPoolPGXv4(t))
+	})
+	t.Run("lib/pq", func(t *testing.T) {
+		testLockNextScheduledJobNoJob(t, adapterTesting.OpenTestPoolLibPQ(t))
+	})
+	t.Run("go-pg/v10", func(t *testing.T) {
+		testLockNextScheduledJobNoJob(t, adapterTesting.OpenTestPoolGoPGv10(t))
+	})
+}
+
+func testLockNextScheduledJobNoJob(t *testing.T, connPool adapter.ConnPool) {
+	c := NewClient(connPool)
+	ctx := context.Background()
+
+	j, err := c.LockNextScheduledJob(ctx, "")
+	require.NoError(t, err)
+	require.Nil(t, j)
+}
+
 func TestJobTx(t *testing.T) {
 	t.Run("pgx/v3", func(t *testing.T) {
 		testJobTx(t, adapterTesting.OpenTestPoolPGXv3(t))

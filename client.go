@@ -98,6 +98,9 @@ VALUES
 // If a job is found, it will be locked on the transactional level, so other workers
 // will be skipping it. If no job is found, nil will be returned instead of an error.
 //
+// This function cares about the priority first to lock top priority jobs first even if there are available ones that
+// should be executed earlier but with the lower priority.
+//
 // Because Gue uses transaction-level locks, we have to hold the
 // same transaction throughout the process of getting a job, working it,
 // deleting it, and releasing the lock.
@@ -175,6 +178,54 @@ WHERE job_id = $1 FOR UPDATE SKIP LOCKED`, id).Scan(
 	rbErr := tx.Rollback(ctx)
 
 	return nil, fmt.Errorf("could not lock the job (rollback result: %v): %w", rbErr, err)
+}
+
+// LockNextScheduledJob attempts to retrieve the earliest scheduled Job from the database in the specified queue.
+// If a job is found, it will be locked on the transactional level, so other workers
+// will be skipping it. If no job is found, nil will be returned instead of an error.
+//
+// This function cares about the scheduled time first to lock earliest to execute jobs first even if there are ones
+// with a higher priority scheduled to a later time but already eligible for execution
+//
+// Because Gue uses transaction-level locks, we have to hold the
+// same transaction throughout the process of getting a job, working it,
+// deleting it, and releasing the lock.
+//
+// After the Job has been worked, you must call either Done() or Error() on it
+// in order to commit transaction to persist Job changes (remove or update it).
+func (c *Client) LockNextScheduledJob(ctx context.Context, queue string) (*Job, error) {
+	tx, err := c.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now().UTC()
+
+	j := Job{pool: c.pool, tx: tx, backoff: c.backoff}
+
+	err = tx.QueryRow(ctx, `SELECT job_id, queue, priority, run_at, job_type, args, error_count
+FROM gue_jobs
+WHERE queue = $1 AND run_at <= $2
+ORDER BY run_at, priority ASC
+LIMIT 1 FOR UPDATE SKIP LOCKED`, queue, now).Scan(
+		&j.ID,
+		&j.Queue,
+		&j.Priority,
+		&j.RunAt,
+		&j.Type,
+		(*json.RawMessage)(&j.Args),
+		&j.ErrorCount,
+	)
+	if err == nil {
+		return &j, nil
+	}
+
+	rbErr := tx.Rollback(ctx)
+	if err == adapter.ErrNoRows {
+		return nil, rbErr
+	}
+
+	return nil, fmt.Errorf("could not lock a job (rollback result: %v): %w", rbErr, err)
 }
 
 func newID() string {

@@ -100,6 +100,16 @@ func TestWithWorkerLogger(t *testing.T) {
 	l.AssertExpectations(t)
 }
 
+func TestWithWorkerPollStrategy(t *testing.T) {
+	wm := WorkMap{
+		"MyJob": func(ctx context.Context, j *Job) error {
+			return nil
+		},
+	}
+	workerWithWorkerPollStrategy := NewWorker(nil, wm, WithWorkerPollStrategy(RunAtPollStrategy))
+	assert.Equal(t, RunAtPollStrategy, workerWithWorkerPollStrategy.pollStrategy)
+}
+
 func TestWithPoolPollInterval(t *testing.T) {
 	wm := WorkMap{
 		"MyJob": func(ctx context.Context, j *Job) error {
@@ -166,4 +176,14 @@ func TestWithPoolLogger(t *testing.T) {
 	workerPoolWithCustomLogger.logger.Info(logMessage)
 
 	l.AssertExpectations(t)
+}
+
+func TestWithPoolPollStrategy(t *testing.T) {
+	wm := WorkMap{
+		"MyJob": func(ctx context.Context, j *Job) error {
+			return nil
+		},
+	}
+	workerPoolWithPoolPollStrategy := NewWorkerPool(nil, wm, 2, WithPoolPollStrategy(RunAtPollStrategy))
+	assert.Equal(t, RunAtPollStrategy, workerPoolWithPoolPollStrategy.pollStrategy)
 }
