@@ -98,6 +98,9 @@ VALUES
 // If a job is found, it will be locked on the transactional level, so other workers
 // will be skipping it. If no job is found, nil will be returned instead of an error.
 //
+// This function cares about the priority first to lock top priority jobs first even if there are available ones that
+// should be executed earlier but with the lower priority.
+//
 // Because Gue uses transaction-level locks, we have to hold the
 // same transaction throughout the process of getting a job, working it,
 // deleting it, and releasing the lock.
@@ -180,6 +183,9 @@ WHERE job_id = $1 FOR UPDATE SKIP LOCKED`, id).Scan(
 // LockNextScheduledJob attempts to retrieve the earliest scheduled Job from the database in the specified queue.
 // If a job is found, it will be locked on the transactional level, so other workers
 // will be skipping it. If no job is found, nil will be returned instead of an error.
+//
+// This function cares about the scheduled time first to lock earliest to execute jobs first even if there are ones
+// with a higher priority scheduled to a later time but already eligible for execution
 //
 // Because Gue uses transaction-level locks, we have to hold the
 // same transaction throughout the process of getting a job, working it,

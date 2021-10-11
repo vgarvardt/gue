@@ -100,27 +100,14 @@ func TestWithWorkerLogger(t *testing.T) {
 	l.AssertExpectations(t)
 }
 
-func TestWithWorkerNextScheduledPollStrategy(t *testing.T) {
+func TestWithWorkerPollStrategy(t *testing.T) {
 	wm := WorkMap{
 		"MyJob": func(ctx context.Context, j *Job) error {
 			return nil
 		},
 	}
-	workerWithNextScheduledPollStrategy := NewWorker(nil, wm, WithWorkerNextScheduledPollStrategy())
-	assert.Equal(t, nextScheduledPollStrategy, workerWithNextScheduledPollStrategy.pollStrategy)
-}
-
-func TestSetWorkerPollStrategy(t *testing.T) {
-	wm := WorkMap{
-		"MyJob": func(ctx context.Context, j *Job) error {
-			return nil
-		},
-	}
-	workerWithNextScheduledPollStrategy := NewWorker(nil, wm, setWorkerPollStrategy(nextScheduledPollStrategy))
-	assert.Equal(t, nextScheduledPollStrategy, workerWithNextScheduledPollStrategy.pollStrategy)
-
-	workerWithDefaultPollStrategy := NewWorker(nil, wm, setWorkerPollStrategy(defaultPollStrategy))
-	assert.Equal(t, defaultPollStrategy, workerWithDefaultPollStrategy.pollStrategy)
+	workerWithWorkerPollStrategy := NewWorker(nil, wm, WithWorkerPollStrategy(RunAtPollStrategy))
+	assert.Equal(t, RunAtPollStrategy, workerWithWorkerPollStrategy.pollStrategy)
 }
 
 func TestWithPoolPollInterval(t *testing.T) {
@@ -191,12 +178,12 @@ func TestWithPoolLogger(t *testing.T) {
 	l.AssertExpectations(t)
 }
 
-func TestWithPoolNextScheduledPollStrategy(t *testing.T) {
+func TestWithPoolPollStrategy(t *testing.T) {
 	wm := WorkMap{
 		"MyJob": func(ctx context.Context, j *Job) error {
 			return nil
 		},
 	}
-	workerPoolWithNextScheduledPollStrategy := NewWorkerPool(nil, wm, 2, WithPoolNextScheduledPollStrategy())
-	assert.Equal(t, nextScheduledPollStrategy, workerPoolWithNextScheduledPollStrategy.pollStrategy)
+	workerPoolWithPoolPollStrategy := NewWorkerPool(nil, wm, 2, WithPoolPollStrategy(RunAtPollStrategy))
+	assert.Equal(t, RunAtPollStrategy, workerPoolWithPoolPollStrategy.pollStrategy)
 }
