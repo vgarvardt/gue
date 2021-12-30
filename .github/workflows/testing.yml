@@ -10,6 +10,8 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+
     steps:
       - name: Check out code
         uses: actions/checkout@v2
@@ -27,6 +29,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: [ lint ]
 
     services:
@@ -48,13 +51,15 @@ jobs:
     steps:
       - name: Set up Go
         uses: actions/setup-go@v2
+
       - name: Check out code
         uses: actions/checkout@v2
+
       - name: Run tests
         if: success()
         run: go test -timeout 60s -cover ./... -coverprofile=coverage.txt -covermode=atomic
         env:
-          TEST_POSTGRES: postgres://test:test@localhost:${{ job.services.postgres.ports[5432] }}/test?sslmode=disable
+          TEST_POSTGRES: 'postgres://test:test@localhost:${{ job.services.postgres.ports[5432] }}/test?sslmode=disable'
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v1
