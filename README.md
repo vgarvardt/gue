@@ -8,10 +8,9 @@
 Gue is Golang queue on top of PostgreSQL that uses transaction-level locks.
 
 Originally this project used to be a fork of [bgentry/que-go](https://github.com/bgentry/que-go)
-but because of some backward-compatibility breaking changes and original library
-author not being very responsive for PRs I turned fork into standalone project.
-Version 2 breaks internal backward-compatibility with the original project - DB table
-and all the internal logic (queries, algorithms) is completely rewritten.
+but because of some backward-compatibility breaking changes and original library author not being very responsive for
+PRs I turned fork into standalone project. Version 2 breaks internal backward-compatibility with the original project -
+DB table and all the internal logic (queries, algorithms) is completely rewritten.
 
 The name Gue is yet another silly word transformation: Queue -> Que, Go + Que -> Gue.
 
@@ -29,107 +28,113 @@ Additionally, you need to apply [DB migration](./schema.sql).
 package main
 
 import (
-    "context"
-    "encoding/json"
-    "fmt"
-    "log"
-    "os"
-    "time"
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+	"time"
 
-    "github.com/jackc/pgx/v4/pgxpool"
-    "golang.org/x/sync/errgroup"
+	"github.com/jackc/pgx/v4/pgxpool"
+	"golang.org/x/sync/errgroup"
 
-    "github.com/vgarvardt/gue/v3"
-    "github.com/vgarvardt/gue/v3/adapter/pgxv4"
+	"github.com/vgarvardt/gue/v3"
+	"github.com/vgarvardt/gue/v3/adapter/pgxv4"
+)
+
+const (
+	printerQueue   = "name_printer"
+	jobTypePrinter = "PrintName"
 )
 
 type printNameArgs struct {
-    Name string
+	Name string
 }
 
 func main() {
-    printName := func(ctx context.Context, j *gue.Job) error {
-        var args printNameArgs
-        if err := json.Unmarshal(j.Args, &args); err != nil {
-            return err
-        }
-        fmt.Printf("Hello %s!\n", args.Name)
-        return nil
-    }
+	printName := func(ctx context.Context, j *gue.Job) error {
+		var args printNameArgs
+		if err := json.Unmarshal(j.Args, &args); err != nil {
+			return err
+		}
+		fmt.Printf("Hello %s!\n", args.Name)
+		return nil
+	}
 
-    pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
-    if err != nil {
-        log.Fatal(err)
-    }
+	pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer pgxPool.Close()
+	pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pgxPool.Close()
 
-    poolAdapter := pgxv4.NewConnPool(pgxPool)
+	poolAdapter := pgxv4.NewConnPool(pgxPool)
 
-    gc := gue.NewClient(poolAdapter)
-    wm := gue.WorkMap{
-        "PrintName": printName,
-    }
-    // create a pool w/ 2 workers
-    workers := gue.NewWorkerPool(gc, wm, 2, gue.WithPoolQueue("name_printer"))
+	gc := gue.NewClient(poolAdapter)
+	wm := gue.WorkMap{
+		jobTypePrinter: printName,
+	}
+	// create a pool w/ 2 workers
+	workers := gue.NewWorkerPool(gc, wm, 2, gue.WithPoolQueue(printerQueue))
 
-    ctx, shutdown := context.WithCancel(context.Background())
+	ctx, shutdown := context.WithCancel(context.Background())
 
-    // work jobs in goroutine
-    g, gctx := errgroup.WithContext(ctx)
-    g.Go(func() error {
-        err := workers.Run(gctx)
-        if err != nil {
-            // In a real-world applications, use a better way to shut down
-            // application on unrecoverable error. E.g. fx.Shutdowner from
-            // go.uber.org/fx module.
-            log.Fatal(err)
-        }
-        return err
-    })
+	// work jobs in goroutine
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		err := workers.Run(gctx)
+		if err != nil {
+			// In a real-world applications, use a better way to shut down
+			// application on unrecoverable error. E.g. fx.Shutdowner from
+			// go.uber.org/fx module.
+			log.Fatal(err)
+		}
+		return err
+	})
 
-    args, err := json.Marshal(printNameArgs{Name: "vgarvardt"})
-    if err != nil {
-        log.Fatal(err)
-    }
+	args, err := json.Marshal(printNameArgs{Name: "vgarvardt"})
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    j := &gue.Job{
-        Type:  "PrintName",
-        Queue: "name_printer",
-        Args:  args,
-    }
-    if err := gc.Enqueue(context.Background(), j); err != nil {
-        log.Fatal(err)
-    }
+	j := &gue.Job{
+		Type:  jobTypePrinter,
+		Queue: printerQueue,
+		Args:  args,
+	}
+	if err := gc.Enqueue(context.Background(), j); err != nil {
+		log.Fatal(err)
+	}
 
-    j := &gue.Job{
-        Type:  "PrintName",
-        Queue: "name_printer",
-        RunAt: time.Now().UTC().Add(30 * time.Second), // delay 30 seconds
-        Args:  args,
-    }
-    if err := gc.Enqueue(context.Background(), j); err != nil {
-        log.Fatal(err)
-    }
+	j = &gue.Job{
+		Type:  jobTypePrinter,
+		Queue: printerQueue,
+		RunAt: time.Now().UTC().Add(30 * time.Second), // delay 30 seconds
+		Args:  args,
+	}
+	if err := gc.Enqueue(context.Background(), j); err != nil {
+		log.Fatal(err)
+	}
 
-    time.Sleep(30 * time.Second) // wait for while
+	time.Sleep(30 * time.Second) // wait for while
 
-    // send shutdown signal to worker
-    shutdown()
-    if err := g.Wait(); err != nil {
-        log.Fatal(err)
-    }
+	// send shutdown signal to worker
+	shutdown()
+	if err := g.Wait(); err != nil {
+		log.Fatal(err)
+	}
 }
 ```
- 
+
 ## PostgreSQL drivers
 
-Package supports several PostgreSQL drivers using adapter interface internally.
-Currently, adapters for the following drivers have been implemented:
+Package supports several PostgreSQL drivers using adapter interface internally. Currently, adapters for the following
+drivers have been implemented:
+
 - [github.com/jackc/pgx/v4](https://github.com/jackc/pgx)
 - [github.com/jackc/pgx/v3](https://github.com/jackc/pgx)
 - [github.com/lib/pq](https://github.com/lib/pq)
@@ -141,32 +146,32 @@ Currently, adapters for the following drivers have been implemented:
 package main
 
 import (
-    "context"
-    "log"
-    "os"
+	"context"
+	"log"
+	"os"
 
-    "github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v4/pgxpool"
 
-    "github.com/vgarvardt/gue/v3"
-    "github.com/vgarvardt/gue/v3/adapter/pgxv4"
+	"github.com/vgarvardt/gue/v3"
+	"github.com/vgarvardt/gue/v3/adapter/pgxv4"
 )
 
 func main() {
-    pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
-    if err != nil {
-        log.Fatal(err)
-    }
+	pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer pgxPool.Close()
+	pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pgxPool.Close()
 
-    poolAdapter := pgxv4.NewConnPool(pgxPool)
+	poolAdapter := pgxv4.NewConnPool(pgxPool)
 
-    gc := gue.NewClient(poolAdapter)
-    ...
+	gc := gue.NewClient(poolAdapter)
+	...
 }
 ```
 
@@ -176,32 +181,32 @@ func main() {
 package main
 
 import (
-    "log"
-    "os"
+	"log"
+	"os"
 
-    "github.com/jackc/pgx"
+	"github.com/jackc/pgx"
 
-    "github.com/vgarvardt/gue/v3"
-    "github.com/vgarvardt/gue/v3/adapter/pgxv3"
+	"github.com/vgarvardt/gue/v3"
+	"github.com/vgarvardt/gue/v3/adapter/pgxv3"
 )
 
 func main() {
-    pgxCfg, err := pgx.ParseURI(os.Getenv("DATABASE_URL"))
-    if err != nil {
-        log.Fatal(err)
-    }
-    pgxPool, err := pgx.NewConnPool(pgx.ConnPoolConfig{
-        ConnConfig:   pgxCfg,
-    })
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer pgxPool.Close()
+	pgxCfg, err := pgx.ParseURI(os.Getenv("DATABASE_URL"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	pgxPool, err := pgx.NewConnPool(pgx.ConnPoolConfig{
+		ConnConfig: pgxCfg,
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pgxPool.Close()
 
-    poolAdapter := pgxv3.NewConnPool(pgxPool)
+	poolAdapter := pgxv3.NewConnPool(pgxPool)
 
-    gc := gue.NewClient(poolAdapter)
-    ...
+	gc := gue.NewClient(poolAdapter)
+	...
 }
 ```
 
@@ -211,27 +216,27 @@ func main() {
 package main
 
 import (
-    "database/sql"
-    "log"
-    "os"
+	"database/sql"
+	"log"
+	"os"
 
-    _ "github.com/lib/pq" // register postgres driver
+	_ "github.com/lib/pq" // register postgres driver
 
-    "github.com/vgarvardt/gue/v3"
-    "github.com/vgarvardt/gue/v3/adapter/libpq"
+	"github.com/vgarvardt/gue/v3"
+	"github.com/vgarvardt/gue/v3/adapter/libpq"
 )
 
 func main() {
-    db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer db.Close()
+	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
 
-    poolAdapter := libpq.NewConnPool(db)
+	poolAdapter := libpq.NewConnPool(db)
 
-    gc := gue.NewClient(poolAdapter)
-    ...
+	gc := gue.NewClient(poolAdapter)
+	...
 }
 ```
 
@@ -241,48 +246,48 @@ func main() {
 package main
 
 import (
-    "log"
-    "os"
+	"log"
+	"os"
 
-    "github.com/go-pg/pg/v10"
+	"github.com/go-pg/pg/v10"
 
-    "github.com/vgarvardt/gue/v3"
-    "github.com/vgarvardt/gue/v3/adapter/gopgv10"
+	"github.com/vgarvardt/gue/v3"
+	"github.com/vgarvardt/gue/v3/adapter/gopgv10"
 )
 
 func main() {
-    opts, err := pg.ParseURL(os.Getenv("DATABASE_URL"))
-    if err != nil {
-        log.Fatal(err)
-    }
+	opts, err := pg.ParseURL(os.Getenv("DATABASE_URL"))
+	if err != nil {
+		log.Fatal(err)
+	}
 
-    db := pg.Connect(opts)
-    defer db.Close()
+	db := pg.Connect(opts)
+	defer db.Close()
 
-    poolAdapter := gopgv10.NewConnPool(db)
+	poolAdapter := gopgv10.NewConnPool(db)
 
-    gc := gue.NewClient(poolAdapter)
-    ...
+	gc := gue.NewClient(poolAdapter)
+	...
 }
 ```
 
 ## Logging
 
-Package supports several logging libraries using adapter interface internally.
-Currently, adapters for the following drivers have been implemented:
+Package supports several logging libraries using adapter interface internally. Currently, adapters for the following
+drivers have been implemented:
+
 - NoOp (`adapter.NoOpLogger`) - default adapter that does nothing, so it is basically `/dev/null` logger
-- Stdlib `log` - adapter that uses [`log`](https://golang.org/pkg/log/) logger for logs output.
-  Instantiate it with `adapter.NewStdLogger(...)`.
+- Stdlib `log` - adapter that uses [`log`](https://golang.org/pkg/log/) logger for logs output. Instantiate it
+  with `adapter.NewStdLogger(...)`.
 - Uber `zap` - adapter that uses [`go.uber.org/zap`](https://pkg.go.dev/go.uber.org/zap) logger for logs output.
   Instantiate it with `adapter.zap.New(...)`.
 
 ## Testing
 
-Linter and tests are running for every Pull Request, but it is possible to run linter
-and tests locally using `docker` and `make`.
+Linter and tests are running for every Pull Request, but it is possible to run linter and tests locally using `docker`
+and `make`.
 
-Run linter: `make link`. This command runs liner in docker container with the project
-source code mounted.
+Run linter: `make link`. This command runs liner in docker container with the project source code mounted.
 
-Run tests: `make test`. This command runs project dependencies in docker containers
-if they are not started yet and runs go tests with coverage.
+Run tests: `make test`. This command runs project dependencies in docker containers if they are not started yet and runs
+go tests with coverage.
