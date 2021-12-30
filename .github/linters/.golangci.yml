@@ -3,11 +3,11 @@ run:
   timeout: 5m
 linters:
   disable-all: true
-  fast: false
   enable:
     - gofmt
-    - golint
+    - revive
     - goimports
+  fast: false
 linters-settings:
   gofmt:
     simplify: false
