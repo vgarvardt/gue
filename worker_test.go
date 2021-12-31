@@ -462,8 +462,8 @@ func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
 	assert.NoError(t, jobLockedHook.err)
 
 	assert.Equal(t, 1, unknownJobTypeHook.called)
-	assert.NotNil(t, jobDoneHook.j)
-	assert.Error(t, jobDoneHook.err)
+	assert.NotNil(t, unknownJobTypeHook.j)
+	assert.Error(t, unknownJobTypeHook.err)
 
 	assert.Equal(t, 0, jobDoneHook.called)
 
