@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
 	"github.com/vgarvardt/gue/v3/adapter"
 )
 
@@ -133,4 +135,126 @@ func TestWithPoolLogger(t *testing.T) {
 func TestWithPoolPollStrategy(t *testing.T) {
 	workerPoolWithPoolPollStrategy := NewWorkerPool(nil, dummyWM, 2, WithPoolPollStrategy(RunAtPollStrategy))
 	assert.Equal(t, RunAtPollStrategy, workerPoolWithPoolPollStrategy.pollStrategy)
+}
+
+type dummyHook struct {
+	counter int
+}
+
+func (h *dummyHook) handler(context.Context, *Job, error) {
+	h.counter++
+}
+
+func TestWithWorkerHooksJobLocked(t *testing.T) {
+	ctx := context.Background()
+	hook := new(dummyHook)
+
+	workerWOutHooks := NewWorker(nil, dummyWM)
+	for _, h := range workerWOutHooks.hooksJobLocked {
+		h(ctx, nil, nil)
+	}
+	require.Equal(t, 0, hook.counter)
+
+	workerWithHooks := NewWorker(nil, dummyWM, WithWorkerHooksJobLocked(hook.handler, hook.handler, hook.handler))
+	for _, h := range workerWithHooks.hooksJobLocked {
+		h(ctx, nil, nil)
+	}
+	require.Equal(t, 3, hook.counter)
+}
+
+func TestWithWorkerHooksUnknownJobType(t *testing.T) {
+	ctx := context.Background()
+	hook := new(dummyHook)
+
+	workerWOutHooks := NewWorker(nil, dummyWM)
+	for _, h := range workerWOutHooks.hooksUnknownJobType {
+		h(ctx, nil, nil)
+	}
+	require.Equal(t, 0, hook.counter)
+
+	workerWithHooks := NewWorker(nil, dummyWM, WithWorkerHooksUnknownJobType(hook.handler, hook.handler, hook.handler))
+	for _, h := range workerWithHooks.hooksUnknownJobType {
+		h(ctx, nil, nil)
+	}
+	require.Equal(t, 3, hook.counter)
+}
+
+func TestWithWorkerHooksJobDone(t *testing.T) {
+	ctx := context.Background()
+	hook := new(dummyHook)
+
+	workerWOutHooks := NewWorker(nil, dummyWM)
+	for _, h := range workerWOutHooks.hooksJobDone {
+		h(ctx, nil, nil)
+	}
+	require.Equal(t, 0, hook.counter)
+
+	workerWithHooks := NewWorker(nil, dummyWM, WithWorkerHooksJobDone(hook.handler, hook.handler, hook.handler))
+	for _, h := range workerWithHooks.hooksJobDone {
+		h(ctx, nil, nil)
+	}
+	require.Equal(t, 3, hook.counter)
+}
+
+func TestWithPoolHooksJobLocked(t *testing.T) {
+	ctx := context.Background()
+	hook := new(dummyHook)
+
+	poolWOutHooks := NewWorkerPool(nil, dummyWM, 3)
+	for _, w := range poolWOutHooks.workers {
+		for _, h := range w.hooksJobLocked {
+			h(ctx, nil, nil)
+		}
+	}
+	require.Equal(t, 0, hook.counter)
+
+	poolWithHooks := NewWorkerPool(nil, dummyWM, 3, WithPoolHooksJobLocked(hook.handler, hook.handler, hook.handler))
+	for _, w := range poolWithHooks.workers {
+		for _, h := range w.hooksJobLocked {
+			h(ctx, nil, nil)
+		}
+	}
+	require.Equal(t, 9, hook.counter)
+}
+
+func TestWithPoolHooksUnknownJobType(t *testing.T) {
+	ctx := context.Background()
+	hook := new(dummyHook)
+
+	poolWOutHooks := NewWorkerPool(nil, dummyWM, 3)
+	for _, w := range poolWOutHooks.workers {
+		for _, h := range w.hooksUnknownJobType {
+			h(ctx, nil, nil)
+		}
+	}
+	require.Equal(t, 0, hook.counter)
+
+	poolWithHooks := NewWorkerPool(nil, dummyWM, 3, WithPoolHooksUnknownJobType(hook.handler, hook.handler, hook.handler))
+	for _, w := range poolWithHooks.workers {
+		for _, h := range w.hooksUnknownJobType {
+			h(ctx, nil, nil)
+		}
+	}
+	require.Equal(t, 9, hook.counter)
+}
+
+func TestWithPoolHooksJobDone(t *testing.T) {
+	ctx := context.Background()
+	hook := new(dummyHook)
+
+	poolWOutHooks := NewWorkerPool(nil, dummyWM, 3)
+	for _, w := range poolWOutHooks.workers {
+		for _, h := range w.hooksJobDone {
+			h(ctx, nil, nil)
+		}
+	}
+	require.Equal(t, 0, hook.counter)
+
+	poolWithHooks := NewWorkerPool(nil, dummyWM, 3, WithPoolHooksJobDone(hook.handler, hook.handler, hook.handler))
+	for _, w := range poolWithHooks.workers {
+		for _, h := range w.hooksJobDone {
+			h(ctx, nil, nil)
+		}
+	}
+	require.Equal(t, 9, hook.counter)
 }

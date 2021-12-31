@@ -41,10 +41,14 @@ type Job struct {
 
 	// ErrorCount is the number of times this job has attempted to run, but
 	// failed with an error. It is ignored on job creation.
+	// This field is initialised only when the Job is being retrieved from the DB and is not
+	// being updated when the current Job run errored.
 	ErrorCount int32
 
 	// LastError is the error message or stack trace from the last time the job
 	// failed. It is ignored on job creation.
+	// This field is initialised only when the Job is being retrieved from the DB and is not
+	// being updated when the current Job run errored.
 	LastError pgtype.Text
 
 	mu      sync.Mutex
@@ -68,7 +72,8 @@ func (j *Job) Tx() adapter.Tx {
 // Delete marks this job as complete by deleting it form the database.
 //
 // You must also later call Done() to return this job's database connection to
-// the pool.
+// the pool. If you got the job from the worker - it will take care of cleaning up the job and resources,
+// no need to do this manually in a WorkFunc.
 func (j *Job) Delete(ctx context.Context) error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
@@ -86,7 +91,8 @@ func (j *Job) Delete(ctx context.Context) error {
 	return nil
 }
 
-// Done commits transaction that marks job as done.
+// Done commits transaction that marks job as done. If you got the job from the worker - it will take care of
+//cleaning up the job and resources, no need to do this manually in a WorkFunc.
 func (j *Job) Done(ctx context.Context) error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
@@ -111,7 +117,9 @@ func (j *Job) Done(ctx context.Context) error {
 // It will also increase the error count.
 //
 // This call marks job as done and releases (commits) transaction,
-//so calling Done() is not required, although calling it will not cause any issues.
+// so calling Done() is not required, although calling it will not cause any issues.
+// If you got the job from the worker - it will take care of cleaning up the job and resources,
+// no need to do this manually in a WorkFunc.
 func (j *Job) Error(ctx context.Context, msg string) (err error) {
 	defer func() {
 		doneErr := j.Done(ctx)

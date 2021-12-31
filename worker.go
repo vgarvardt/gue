@@ -19,6 +19,7 @@ type PollStrategy string
 const (
 	defaultPollInterval = 5 * time.Second
 	defaultQueueName    = ""
+
 	// PriorityPollStrategy cares about the priority first to lock top priority jobs first even if there are available
 	//ones that should be executed earlier but with lower priority.
 	PriorityPollStrategy PollStrategy = "OrderByPriority"
@@ -30,6 +31,15 @@ const (
 // WorkFunc is a function that performs a Job. If an error is returned, the job
 // is re-enqueued with exponential backoff.
 type WorkFunc func(ctx context.Context, j *Job) error
+
+// HookFunc is a function that may react to a Job lifecycle events. All the callbacks are being executed synchronously,
+// so be careful with the long-running locking operations. Hooks do not return an error, therefore they can not and
+// must not be used to affect the Job execution flow, e.g. cancel it - this is the WorkFunc responsibility.
+// Modifying Job fields and calling any methods that are modifying its state within hooks may lead to undefined
+// behaviour. Please never do this.
+//
+// Depending on the event err parameter may be empty or not - check the event description for its meaning.
+type HookFunc func(ctx context.Context, j *Job, err error)
 
 // WorkMap is a map of Job names to WorkFuncs that are used to perform Jobs of a
 // given type.
@@ -51,6 +61,10 @@ type Worker struct {
 	running      bool
 	pollStrategy PollStrategy
 	pollFunc     pollFunc
+
+	hooksJobLocked      []HookFunc
+	hooksUnknownJobType []HookFunc
+	hooksJobDone        []HookFunc
 }
 
 // NewWorker returns a Worker that fetches Jobs from the Client and executes
@@ -108,7 +122,7 @@ func (w *Worker) Start(ctx context.Context) error {
 }
 
 // Run pulls jobs off the Worker's queue at its interval. This function does
-// not run in its own goroutine so it’s possible to wait for completion. Use
+// not run in its own goroutine, so it’s possible to wait for completion. Use
 // context cancellation to shut it down.
 func (w *Worker) Run(ctx context.Context) error {
 	return w.runLock(ctx, w.runLoop)
@@ -138,7 +152,9 @@ func (w *Worker) runLock(ctx context.Context, f func(ctx context.Context) error)
 func (w *Worker) runLoop(ctx context.Context) error {
 	defer w.logger.Info("Worker finished")
 
-	var timer *time.Timer
+	timer := time.NewTimer(w.interval)
+	defer timer.Stop()
+
 	for {
 		// Try to work a job
 		if w.WorkOne(ctx) {
@@ -153,12 +169,7 @@ func (w *Worker) runLoop(ctx context.Context) error {
 
 		// Reset or create the timer; time.After is leaky
 		// on context cancellation since we can’t stop it.
-		if timer != nil {
-			timer.Reset(w.interval)
-		} else {
-			timer = time.NewTimer(w.interval)
-			defer timer.Stop()
-		}
+		timer.Reset(w.interval)
 
 		// No work found, block until exit or timer expires
 		select {
@@ -176,6 +187,9 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 
 	if err != nil {
 		w.logger.Error("Worker failed to lock a job", adapter.Err(err))
+		for _, hook := range w.hooksJobLocked {
+			hook(ctx, nil, err)
+		}
 		return
 	}
 	if j == nil {
@@ -183,6 +197,10 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 	}
 
 	ll := w.logger.With(adapter.F("job-id", j.ID), adapter.F("job-type", j.Type))
+
+	for _, hook := range w.hooksJobLocked {
+		hook(ctx, j, nil)
+	}
 
 	defer func() {
 		if err := j.Done(ctx); err != nil {
@@ -196,9 +214,16 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 	wf, ok := w.wm[j.Type]
 	if !ok {
 		ll.Error("Got a job with unknown type")
-		if err = j.Error(ctx, fmt.Sprintf("worker[id=%s] unknown job type: %q", w.id, j.Type)); err != nil {
+
+		errUnknownType := fmt.Errorf("worker[id=%s] unknown job type: %q", w.id, j.Type)
+		if err = j.Error(ctx, errUnknownType.Error()); err != nil {
 			ll.Error("Got an error on setting an error to unknown job", adapter.Err(err))
 		}
+
+		for _, hook := range w.hooksUnknownJobType {
+			hook(ctx, j, errUnknownType)
+		}
+
 		return
 	}
 
@@ -206,12 +231,22 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 		if jErr := j.Error(ctx, err.Error()); jErr != nil {
 			ll.Error("Got an error on setting an error to an errored job", adapter.Err(jErr), adapter.F("job-error", err))
 		}
+
+		for _, hook := range w.hooksJobDone {
+			hook(ctx, j, err)
+		}
+
 		return
+	}
+
+	for _, hook := range w.hooksJobDone {
+		hook(ctx, j, nil)
 	}
 
 	if err = j.Delete(ctx); err != nil {
 		ll.Error("Got an error on deleting a job", adapter.Err(err))
 	}
+
 	ll.Debug("Job finished")
 	return
 }
@@ -237,7 +272,7 @@ func recoverPanic(ctx context.Context, logger adapter.Logger, j *Job) {
 	}
 }
 
-// WorkerPool is a pool of Workers, each working jobs from the queue queue
+// WorkerPool is a pool of Workers, each working jobs from the queue
 // at the specified interval using the WorkMap.
 type WorkerPool struct {
 	wm           WorkMap
@@ -250,6 +285,10 @@ type WorkerPool struct {
 	mu           sync.Mutex
 	running      bool
 	pollStrategy PollStrategy
+
+	hooksJobLocked      []HookFunc
+	hooksUnknownJobType []HookFunc
+	hooksJobDone        []HookFunc
 }
 
 // NewWorkerPool creates a new WorkerPool with count workers using the Client c.
@@ -287,12 +326,16 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 			WithWorkerID(fmt.Sprintf("%s/worker-%d", w.id, i)),
 			WithWorkerLogger(w.logger),
 			WithWorkerPollStrategy(w.pollStrategy),
+			WithWorkerHooksJobLocked(w.hooksJobLocked...),
+			WithWorkerHooksUnknownJobType(w.hooksUnknownJobType...),
+			WithWorkerHooksJobDone(w.hooksJobDone...),
 		)
 	}
+
 	return &w
 }
 
-// Start starts all of the Workers in the WorkerPool in own goroutines.
+// Start starts all the Workers in the WorkerPool in own goroutines.
 // Use cancel context to shut them down.
 //
 // Deprecated: use Run instead of Start. Start leaks resources and does not wait
@@ -316,7 +359,7 @@ func (w *WorkerPool) Start(ctx context.Context) error {
 	return <-errc
 }
 
-// Run runs all of the Workers in the WorkerPool in own goroutines.
+// Run runs all the Workers in the WorkerPool in own goroutines.
 // Run blocks until all workers exit. Use context cancellation for
 // shutdown.
 func (w *WorkerPool) Run(ctx context.Context) error {

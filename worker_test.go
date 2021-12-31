@@ -15,6 +15,18 @@ import (
 	adapterTesting "github.com/vgarvardt/gue/v3/adapter/testing"
 )
 
+type mockHook struct {
+	called int
+	ctx    context.Context
+	j      *Job
+	err    error
+}
+
+func (h *mockHook) handler(ctx context.Context, j *Job, err error) {
+	h.called++
+	h.ctx, h.j, h.err = ctx, j, err
+}
+
 func TestWorkerWorkOne(t *testing.T) {
 	t.Run("pgx/v3", func(t *testing.T) {
 		testWorkerWorkOne(t, adapterTesting.OpenTestPoolPGXv3(t))
@@ -34,14 +46,25 @@ func testWorkerWorkOne(t *testing.T, connPool adapter.ConnPool) {
 	c := NewClient(connPool)
 	ctx := context.Background()
 
-	success := false
+	var success bool
 	wm := WorkMap{
 		"MyJob": func(ctx context.Context, j *Job) error {
 			success = true
 			return nil
 		},
 	}
-	w := NewWorker(c, wm)
+
+	jobLockedHook := new(mockHook)
+	unknownJobTypeHook := new(mockHook)
+	jobDoneHook := new(mockHook)
+
+	w := NewWorker(
+		c,
+		wm,
+		WithWorkerHooksJobLocked(jobLockedHook.handler),
+		WithWorkerHooksUnknownJobType(unknownJobTypeHook.handler),
+		WithWorkerHooksJobDone(jobDoneHook.handler),
+	)
 
 	didWork := w.WorkOne(ctx)
 	assert.False(t, didWork)
@@ -52,6 +75,16 @@ func testWorkerWorkOne(t *testing.T, connPool adapter.ConnPool) {
 	didWork = w.WorkOne(ctx)
 	assert.True(t, didWork)
 	assert.True(t, success)
+
+	assert.Equal(t, 1, jobLockedHook.called)
+	assert.NotNil(t, jobLockedHook.j)
+	assert.NoError(t, jobLockedHook.err)
+
+	assert.Equal(t, 0, unknownJobTypeHook.called)
+
+	assert.Equal(t, 1, jobDoneHook.called)
+	assert.NotNil(t, jobDoneHook.j)
+	assert.NoError(t, jobDoneHook.err)
 }
 
 func TestWorker_Run(t *testing.T) {
@@ -262,7 +295,7 @@ func benchmarkWorker(b *testing.B, connPool adapter.ConnPool) {
 	}
 }
 
-func nilWorker(ctx context.Context, j *Job) error {
+func nilWorker(context.Context, *Job) error {
 	return nil
 }
 
@@ -292,7 +325,18 @@ func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
 			return errors.New("the error msg")
 		},
 	}
-	w := NewWorker(c, wm)
+
+	jobLockedHook := new(mockHook)
+	unknownJobTypeHook := new(mockHook)
+	jobDoneHook := new(mockHook)
+
+	w := NewWorker(
+		c,
+		wm,
+		WithWorkerHooksJobLocked(jobLockedHook.handler),
+		WithWorkerHooksUnknownJobType(unknownJobTypeHook.handler),
+		WithWorkerHooksJobDone(jobDoneHook.handler),
+	)
 
 	didWork := w.WorkOne(ctx)
 	assert.False(t, didWork)
@@ -303,6 +347,16 @@ func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
 	didWork = w.WorkOne(ctx)
 	assert.True(t, didWork)
 	assert.Equal(t, 1, called)
+
+	assert.Equal(t, 1, jobLockedHook.called)
+	assert.NotNil(t, jobLockedHook.j)
+	assert.NoError(t, jobLockedHook.err)
+
+	assert.Equal(t, 0, unknownJobTypeHook.called)
+
+	assert.Equal(t, 1, jobDoneHook.called)
+	assert.NotNil(t, jobDoneHook.j)
+	assert.Error(t, jobDoneHook.err)
 
 	j := findOneJob(t, connPool)
 	require.NotNil(t, j)
@@ -377,16 +431,41 @@ func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
 	ctx := context.Background()
 
 	wm := WorkMap{}
-	w := NewWorker(c, wm)
+
+	jobLockedHook := new(mockHook)
+	unknownJobTypeHook := new(mockHook)
+	jobDoneHook := new(mockHook)
+
+	w := NewWorker(
+		c,
+		wm,
+		WithWorkerHooksJobLocked(jobLockedHook.handler),
+		WithWorkerHooksUnknownJobType(unknownJobTypeHook.handler),
+		WithWorkerHooksJobDone(jobDoneHook.handler),
+	)
 
 	didWork := w.WorkOne(ctx)
 	assert.False(t, didWork)
+
+	assert.Equal(t, 0, jobLockedHook.called)
+	assert.Equal(t, 0, unknownJobTypeHook.called)
+	assert.Equal(t, 0, jobDoneHook.called)
 
 	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
 	didWork = w.WorkOne(ctx)
 	assert.True(t, didWork)
+
+	assert.Equal(t, 1, jobLockedHook.called)
+	assert.NotNil(t, jobLockedHook.j)
+	assert.NoError(t, jobLockedHook.err)
+
+	assert.Equal(t, 1, unknownJobTypeHook.called)
+	assert.NotNil(t, jobDoneHook.j)
+	assert.Error(t, jobDoneHook.err)
+
+	assert.Equal(t, 0, jobDoneHook.called)
 
 	j := findOneJob(t, connPool)
 	require.NotNil(t, j)
