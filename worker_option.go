@@ -41,6 +41,32 @@ func WithWorkerLogger(logger adapter.Logger) WorkerOption {
 	}
 }
 
+// WithWorkerHooksJobLocked sets hooks that are called right after the job was polled from the DB.
+// Depending on the polling results hook will have either error or job set, but not both.
+// If the error field is set - no other lifecycle hooks will be called for the job.
+func WithWorkerHooksJobLocked(hooks ...HookFunc) WorkerOption {
+	return func(w *Worker) {
+		w.hooksJobLocked = hooks
+	}
+}
+
+// WithWorkerHooksUnknownJobType sets hooks that are called when worker finds a job with unknown type.
+// Error field for this event type is always set since this is an error situation.
+// If this hook is called - no other lifecycle hooks will be called for the job.
+func WithWorkerHooksUnknownJobType(hooks ...HookFunc) WorkerOption {
+	return func(w *Worker) {
+		w.hooksUnknownJobType = hooks
+	}
+}
+
+// WithWorkerHooksJobDone sets hooks that are called when worker finished working the job.
+// Error field is set for the cases when the job was worked with an error.
+func WithWorkerHooksJobDone(hooks ...HookFunc) WorkerOption {
+	return func(w *Worker) {
+		w.hooksJobDone = hooks
+	}
+}
+
 // WithWorkerPollStrategy overrides default poll strategy with given value
 func WithWorkerPollStrategy(s PollStrategy) WorkerOption {
 	return func(w *Worker) {
@@ -81,5 +107,26 @@ func WithPoolLogger(logger adapter.Logger) WorkerPoolOption {
 func WithPoolPollStrategy(s PollStrategy) WorkerPoolOption {
 	return func(w *WorkerPool) {
 		w.pollStrategy = s
+	}
+}
+
+// WithPoolHooksJobLocked calls WithWorkerHooksJobLocked for every worker in the pool.
+func WithPoolHooksJobLocked(hooks ...HookFunc) WorkerPoolOption {
+	return func(w *WorkerPool) {
+		w.hooksJobLocked = hooks
+	}
+}
+
+// WithPoolHooksUnknownJobType calls WithWorkerHooksUnknownJobType for every worker in the pool.
+func WithPoolHooksUnknownJobType(hooks ...HookFunc) WorkerPoolOption {
+	return func(w *WorkerPool) {
+		w.hooksUnknownJobType = hooks
+	}
+}
+
+// WithPoolHooksJobDone calls WithWorkerHooksJobDone for every worker in the pool.
+func WithPoolHooksJobDone(hooks ...HookFunc) WorkerPoolOption {
+	return func(w *WorkerPool) {
+		w.hooksJobDone = hooks
 	}
 }
