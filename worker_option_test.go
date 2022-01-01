@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-
 	"github.com/vgarvardt/gue/v3/adapter"
 )
 
@@ -32,59 +31,41 @@ func (m *mockLogger) With(fields ...adapter.Field) adapter.Logger {
 	return args.Get(0).(adapter.Logger)
 }
 
-func TestWithWorkerPollInterval(t *testing.T) {
-	wm := WorkMap{
-		"MyJob": func(ctx context.Context, j *Job) error {
-			return nil
-		},
-	}
+var dummyWM = WorkMap{
+	"MyJob": func(ctx context.Context, j *Job) error {
+		return nil
+	},
+}
 
-	workerWithDefaultInterval := NewWorker(nil, wm)
+func TestWithWorkerPollInterval(t *testing.T) {
+	workerWithDefaultInterval := NewWorker(nil, dummyWM)
 	assert.Equal(t, defaultPollInterval, workerWithDefaultInterval.interval)
 
 	customInterval := 12345 * time.Millisecond
-	workerWithCustomInterval := NewWorker(nil, wm, WithWorkerPollInterval(customInterval))
+	workerWithCustomInterval := NewWorker(nil, dummyWM, WithWorkerPollInterval(customInterval))
 	assert.Equal(t, customInterval, workerWithCustomInterval.interval)
 }
 
 func TestWithWorkerQueue(t *testing.T) {
-	wm := WorkMap{
-		"MyJob": func(ctx context.Context, j *Job) error {
-			return nil
-		},
-	}
-
-	workerWithDefaultQueue := NewWorker(nil, wm)
+	workerWithDefaultQueue := NewWorker(nil, dummyWM)
 	assert.Equal(t, defaultQueueName, workerWithDefaultQueue.queue)
 
 	customQueue := "fooBarBaz"
-	workerWithCustomQueue := NewWorker(nil, wm, WithWorkerQueue(customQueue))
+	workerWithCustomQueue := NewWorker(nil, dummyWM, WithWorkerQueue(customQueue))
 	assert.Equal(t, customQueue, workerWithCustomQueue.queue)
 }
 
 func TestWithWorkerID(t *testing.T) {
-	wm := WorkMap{
-		"MyJob": func(ctx context.Context, j *Job) error {
-			return nil
-		},
-	}
-
-	workerWithDefaultID := NewWorker(nil, wm)
+	workerWithDefaultID := NewWorker(nil, dummyWM)
 	assert.NotEmpty(t, workerWithDefaultID.id)
 
 	customID := "some-meaningful-id"
-	workerWithCustomID := NewWorker(nil, wm, WithWorkerID(customID))
+	workerWithCustomID := NewWorker(nil, dummyWM, WithWorkerID(customID))
 	assert.Equal(t, customID, workerWithCustomID.id)
 }
 
 func TestWithWorkerLogger(t *testing.T) {
-	wm := WorkMap{
-		"MyJob": func(ctx context.Context, j *Job) error {
-			return nil
-		},
-	}
-
-	workerWithDefaultLogger := NewWorker(nil, wm)
+	workerWithDefaultLogger := NewWorker(nil, dummyWM)
 	assert.IsType(t, adapter.NoOpLogger{}, workerWithDefaultLogger.logger)
 
 	logMessage := "hello"
@@ -94,75 +75,46 @@ func TestWithWorkerLogger(t *testing.T) {
 	// worker sets id as default logger field
 	l.On("With", mock.Anything).Return(l)
 
-	workerWithCustomLogger := NewWorker(nil, wm, WithWorkerLogger(l))
+	workerWithCustomLogger := NewWorker(nil, dummyWM, WithWorkerLogger(l))
 	workerWithCustomLogger.logger.Info(logMessage)
 
 	l.AssertExpectations(t)
 }
 
 func TestWithWorkerPollStrategy(t *testing.T) {
-	wm := WorkMap{
-		"MyJob": func(ctx context.Context, j *Job) error {
-			return nil
-		},
-	}
-	workerWithWorkerPollStrategy := NewWorker(nil, wm, WithWorkerPollStrategy(RunAtPollStrategy))
+	workerWithWorkerPollStrategy := NewWorker(nil, dummyWM, WithWorkerPollStrategy(RunAtPollStrategy))
 	assert.Equal(t, RunAtPollStrategy, workerWithWorkerPollStrategy.pollStrategy)
 }
 
 func TestWithPoolPollInterval(t *testing.T) {
-	wm := WorkMap{
-		"MyJob": func(ctx context.Context, j *Job) error {
-			return nil
-		},
-	}
-
-	workerPoolWithDefaultInterval := NewWorkerPool(nil, wm, 2)
+	workerPoolWithDefaultInterval := NewWorkerPool(nil, dummyWM, 2)
 	assert.Equal(t, defaultPollInterval, workerPoolWithDefaultInterval.interval)
 
 	customInterval := 12345 * time.Millisecond
-	workerPoolWithCustomInterval := NewWorkerPool(nil, wm, 2, WithPoolPollInterval(customInterval))
+	workerPoolWithCustomInterval := NewWorkerPool(nil, dummyWM, 2, WithPoolPollInterval(customInterval))
 	assert.Equal(t, customInterval, workerPoolWithCustomInterval.interval)
 }
 
 func TestWithPoolQueue(t *testing.T) {
-	wm := WorkMap{
-		"MyJob": func(ctx context.Context, j *Job) error {
-			return nil
-		},
-	}
-
-	workerPoolWithDefaultQueue := NewWorkerPool(nil, wm, 2)
+	workerPoolWithDefaultQueue := NewWorkerPool(nil, dummyWM, 2)
 	assert.Equal(t, defaultQueueName, workerPoolWithDefaultQueue.queue)
 
 	customQueue := "fooBarBaz"
-	workerPoolWithCustomQueue := NewWorkerPool(nil, wm, 2, WithPoolQueue(customQueue))
+	workerPoolWithCustomQueue := NewWorkerPool(nil, dummyWM, 2, WithPoolQueue(customQueue))
 	assert.Equal(t, customQueue, workerPoolWithCustomQueue.queue)
 }
 
 func TestWithPoolID(t *testing.T) {
-	wm := WorkMap{
-		"MyJob": func(ctx context.Context, j *Job) error {
-			return nil
-		},
-	}
-
-	workerPoolWithDefaultID := NewWorkerPool(nil, wm, 2)
+	workerPoolWithDefaultID := NewWorkerPool(nil, dummyWM, 2)
 	assert.NotEmpty(t, workerPoolWithDefaultID.id)
 
 	customID := "some-meaningful-id"
-	workerPoolWithCustomID := NewWorkerPool(nil, wm, 2, WithPoolID(customID))
+	workerPoolWithCustomID := NewWorkerPool(nil, dummyWM, 2, WithPoolID(customID))
 	assert.Equal(t, customID, workerPoolWithCustomID.id)
 }
 
 func TestWithPoolLogger(t *testing.T) {
-	wm := WorkMap{
-		"MyJob": func(ctx context.Context, j *Job) error {
-			return nil
-		},
-	}
-
-	workerPoolWithDefaultLogger := NewWorkerPool(nil, wm, 2)
+	workerPoolWithDefaultLogger := NewWorkerPool(nil, dummyWM, 2)
 	assert.IsType(t, adapter.NoOpLogger{}, workerPoolWithDefaultLogger.logger)
 
 	logMessage := "hello"
@@ -172,18 +124,13 @@ func TestWithPoolLogger(t *testing.T) {
 	// worker pool sets id as default logger field
 	l.On("With", mock.Anything).Return(l)
 
-	workerPoolWithCustomLogger := NewWorkerPool(nil, wm, 2, WithPoolLogger(l))
+	workerPoolWithCustomLogger := NewWorkerPool(nil, dummyWM, 2, WithPoolLogger(l))
 	workerPoolWithCustomLogger.logger.Info(logMessage)
 
 	l.AssertExpectations(t)
 }
 
 func TestWithPoolPollStrategy(t *testing.T) {
-	wm := WorkMap{
-		"MyJob": func(ctx context.Context, j *Job) error {
-			return nil
-		},
-	}
-	workerPoolWithPoolPollStrategy := NewWorkerPool(nil, wm, 2, WithPoolPollStrategy(RunAtPollStrategy))
+	workerPoolWithPoolPollStrategy := NewWorkerPool(nil, dummyWM, 2, WithPoolPollStrategy(RunAtPollStrategy))
 	assert.Equal(t, RunAtPollStrategy, workerPoolWithPoolPollStrategy.pollStrategy)
 }

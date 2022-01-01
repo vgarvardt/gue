@@ -33,7 +33,7 @@ type Queryable interface {
 	// Exec executes sql. sql can be either a prepared statement name or an SQL string.
 	// arguments should be referenced positionally from the sql string as $1, $2, etc.
 	Exec(ctx context.Context, sql string, arguments ...interface{}) (CommandTag, error)
-	// Query executes sql with args. Any error that occurs while
+	// QueryRow executes sql with args. Any error that occurs while
 	// querying is deferred until calling Scan on the returned Row. That Row will
 	// error with ErrNoRows if no rows are returned.
 	QueryRow(ctx context.Context, sql string, args ...interface{}) Row

@@ -343,7 +343,7 @@ func (w *WorkerPool) runLock(ctx context.Context, f func(ctx context.Context) er
 	return f(ctx)
 }
 
-// runGroup starts all of the Workers in the WorkerPool in own goroutines
+// runGroup starts all the Workers in the WorkerPool in own goroutines
 // managed by errgroup.Group.
 func (w *WorkerPool) runGroup(ctx context.Context) error {
 	defer w.logger.Info("Worker pool finished")

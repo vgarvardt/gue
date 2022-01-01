@@ -7,34 +7,10 @@ on:
     branches: [ master ]
 
 jobs:
-  lint:
-    name: Lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v2
-        with:
-          # Full git history is needed to get a proper list of changed files within `super-linter`
-          fetch-depth: 0
-
-      - name: Lint Code Base
-        uses: github/super-linter@v4
-        env:
-          VALIDATE_ALL_CODEBASE: false
-          DEFAULT_BRANCH: master
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # disabled due to ".github/workflows/testing.yml:62:90: property access of object must be type of string but got "number" [expression]"
-          # TEST_POSTGRES: '***localhost:${{ job.services.postgres.ports[5432] }}/test?sslmode=disable'
-          # TODO: try to enable it later
-          VALIDATE_GITHUB_ACTIONS: false
-
   test:
     name: Test
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: [ lint ]
 
     services:
       postgres:
