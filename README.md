@@ -93,7 +93,7 @@ func main() {
 	}
 
 	// create a pool w/ 2 workers
-	workers := gue.NewWorkerPool(gc, wm, 2, gue.WithPoolQueue(printerQueue), que.WithPoolHooksJobDone(finishedJobsLog))
+	workers := gue.NewWorkerPool(gc, wm, 2, gue.WithPoolQueue(printerQueue), gue.WithPoolHooksJobDone(finishedJobsLog))
 
 	ctx, shutdown := context.WithCancel(context.Background())
 
