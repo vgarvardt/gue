@@ -78,8 +78,22 @@ func main() {
 	wm := gue.WorkMap{
 		jobTypePrinter: printName,
 	}
+
+	finishedJobsLog := func(ctx context.Context, j *gue.Job, err error) {
+		if err != nil {
+			return
+		}
+
+		j.Tx().Exec(
+			ctx,
+			"INSERT INTO finished_jobs_log (queue, type, run_at) VALUES ($1, $2, now())",
+			j.Queue,
+			j.Type,
+		)
+	}
+
 	// create a pool w/ 2 workers
-	workers := gue.NewWorkerPool(gc, wm, 2, gue.WithPoolQueue(printerQueue))
+	workers := gue.NewWorkerPool(gc, wm, 2, gue.WithPoolQueue(printerQueue), que.WithPoolHooksJobDone(finishedJobsLog))
 
 	ctx, shutdown := context.WithCancel(context.Background())
 
