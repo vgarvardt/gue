@@ -198,16 +198,16 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 
 	ll := w.logger.With(adapter.F("job-id", j.ID), adapter.F("job-type", j.Type))
 
-	for _, hook := range w.hooksJobLocked {
-		hook(ctx, j, nil)
-	}
-
 	defer func() {
 		if err := j.Done(ctx); err != nil {
 			ll.Error("Failed to mark job as done", adapter.Err(err))
 		}
 	}()
 	defer recoverPanic(ctx, ll, j)
+
+	for _, hook := range w.hooksJobLocked {
+		hook(ctx, j, nil)
+	}
 
 	didWork = true
 
