@@ -16,7 +16,7 @@ The name Gue is yet another silly word transformation: Queue -> Que, Go + Que ->
 
 ## Install
 
-```
+```shell
 go get -u github.com/vgarvardt/gue/v3
 ```
 
