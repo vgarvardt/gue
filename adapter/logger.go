@@ -47,16 +47,16 @@ func Err(err error) Field {
 }
 
 // Debug implements Logger.Debug for /dev/null logger
-func (l NoOpLogger) Debug(msg string, fields ...Field) {}
+func (l NoOpLogger) Debug(string, ...Field) {}
 
 // Info implements Logger.Debug for /dev/null logger
-func (l NoOpLogger) Info(msg string, fields ...Field) {}
+func (l NoOpLogger) Info(string, ...Field) {}
 
 // Error implements Logger.Debug for /dev/null logger
-func (l NoOpLogger) Error(msg string, fields ...Field) {}
+func (l NoOpLogger) Error(string, ...Field) {}
 
 // With implements nested logger for /dev/null logger
-func (l NoOpLogger) With(fields ...Field) Logger {
+func (l NoOpLogger) With(...Field) Logger {
 	return l
 }
 
