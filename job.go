@@ -69,7 +69,7 @@ func (j *Job) Tx() adapter.Tx {
 	return j.tx
 }
 
-// Delete marks this job as complete by deleting it form the database.
+// Delete marks this job as complete by deleting it from the database.
 //
 // You must also later call Done() to return this job's database connection to
 // the pool. If you got the job from the worker - it will take care of cleaning up the job and resources,
