@@ -1,8 +1,8 @@
 # Changelog
 
-# v4
+## v4
 
-## Breaking
+### Breaking
 
 - min supported go version is `1.18`
 - min tested Postgres version is `10.x`
@@ -10,6 +10,6 @@
 - previously deprecated `Worker.Start()` and `WorkerPool.Start()` removed in favour of `Worker.Run()`
   and `WorkerPool.Run()` - please check documentation as they are slightly different
 
-## New
+### New
 
 - `pgx v5` adapter support
