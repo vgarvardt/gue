@@ -30,7 +30,7 @@ func TestNe(t *testing.T) {
 
 	require.Equal(t, 5, logs.Len())
 
-	var i interface{}
+	var i any
 
 	logEntries := logs.AllUntimed()
 	assert.Equal(t, []observer.LoggedEntry{

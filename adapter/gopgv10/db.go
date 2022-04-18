@@ -25,9 +25,9 @@ func formatSQL(sql string) string {
 	return strings.Replace(sql, "$", "?", -1)
 }
 
-func formatArgs(args []interface{}) []interface{} {
+func formatArgs(args []any) []any {
 	// go-pg starts at 0 instead of 1.
-	dst := make([]interface{}, len(args)+1)
+	dst := make([]any, len(args)+1)
 	copy(dst[1:], args)
 	return dst
 }
@@ -37,11 +37,11 @@ type aRow struct {
 	ctx  context.Context
 	db   orm.DB
 	sql  string
-	args []interface{}
+	args []any
 }
 
 // Scan implements adapter.Row.Scan() using github.com/go-pg/pg/v10
-func (r *aRow) Scan(dest ...interface{}) error {
+func (r *aRow) Scan(dest ...any) error {
 	_, err := r.db.QueryOneContext(r.ctx, pg.Scan(dest...), formatSQL(r.sql), formatArgs(r.args)...)
 	if errors.Is(err, pg.ErrNoRows) {
 		return adapter.ErrNoRows
@@ -70,13 +70,13 @@ func NewTx(tx *pg.Tx) adapter.Tx {
 }
 
 // Exec implements adapter.Tx.Exec() using github.com/go-pg/pg/v10
-func (tx *aTx) Exec(ctx context.Context, sql string, args ...interface{}) (adapter.CommandTag, error) {
+func (tx *aTx) Exec(ctx context.Context, sql string, args ...any) (adapter.CommandTag, error) {
 	r, err := tx.tx.ExecContext(ctx, formatSQL(sql), formatArgs(args)...)
 	return aCommandTag{r}, err
 }
 
 // QueryRow implements adapter.Tx.QueryRow() using github.com/go-pg/pg/v10
-func (tx *aTx) QueryRow(ctx context.Context, sql string, args ...interface{}) adapter.Row {
+func (tx *aTx) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
 	return &aRow{ctx, tx.tx, sql, args}
 }
 
@@ -110,13 +110,13 @@ func (c *connPool) Begin(ctx context.Context) (adapter.Tx, error) {
 }
 
 // Exec implements adapter.ConnPool.Exec() using github.com/go-pg/pg/v10
-func (c *connPool) Exec(ctx context.Context, sql string, args ...interface{}) (adapter.CommandTag, error) {
+func (c *connPool) Exec(ctx context.Context, sql string, args ...any) (adapter.CommandTag, error) {
 	r, err := c.db.ExecContext(ctx, formatSQL(sql), formatArgs(args)...)
 	return aCommandTag{r}, err
 }
 
 // QueryRow implements adapter.ConnPool.QueryRow() using github.com/go-pg/pg/v10
-func (c *connPool) QueryRow(ctx context.Context, sql string, args ...interface{}) adapter.Row {
+func (c *connPool) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
 	return &aRow{ctx, c.db, sql, args}
 }
 

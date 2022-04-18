@@ -16,7 +16,7 @@ type aRow struct {
 }
 
 // Scan implements adapter.Row.Scan() using github.com/jackc/pgx/v5
-func (r *aRow) Scan(dest ...interface{}) error {
+func (r *aRow) Scan(dest ...any) error {
 	err := r.row.Scan(dest...)
 	if err == pgx.ErrNoRows {
 		return adapter.ErrNoRows
@@ -46,13 +46,13 @@ func NewTx(tx pgx.Tx) adapter.Tx {
 }
 
 // Exec implements adapter.Tx.Exec() using github.com/jackc/pgx/v5
-func (tx *aTx) Exec(ctx context.Context, sql string, arguments ...interface{}) (adapter.CommandTag, error) {
+func (tx *aTx) Exec(ctx context.Context, sql string, arguments ...any) (adapter.CommandTag, error) {
 	ct, err := tx.tx.Exec(ctx, sql, arguments...)
 	return aCommandTag{ct}, err
 }
 
 // QueryRow implements adapter.Tx.QueryRow() using github.com/jackc/pgx/v5
-func (tx *aTx) QueryRow(ctx context.Context, sql string, args ...interface{}) adapter.Row {
+func (tx *aTx) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
 	return &aRow{tx.tx.QueryRow(ctx, sql, args...)}
 }
 
@@ -88,13 +88,13 @@ func (c *connPool) Begin(ctx context.Context) (adapter.Tx, error) {
 }
 
 // Exec implements adapter.ConnPool.Exec() using github.com/jackc/pgx/v5
-func (c *connPool) Exec(ctx context.Context, sql string, arguments ...interface{}) (adapter.CommandTag, error) {
+func (c *connPool) Exec(ctx context.Context, sql string, arguments ...any) (adapter.CommandTag, error) {
 	ct, err := c.pool.Exec(ctx, sql, arguments...)
 	return aCommandTag{ct}, err
 }
 
 // QueryRow implements adapter.ConnPool.QueryRow() using github.com/jackc/pgx/v5
-func (c *connPool) QueryRow(ctx context.Context, sql string, args ...interface{}) adapter.Row {
+func (c *connPool) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
 	return &aRow{c.pool.QueryRow(ctx, sql, args...)}
 }
 
