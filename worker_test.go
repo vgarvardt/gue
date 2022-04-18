@@ -114,36 +114,6 @@ func testWorkerRun(t *testing.T, connPool adapter.ConnPool) {
 	assert.False(t, w.running)
 }
 
-func TestWorker_Start(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
-		t.Run(name, func(t *testing.T) {
-			testWorkerStart(t, openFunc(t))
-		})
-	}
-}
-
-func testWorkerStart(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
-
-	w := NewWorker(c, WorkMap{})
-
-	ctx, cancel := context.WithCancel(context.Background())
-	err := w.Start(ctx)
-	require.NoError(t, err)
-
-	assert.True(t, w.running)
-
-	// try to start one more time to get an error about already running worker
-	err = w.Start(context.Background())
-	require.Error(t, err)
-
-	cancel()
-
-	// give worker time to get a signal and stop
-	time.Sleep(time.Second)
-	assert.False(t, w.running)
-}
-
 func TestWorkerPool_Run(t *testing.T) {
 	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
@@ -179,47 +149,6 @@ func testWorkerPoolRun(t *testing.T, connPool adapter.ConnPool) {
 	cancel()
 
 	require.NoError(t, grp.Wait())
-
-	assert.False(t, w.running)
-	for i := range w.workers {
-		assert.False(t, w.workers[i].running)
-	}
-}
-
-func TestWorkerPool_Start(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
-		t.Run(name, func(t *testing.T) {
-			testWorkerPoolStart(t, openFunc(t))
-		})
-	}
-}
-
-func testWorkerPoolStart(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
-
-	poolSize := 2
-	w := NewWorkerPool(c, WorkMap{}, poolSize)
-
-	ctx, cancel := context.WithCancel(context.Background())
-	err := w.Start(ctx)
-	require.NoError(t, err)
-
-	// give worker time to start
-	time.Sleep(time.Second)
-
-	assert.True(t, w.running)
-	for i := range w.workers {
-		assert.True(t, w.workers[i].running)
-	}
-
-	// try to start one more time to get an error about already running worker pool
-	err = w.Start(context.Background())
-	require.Error(t, err)
-
-	cancel()
-
-	// give worker time to get a signal and stop
-	time.Sleep(time.Second)
 
 	assert.False(t, w.running)
 	for i := range w.workers {
