@@ -4,7 +4,7 @@ description: Install all the dependencies required for workflows
 inputs:
   token:
     required: true
-    description: GitHub token, most likely just ${{secrets.GITHUB_TOKEN}}
+    description: GitHub token, most likely "secrets.GITHUB_TOKEN"
 runs:
   using: composite
   steps:
