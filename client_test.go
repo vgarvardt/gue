@@ -39,10 +39,11 @@ func testLockJob(t *testing.T, connPool adapter.ConnPool) {
 
 	require.NotNil(t, j.tx)
 	require.NotNil(t, j.pool)
-	defer func() {
+
+	t.Cleanup(func() {
 		err := j.Done(ctx)
 		assert.NoError(t, err)
-	}()
+	})
 
 	// check values of returned Job
 	assert.Equal(t, newJob.ID, j.ID)
@@ -72,12 +73,12 @@ func testLockJobAlreadyLocked(t *testing.T, connPool adapter.ConnPool) {
 
 	j, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
+	require.NotNil(t, j)
 
-	defer func() {
+	t.Cleanup(func() {
 		err := j.Done(ctx)
 		assert.NoError(t, err)
-	}()
-	require.NotNil(t, j)
+	})
 
 	j2, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
@@ -122,11 +123,12 @@ func testLockJobCustomQueue(t *testing.T, connPool adapter.ConnPool) {
 
 	j, err = c.LockJob(ctx, "extra_priority")
 	require.NoError(t, err)
-	defer func() {
+	require.NotNil(t, j)
+
+	t.Cleanup(func() {
 		err := j.Done(ctx)
 		assert.NoError(t, err)
-	}()
-	require.NotNil(t, j)
+	})
 
 	err = j.Delete(ctx)
 	require.NoError(t, err)
@@ -156,10 +158,11 @@ func testLockJobByID(t *testing.T, connPool adapter.ConnPool) {
 
 	require.NotNil(t, j.tx)
 	require.NotNil(t, j.pool)
-	defer func() {
+
+	t.Cleanup(func() {
 		err := j.Done(ctx)
 		assert.NoError(t, err)
-	}()
+	})
 
 	// check values of returned Job
 	assert.Equal(t, newJob.ID, j.ID)
@@ -193,12 +196,12 @@ func testLockJobByIDAlreadyLocked(t *testing.T, connPool adapter.ConnPool) {
 
 	j, err := c.LockJobByID(ctx, newJob.ID)
 	require.NoError(t, err)
+	require.NotNil(t, j)
 
-	defer func() {
+	t.Cleanup(func() {
 		err := j.Done(ctx)
 		assert.NoError(t, err)
-	}()
-	require.NotNil(t, j)
+	})
 
 	j2, err := c.LockJobByID(ctx, newJob.ID)
 	require.Error(t, err)
@@ -247,10 +250,11 @@ func testLockNextScheduledJob(t *testing.T, connPool adapter.ConnPool) {
 
 	require.NotNil(t, j.tx)
 	require.NotNil(t, j.pool)
-	defer func() {
+
+	t.Cleanup(func() {
 		err := j.Done(ctx)
 		assert.NoError(t, err)
-	}()
+	})
 
 	// check values of returned Job
 	assert.Equal(t, newJob.ID, j.ID)
@@ -280,12 +284,12 @@ func testLockNextScheduledJobAlreadyLocked(t *testing.T, connPool adapter.ConnPo
 
 	j, err := c.LockNextScheduledJob(ctx, "")
 	require.NoError(t, err)
+	require.NotNil(t, j)
 
-	defer func() {
+	t.Cleanup(func() {
 		err := j.Done(ctx)
 		assert.NoError(t, err)
-	}()
-	require.NotNil(t, j)
+	})
 
 	j2, err := c.LockNextScheduledJob(ctx, "")
 	require.NoError(t, err)
@@ -327,10 +331,11 @@ func testJobTx(t *testing.T, connPool adapter.ConnPool) {
 	j, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
 	require.NotNil(t, j)
-	defer func() {
+
+	t.Cleanup(func() {
 		err := j.Done(ctx)
 		assert.NoError(t, err)
-	}()
+	})
 
 	assert.Equal(t, j.tx, j.Tx())
 }
@@ -353,10 +358,11 @@ func testJobConnRace(t *testing.T, connPool adapter.ConnPool) {
 	j, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
 	require.NotNil(t, j)
-	defer func() {
+
+	t.Cleanup(func() {
 		err := j.Done(ctx)
 		assert.NoError(t, err)
-	}()
+	})
 
 	var wg sync.WaitGroup
 	wg.Add(2)
@@ -485,10 +491,11 @@ func testJobError(t *testing.T, connPool adapter.ConnPool) {
 	// make sure job was not deleted
 	j2 := findOneJob(t, connPool)
 	require.NotNil(t, j2)
-	defer func() {
-		err := j2.Done(ctx)
+
+	t.Cleanup(func() {
+		err := j.Done(ctx)
 		assert.NoError(t, err)
-	}()
+	})
 
 	assert.NotEqual(t, pgtype.Null, j2.LastError.Status)
 	assert.Equal(t, msg, j2.LastError.String)
@@ -527,10 +534,11 @@ func testJobErrorCustomBackoff(t *testing.T, connPool adapter.ConnPool) {
 	// make sure job was not deleted
 	j2 := findOneJob(t, connPool)
 	require.NotNil(t, j2)
-	defer func() {
-		err := j2.Done(ctx)
+
+	t.Cleanup(func() {
+		err := j.Done(ctx)
 		assert.NoError(t, err)
-	}()
+	})
 
 	assert.NotEqual(t, pgtype.Null, j2.LastError.Status)
 	assert.Equal(t, msg, j2.LastError.String)
@@ -591,8 +599,9 @@ func TestMultiSchema(t *testing.T) {
 
 	require.NotNil(t, j.tx)
 	require.NotNil(t, j.pool)
-	defer func() {
+
+	t.Cleanup(func() {
 		err := j.Done(ctx)
 		assert.NoError(t, err)
-	}()
+	})
 }
