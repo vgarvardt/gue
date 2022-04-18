@@ -1,0 +1,30 @@
+---
+name: setup-deps
+description: Install all the dependencies required for workflows
+inputs:
+  token:
+    required: true
+    description: GitHub token, most likely "secrets.GITHUB_TOKEN"
+runs:
+  using: composite
+  steps:
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: '1.18'
+
+    - name: Install Task
+      uses: arduino/setup-task@v1
+      with:
+        repo-token: ${{ inputs.token }}
+
+    - name: Install docker-compose v2
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        gh release -R docker/compose download -p docker-compose-linux-x86_64
+        mv -f docker-compose-linux-x86_64 docker-compose
+        sudo mv /usr/local/bin/docker-compose /usr/local/bin/docker-compose-v2
+        sudo install docker-compose /usr/local/bin/
+        docker-compose --version

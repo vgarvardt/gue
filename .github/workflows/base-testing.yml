@@ -1,0 +1,31 @@
+---
+name: "Base Branch: Test"
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Setup dependencies
+        uses: ./.github/actions/setup-deps
+        with:
+          token: ${{secrets.GITHUB_TOKEN}}
+
+      - name: Run tests
+        run: task test
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        if: success()
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          file: ./coverage.txt
+          fail_ci_if_error: false

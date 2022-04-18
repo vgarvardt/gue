@@ -1,11 +1,7 @@
-name: "PR Branch: Lint"
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref }}
-  cancel-in-progress: true
+name: "Base Branch: Lint"
 
 on:
-  pull_request:
+  push:
     branches: [ master ]
 
 jobs:
@@ -24,6 +20,6 @@ jobs:
       - name: Lint Code Base
         uses: github/super-linter@v4
         env:
-          VALIDATE_ALL_CODEBASE: false
+          VALIDATE_ALL_CODEBASE: true
           DEFAULT_BRANCH: master
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
