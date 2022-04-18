@@ -2,9 +2,9 @@ name: Testing
 
 on:
   push:
-    branches: [ master ]
+    branches: [ v3 ]
   pull_request:
-    branches: [ master ]
+    branches: [ v3 ]
 
 jobs:
   test:
@@ -30,10 +30,10 @@ jobs:
 
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
 
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run tests
         if: success()
@@ -42,7 +42,7 @@ jobs:
           TEST_POSTGRES: 'postgres://test:test@localhost:5432/test?sslmode=disable'
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v1
+        uses: codecov/codecov-action@v3
         if: success()
         with:
           file: ./coverage.txt
