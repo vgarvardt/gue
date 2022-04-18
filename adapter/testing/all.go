@@ -11,7 +11,8 @@ import (
 	_ "github.com/lib/pq" // register pq sql driver
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/vgarvardt/gue/v3/adapter"
+
+	"github.com/vgarvardt/gue/v4/adapter"
 )
 
 const defaultPoolConns = 5

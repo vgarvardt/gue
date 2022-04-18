@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/vgarvardt/gue/v3/adapter"
+	"github.com/vgarvardt/gue/v4/adapter"
 )
 
 type mockLogger struct {

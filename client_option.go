@@ -1,6 +1,6 @@
 package gue
 
-import "github.com/vgarvardt/gue/v3/adapter"
+import "github.com/vgarvardt/gue/v4/adapter"
 
 // ClientOption defines a type that allows to set client properties during the build-time.
 type ClientOption func(*Client)
