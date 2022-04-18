@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgtype"
+
 	"github.com/vgarvardt/gue/v4/adapter"
 )
 
