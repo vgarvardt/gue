@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/vgarvardt/gue/v3/adapter"
-	"github.com/vgarvardt/gue/v3/adapter/exponential"
+	"github.com/vgarvardt/gue/v4/adapter"
+	"github.com/vgarvardt/gue/v4/adapter/exponential"
 )
 
 // ErrMissingType is returned when you attempt to enqueue a job with no Type

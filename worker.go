@@ -10,7 +10,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/vgarvardt/gue/v3/adapter"
+	"github.com/vgarvardt/gue/v4/adapter"
 )
 
 // PollStrategy determines how the DB is queried for the next job to work on

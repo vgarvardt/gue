@@ -7,8 +7,8 @@ import (
 	"github.com/go-pg/pg/v10"
 	"github.com/stretchr/testify/require"
 
-	"github.com/vgarvardt/gue/v3/adapter"
-	"github.com/vgarvardt/gue/v3/adapter/gopgv10"
+	"github.com/vgarvardt/gue/v4/adapter"
+	"github.com/vgarvardt/gue/v4/adapter/gopgv10"
 )
 
 // OpenTestPoolMaxConnsGoPGv10 opens connections pool used in testing

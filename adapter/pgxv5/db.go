@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/vgarvardt/gue/v3/adapter"
+	"github.com/vgarvardt/gue/v4/adapter"
 )
 
 // aRow implements adapter.Row using github.com/jackc/pgx/v5
