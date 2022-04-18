@@ -105,22 +105,6 @@ func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) *Worker {
 	return &w
 }
 
-// Start pulls jobs off the Worker's queue at its interval. This function runs
-// in its own goroutine, use cancel context to shut it down.
-//
-// Deprecated: use Run instead of Start. Start leaks resources and does not wait
-// for shutdown to complete.
-func (w *Worker) Start(ctx context.Context) error {
-	errc := make(chan error, 1)
-	go func() {
-		errc <- w.runLock(ctx, func(ctx context.Context) error {
-			errc <- nil
-			return w.runLoop(ctx)
-		})
-	}()
-	return <-errc
-}
-
 // Run pulls jobs off the Worker's queue at its interval. This function does
 // not run in its own goroutine, so it’s possible to wait for completion. Use
 // context cancellation to shut it down.
@@ -319,30 +303,6 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 	}
 
 	return &w
-}
-
-// Start starts all the Workers in the WorkerPool in own goroutines.
-// Use cancel context to shut them down.
-//
-// Deprecated: use Run instead of Start. Start leaks resources and does not wait
-// for shutdown to complete.
-func (w *WorkerPool) Start(ctx context.Context) error {
-	errc := make(chan error, 1)
-	go func() {
-		// Note that the previous behavior was to start workers sequentially
-		// and return on first error without shutting down all previously
-		// started workers. The current behavior is correct, i.e. workers
-		// are shut down on any error, but we don’t return an error on
-		// startup. That said, the Start method actually never returned
-		// non-nil error from worker in previous implementation so it’s
-		// OK to just use runGroup here.
-		//
-		errc <- w.runLock(ctx, func(ctx context.Context) error {
-			errc <- nil
-			return w.runGroup(ctx)
-		})
-	}()
-	return <-errc
 }
 
 // Run runs all the Workers in the WorkerPool in own goroutines.
