@@ -17,7 +17,7 @@ type Row interface {
 	// Scan reads the values from the current row into dest values positionally.
 	// If no rows were found it returns ErrNoRows. If multiple rows are returned it
 	// ignores all but the first.
-	Scan(dest ...interface{}) error
+	Scan(dest ...any) error
 }
 
 // CommandTag is the result of an Exec function
@@ -32,11 +32,11 @@ type CommandTag interface {
 type Queryable interface {
 	// Exec executes sql. sql can be either a prepared statement name or an SQL string.
 	// arguments should be referenced positionally from the sql string as $1, $2, etc.
-	Exec(ctx context.Context, sql string, arguments ...interface{}) (CommandTag, error)
+	Exec(ctx context.Context, sql string, arguments ...any) (CommandTag, error)
 	// QueryRow executes sql with args. Any error that occurs while
 	// querying is deferred until calling Scan on the returned Row. That Row will
 	// error with ErrNoRows if no rows are returned.
-	QueryRow(ctx context.Context, sql string, args ...interface{}) Row
+	QueryRow(ctx context.Context, sql string, args ...any) Row
 }
 
 // Tx represents a database transaction.

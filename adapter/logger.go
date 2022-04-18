@@ -14,7 +14,7 @@ type (
 	// Field is the simple container for a single log field
 	Field struct {
 		Key   string
-		Value interface{}
+		Value any
 	}
 
 	// Logger declares base logging methods
@@ -37,7 +37,7 @@ type (
 )
 
 // F returns value as field
-func F(key string, value interface{}) Field {
+func F(key string, value any) Field {
 	return Field{Key: key, Value: value}
 }
 
@@ -90,7 +90,7 @@ func (l *StdLogger) Error(msg string, fields ...Field) {
 func (l *StdLogger) With(fields ...Field) Logger {
 	f := new(sync.Map)
 	fLen := len(fields)
-	l.fields.Range(func(key, value interface{}) bool {
+	l.fields.Range(func(key, value any) bool {
 		f.Store(key, value)
 		fLen++
 		return true
@@ -105,7 +105,7 @@ func (l *StdLogger) With(fields ...Field) Logger {
 func (l *StdLogger) buildContext(level string, fields ...Field) string {
 	ctx := make([]string, 0, len(fields)+l.fLen+1)
 	ctx = append(ctx, "level="+level)
-	l.fields.Range(func(key, value interface{}) bool {
+	l.fields.Range(func(key, value any) bool {
 		ctx = append(ctx, fmt.Sprintf("%s=%v", key, value))
 		return true
 	})

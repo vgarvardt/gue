@@ -13,7 +13,7 @@ type aRow struct {
 }
 
 // Scan implements adapter.Row.Scan() using github.com/lib/pq
-func (r *aRow) Scan(dest ...interface{}) error {
+func (r *aRow) Scan(dest ...any) error {
 	err := r.row.Scan(dest...)
 	if err == sql.ErrNoRows {
 		return adapter.ErrNoRows
@@ -49,18 +49,18 @@ func NewTx(tx *sql.Tx) adapter.Tx {
 }
 
 // Exec implements adapter.Tx.Exec() using github.com/lib/pq
-func (tx *aTx) Exec(ctx context.Context, sql string, arguments ...interface{}) (adapter.CommandTag, error) {
+func (tx *aTx) Exec(ctx context.Context, sql string, arguments ...any) (adapter.CommandTag, error) {
 	ct, err := tx.tx.ExecContext(ctx, sql, arguments...)
 	return aCommandTag{ct}, err
 }
 
 // QueryRow implements adapter.Tx.QueryRow() using github.com/lib/pq
-func (tx *aTx) QueryRow(ctx context.Context, sql string, args ...interface{}) adapter.Row {
+func (tx *aTx) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
 	return &aRow{tx.tx.QueryRowContext(ctx, sql, args...)}
 }
 
 // Rollback implements adapter.Tx.Rollback() using github.com/lib/pq
-func (tx *aTx) Rollback(ctx context.Context) error {
+func (tx *aTx) Rollback(_ context.Context) error {
 	err := tx.tx.Rollback()
 	if err == sql.ErrTxDone {
 		return adapter.ErrTxClosed
@@ -70,7 +70,7 @@ func (tx *aTx) Rollback(ctx context.Context) error {
 }
 
 // Commit implements adapter.Tx.Commit() using github.com/lib/pq
-func (tx *aTx) Commit(ctx context.Context) error {
+func (tx *aTx) Commit(_ context.Context) error {
 	return tx.tx.Commit()
 }
 
@@ -85,13 +85,13 @@ func NewConnPool(pool *sql.DB) adapter.ConnPool {
 }
 
 // Exec implements adapter.ConnPool.Exec() using github.com/lib/pq
-func (c *connPool) Exec(ctx context.Context, sql string, arguments ...interface{}) (adapter.CommandTag, error) {
+func (c *connPool) Exec(ctx context.Context, sql string, arguments ...any) (adapter.CommandTag, error) {
 	ct, err := c.pool.ExecContext(ctx, sql, arguments...)
 	return aCommandTag{ct}, err
 }
 
 // QueryRow implements adapter.ConnPool.QueryRow() using github.com/lib/pq
-func (c *connPool) QueryRow(ctx context.Context, sql string, args ...interface{}) adapter.Row {
+func (c *connPool) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
 	return &aRow{c.pool.QueryRowContext(ctx, sql, args...)}
 }
 
