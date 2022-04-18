@@ -28,18 +28,11 @@ func (h *mockHook) handler(ctx context.Context, j *Job, err error) {
 }
 
 func TestWorkerWorkOne(t *testing.T) {
-	t.Run("pgx/v3", func(t *testing.T) {
-		testWorkerWorkOne(t, adapterTesting.OpenTestPoolPGXv3(t))
-	})
-	t.Run("pgx/v4", func(t *testing.T) {
-		testWorkerWorkOne(t, adapterTesting.OpenTestPoolPGXv4(t))
-	})
-	t.Run("lib/pq", func(t *testing.T) {
-		testWorkerWorkOne(t, adapterTesting.OpenTestPoolLibPQ(t))
-	})
-	t.Run("go-pg/v10", func(t *testing.T) {
-		testWorkerWorkOne(t, adapterTesting.OpenTestPoolGoPGv10(t))
-	})
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testWorkerWorkOne(t, openFunc(t))
+		})
+	}
 }
 
 func testWorkerWorkOne(t *testing.T, connPool adapter.ConnPool) {
@@ -88,18 +81,11 @@ func testWorkerWorkOne(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestWorker_Run(t *testing.T) {
-	t.Run("pgx/v3", func(t *testing.T) {
-		testWorkerRun(t, adapterTesting.OpenTestPoolPGXv3(t))
-	})
-	t.Run("pgx/v4", func(t *testing.T) {
-		testWorkerRun(t, adapterTesting.OpenTestPoolPGXv4(t))
-	})
-	t.Run("lib/pq", func(t *testing.T) {
-		testWorkerRun(t, adapterTesting.OpenTestPoolLibPQ(t))
-	})
-	t.Run("go-pg/v10", func(t *testing.T) {
-		testWorkerRun(t, adapterTesting.OpenTestPoolGoPGv10(t))
-	})
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testWorkerRun(t, openFunc(t))
+		})
+	}
 }
 
 func testWorkerRun(t *testing.T, connPool adapter.ConnPool) {
@@ -129,18 +115,11 @@ func testWorkerRun(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestWorker_Start(t *testing.T) {
-	t.Run("pgx/v3", func(t *testing.T) {
-		testWorkerStart(t, adapterTesting.OpenTestPoolPGXv3(t))
-	})
-	t.Run("pgx/v4", func(t *testing.T) {
-		testWorkerStart(t, adapterTesting.OpenTestPoolPGXv4(t))
-	})
-	t.Run("lib/pq", func(t *testing.T) {
-		testWorkerStart(t, adapterTesting.OpenTestPoolLibPQ(t))
-	})
-	t.Run("go-pg/v10", func(t *testing.T) {
-		testWorkerStart(t, adapterTesting.OpenTestPoolGoPGv10(t))
-	})
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testWorkerStart(t, openFunc(t))
+		})
+	}
 }
 
 func testWorkerStart(t *testing.T, connPool adapter.ConnPool) {
@@ -166,18 +145,11 @@ func testWorkerStart(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestWorkerPool_Run(t *testing.T) {
-	t.Run("pgx/v3", func(t *testing.T) {
-		testWorkerPoolRun(t, adapterTesting.OpenTestPoolPGXv3(t))
-	})
-	t.Run("pgx/v4", func(t *testing.T) {
-		testWorkerPoolRun(t, adapterTesting.OpenTestPoolPGXv4(t))
-	})
-	t.Run("lib/pq", func(t *testing.T) {
-		testWorkerPoolRun(t, adapterTesting.OpenTestPoolLibPQ(t))
-	})
-	t.Run("go-pg/v10", func(t *testing.T) {
-		testWorkerPoolRun(t, adapterTesting.OpenTestPoolGoPGv10(t))
-	})
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testWorkerPoolRun(t, openFunc(t))
+		})
+	}
 }
 
 func testWorkerPoolRun(t *testing.T, connPool adapter.ConnPool) {
@@ -215,18 +187,11 @@ func testWorkerPoolRun(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestWorkerPool_Start(t *testing.T) {
-	t.Run("pgx/v3", func(t *testing.T) {
-		testWorkerPoolStart(t, adapterTesting.OpenTestPoolPGXv3(t))
-	})
-	t.Run("pgx/v4", func(t *testing.T) {
-		testWorkerPoolStart(t, adapterTesting.OpenTestPoolPGXv4(t))
-	})
-	t.Run("lib/pq", func(t *testing.T) {
-		testWorkerPoolStart(t, adapterTesting.OpenTestPoolLibPQ(t))
-	})
-	t.Run("go-pg/v10", func(t *testing.T) {
-		testWorkerPoolStart(t, adapterTesting.OpenTestPoolGoPGv10(t))
-	})
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testWorkerPoolStart(t, openFunc(t))
+		})
+	}
 }
 
 func testWorkerPoolStart(t *testing.T, connPool adapter.ConnPool) {
@@ -263,18 +228,11 @@ func testWorkerPoolStart(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func BenchmarkWorker(b *testing.B) {
-	b.Run("pgx/v3", func(b *testing.B) {
-		benchmarkWorker(b, adapterTesting.OpenTestPoolPGXv3(b))
-	})
-	b.Run("pgx/v4", func(b *testing.B) {
-		benchmarkWorker(b, adapterTesting.OpenTestPoolPGXv4(b))
-	})
-	b.Run("lib/pq", func(b *testing.B) {
-		benchmarkWorker(b, adapterTesting.OpenTestPoolLibPQ(b))
-	})
-	b.Run("go-pg/v10", func(b *testing.B) {
-		benchmarkWorker(b, adapterTesting.OpenTestPoolGoPGv10(b))
-	})
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		b.Run(name, func(b *testing.B) {
+			benchmarkWorker(b, openFunc(b))
+		})
+	}
 }
 
 func benchmarkWorker(b *testing.B, connPool adapter.ConnPool) {
@@ -300,18 +258,11 @@ func nilWorker(context.Context, *Job) error {
 }
 
 func TestWorkerWorkReturnsError(t *testing.T) {
-	t.Run("pgx/v3", func(t *testing.T) {
-		testWorkerWorkReturnsError(t, adapterTesting.OpenTestPoolPGXv3(t))
-	})
-	t.Run("pgx/v4", func(t *testing.T) {
-		testWorkerWorkReturnsError(t, adapterTesting.OpenTestPoolPGXv4(t))
-	})
-	t.Run("lib/pq", func(t *testing.T) {
-		testWorkerWorkReturnsError(t, adapterTesting.OpenTestPoolLibPQ(t))
-	})
-	t.Run("go-pg/v10", func(t *testing.T) {
-		testWorkerWorkReturnsError(t, adapterTesting.OpenTestPoolGoPGv10(t))
-	})
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testWorkerWorkReturnsError(t, openFunc(t))
+		})
+	}
 }
 
 func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
@@ -367,18 +318,11 @@ func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestWorkerWorkRescuesPanic(t *testing.T) {
-	t.Run("pgx/v3", func(t *testing.T) {
-		testWorkerWorkRescuesPanic(t, adapterTesting.OpenTestPoolPGXv3(t))
-	})
-	t.Run("pgx/v4", func(t *testing.T) {
-		testWorkerWorkRescuesPanic(t, adapterTesting.OpenTestPoolPGXv4(t))
-	})
-	t.Run("lib/pq", func(t *testing.T) {
-		testWorkerWorkRescuesPanic(t, adapterTesting.OpenTestPoolLibPQ(t))
-	})
-	t.Run("go-pg/v10", func(t *testing.T) {
-		testWorkerWorkRescuesPanic(t, adapterTesting.OpenTestPoolGoPGv10(t))
-	})
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testWorkerWorkRescuesPanic(t, openFunc(t))
+		})
+	}
 }
 
 func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
@@ -412,18 +356,11 @@ func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
-	t.Run("pgx/v3", func(t *testing.T) {
-		testWorkerWorkOneTypeNotInMap(t, adapterTesting.OpenTestPoolPGXv3(t))
-	})
-	t.Run("pgx/v4", func(t *testing.T) {
-		testWorkerWorkOneTypeNotInMap(t, adapterTesting.OpenTestPoolPGXv4(t))
-	})
-	t.Run("lib/pq", func(t *testing.T) {
-		testWorkerWorkOneTypeNotInMap(t, adapterTesting.OpenTestPoolLibPQ(t))
-	})
-	t.Run("go-pg/v10", func(t *testing.T) {
-		testWorkerWorkOneTypeNotInMap(t, adapterTesting.OpenTestPoolGoPGv10(t))
-	})
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testWorkerWorkOneTypeNotInMap(t, openFunc(t))
+		})
+	}
 }
 
 func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
