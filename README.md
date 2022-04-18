@@ -150,7 +150,7 @@ Package supports several PostgreSQL drivers using adapter interface internally. 
 drivers have been implemented:
 
 - [github.com/jackc/pgx/v4](https://github.com/jackc/pgx)
-- [github.com/jackc/pgx/v3](https://github.com/jackc/pgx)
+- [github.com/jackc/pgx/v5](https://github.com/jackc/pgx)
 - [github.com/lib/pq](https://github.com/lib/pq)
 - [github.com/go-pg/pg/v10](https://github.com/go-pg/pg)
 
@@ -189,7 +189,7 @@ func main() {
 }
 ```
 
-### `pgx/v3`
+### `pgx/v5`
 
 ```go
 package main
@@ -198,26 +198,25 @@ import (
 	"log"
 	"os"
 
-	"github.com/jackc/pgx"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/vgarvardt/gue/v3"
-	"github.com/vgarvardt/gue/v3/adapter/pgxv3"
+	"github.com/vgarvardt/gue/v3/adapter/pgxv5"
 )
 
 func main() {
-	pgxCfg, err := pgx.ParseURI(os.Getenv("DATABASE_URL"))
+	pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
 	if err != nil {
 		log.Fatal(err)
 	}
-	pgxPool, err := pgx.NewConnPool(pgx.ConnPoolConfig{
-		ConnConfig: pgxCfg,
-	})
+
+	pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer pgxPool.Close()
 
-	poolAdapter := pgxv3.NewConnPool(pgxPool)
+	poolAdapter := pgxv5.NewConnPool(pgxPool)
 
 	gc := gue.NewClient(poolAdapter)
 	...
