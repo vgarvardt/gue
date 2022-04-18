@@ -131,21 +131,7 @@ func (w *Worker) Run(ctx context.Context) error {
 // runLock runs function f under a run lock. Any attempt to call runLock concurrently
 // will return an error.
 func (w *Worker) runLock(ctx context.Context, f func(ctx context.Context) error) error {
-	w.mu.Lock()
-	if w.running {
-		w.mu.Unlock()
-		return fmt.Errorf("worker[id=%s] is already running", w.id)
-	}
-	w.running = true
-	w.mu.Unlock()
-
-	defer func() {
-		w.mu.Lock()
-		w.running = false
-		w.mu.Unlock()
-	}()
-
-	return f(ctx)
+	return runLock(ctx, f, &w.mu, &w.running, w.id)
 }
 
 // runLoop pulls jobs off the Worker's queue at its interval.
@@ -369,21 +355,7 @@ func (w *WorkerPool) Run(ctx context.Context) error {
 // runLock runs function f under a run lock. Any attempt to call runLock concurrently
 // will return an error.
 func (w *WorkerPool) runLock(ctx context.Context, f func(ctx context.Context) error) error {
-	w.mu.Lock()
-	if w.running {
-		w.mu.Unlock()
-		return fmt.Errorf("worker pool[id=%s] already running", w.id)
-	}
-	w.running = true
-	w.mu.Unlock()
-
-	defer func() {
-		w.mu.Lock()
-		w.running = false
-		w.mu.Unlock()
-	}()
-
-	return f(ctx)
+	return runLock(ctx, f, &w.mu, &w.running, w.id)
 }
 
 // runGroup starts all the Workers in the WorkerPool in own goroutines
@@ -399,4 +371,22 @@ func (w *WorkerPool) runGroup(ctx context.Context) error {
 		})
 	}
 	return grp.Wait()
+}
+
+func runLock(ctx context.Context, f func(ctx context.Context) error, mu *sync.Mutex, running *bool, id string) error {
+	mu.Lock()
+	if *running {
+		mu.Unlock()
+		return fmt.Errorf("worker[id=%s] is already running", id)
+	}
+	*running = true
+	mu.Unlock()
+
+	defer func() {
+		mu.Lock()
+		*running = false
+		mu.Unlock()
+	}()
+
+	return f(ctx)
 }

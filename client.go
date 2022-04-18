@@ -105,41 +105,16 @@ VALUES
 // same transaction throughout the process of getting a job, working it,
 // deleting it, and releasing the lock.
 //
-// After the Job has been worked, you must call either Done() or Error() on it
+// After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockJob(ctx context.Context, queue string) (*Job, error) {
-	tx, err := c.pool.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	now := time.Now().UTC()
-
-	j := Job{pool: c.pool, tx: tx, backoff: c.backoff}
-
-	err = tx.QueryRow(ctx, `SELECT job_id, queue, priority, run_at, job_type, args, error_count
+	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count
 FROM gue_jobs
 WHERE queue = $1 AND run_at <= $2
 ORDER BY priority ASC
-LIMIT 1 FOR UPDATE SKIP LOCKED`, queue, now).Scan(
-		&j.ID,
-		&j.Queue,
-		&j.Priority,
-		&j.RunAt,
-		&j.Type,
-		(*json.RawMessage)(&j.Args),
-		&j.ErrorCount,
-	)
-	if err == nil {
-		return &j, nil
-	}
+LIMIT 1 FOR UPDATE SKIP LOCKED`
 
-	rbErr := tx.Rollback(ctx)
-	if err == adapter.ErrNoRows {
-		return nil, rbErr
-	}
-
-	return nil, fmt.Errorf("could not lock a job (rollback result: %v): %w", rbErr, err)
+	return c.execLockJob(ctx, true, sql, queue, time.Now().UTC())
 }
 
 // LockJobByID attempts to retrieve a specific Job from the database.
@@ -150,34 +125,14 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`, queue, now).Scan(
 // same transaction throughout the process of getting the job, working it,
 // deleting it, and releasing the lock.
 //
-// After the Job has been worked, you must call either Done() or Error() on it
+// After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockJobByID(ctx context.Context, id int64) (*Job, error) {
-	tx, err := c.pool.Begin(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	j := Job{pool: c.pool, tx: tx, backoff: c.backoff}
-
-	err = tx.QueryRow(ctx, `SELECT job_id, queue, priority, run_at, job_type, args, error_count
+	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count
 FROM gue_jobs
-WHERE job_id = $1 FOR UPDATE SKIP LOCKED`, id).Scan(
-		&j.ID,
-		&j.Queue,
-		&j.Priority,
-		&j.RunAt,
-		&j.Type,
-		(*json.RawMessage)(&j.Args),
-		&j.ErrorCount,
-	)
-	if err == nil {
-		return &j, nil
-	}
+WHERE job_id = $1 FOR UPDATE SKIP LOCKED`
 
-	rbErr := tx.Rollback(ctx)
-
-	return nil, fmt.Errorf("could not lock the job (rollback result: %v): %w", rbErr, err)
+	return c.execLockJob(ctx, false, sql, id)
 }
 
 // LockNextScheduledJob attempts to retrieve the earliest scheduled Job from the database in the specified queue.
@@ -191,23 +146,27 @@ WHERE job_id = $1 FOR UPDATE SKIP LOCKED`, id).Scan(
 // same transaction throughout the process of getting a job, working it,
 // deleting it, and releasing the lock.
 //
-// After the Job has been worked, you must call either Done() or Error() on it
+// After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockNextScheduledJob(ctx context.Context, queue string) (*Job, error) {
+	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count
+FROM gue_jobs
+WHERE queue = $1 AND run_at <= $2
+ORDER BY run_at, priority ASC
+LIMIT 1 FOR UPDATE SKIP LOCKED`
+
+	return c.execLockJob(ctx, true, sql, queue, time.Now().UTC())
+}
+
+func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql string, args ...any) (*Job, error) {
 	tx, err := c.pool.Begin(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	now := time.Now().UTC()
-
 	j := Job{pool: c.pool, tx: tx, backoff: c.backoff}
 
-	err = tx.QueryRow(ctx, `SELECT job_id, queue, priority, run_at, job_type, args, error_count
-FROM gue_jobs
-WHERE queue = $1 AND run_at <= $2
-ORDER BY run_at, priority ASC
-LIMIT 1 FOR UPDATE SKIP LOCKED`, queue, now).Scan(
+	err = tx.QueryRow(ctx, sql, args...).Scan(
 		&j.ID,
 		&j.Queue,
 		&j.Priority,
@@ -221,7 +180,7 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`, queue, now).Scan(
 	}
 
 	rbErr := tx.Rollback(ctx)
-	if err == adapter.ErrNoRows {
+	if handleErrNoRows && err == adapter.ErrNoRows {
 		return nil, rbErr
 	}
 
@@ -229,8 +188,8 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`, queue, now).Scan(
 }
 
 func newID() string {
-	hasher := md5.New()
+	hash := md5.New()
 	// nolint:errcheck
-	hasher.Write([]byte(time.Now().Format(time.RFC3339Nano)))
-	return hex.EncodeToString(hasher.Sum(nil))[:6]
+	hash.Write([]byte(time.Now().Format(time.RFC3339Nano)))
+	return hex.EncodeToString(hash.Sum(nil))[:6]
 }
