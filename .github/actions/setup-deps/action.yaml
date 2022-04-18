@@ -1,6 +1,10 @@
 ---
 name: setup-deps
 description: Install all the dependencies required for workflows
+inputs:
+  token:
+    required: true
+    description: GitHub token, most likely just ${{secrets.GITHUB_TOKEN}}
 runs:
   using: composite
   steps:
@@ -12,12 +16,12 @@ runs:
     - name: Install Task
       uses: arduino/setup-task@v1
       with:
-        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        repo-token: ${{ inputs.token }}
 
     - name: Install docker-compose v2
       shell: bash
       env:
-        GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        GH_TOKEN: ${{ inputs.token }}
       run: |
         gh release -R docker/compose download -p docker-compose-linux-x86_64
         mv -f docker-compose-linux-x86_64 docker-compose

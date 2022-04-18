@@ -20,6 +20,8 @@ jobs:
 
       - name: Setup dependencies
         uses: ./.github/actions/setup-deps
+        with:
+          token: ${{secrets.GITHUB_TOKEN}}
 
       - name: Run tests
         run: task test
