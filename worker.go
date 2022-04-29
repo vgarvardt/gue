@@ -242,6 +242,24 @@ func recoverPanic(ctx context.Context, logger adapter.Logger, j *Job) {
 	}
 }
 
+func runLock(ctx context.Context, f func(ctx context.Context) error, mu *sync.Mutex, running *bool, id string) error {
+	mu.Lock()
+	if *running {
+		mu.Unlock()
+		return fmt.Errorf("worker[id=%s] is already running", id)
+	}
+	*running = true
+	mu.Unlock()
+
+	defer func() {
+		mu.Lock()
+		*running = false
+		mu.Unlock()
+	}()
+
+	return f(ctx)
+}
+
 // WorkerPool is a pool of Workers, each working jobs from the queue
 // at the specified interval using the WorkMap.
 type WorkerPool struct {
@@ -312,6 +330,11 @@ func (w *WorkerPool) Run(ctx context.Context) error {
 	return w.runLock(ctx, w.runGroup)
 }
 
+// WorkOne tries to consume single message from the queue.
+func (w *WorkerPool) WorkOne(ctx context.Context) (didWork bool) {
+	return w.workers[0].WorkOne(ctx)
+}
+
 // runLock runs function f under a run lock. Any attempt to call runLock concurrently
 // will return an error.
 func (w *WorkerPool) runLock(ctx context.Context, f func(ctx context.Context) error) error {
@@ -331,22 +354,4 @@ func (w *WorkerPool) runGroup(ctx context.Context) error {
 		})
 	}
 	return grp.Wait()
-}
-
-func runLock(ctx context.Context, f func(ctx context.Context) error, mu *sync.Mutex, running *bool, id string) error {
-	mu.Lock()
-	if *running {
-		mu.Unlock()
-		return fmt.Errorf("worker[id=%s] is already running", id)
-	}
-	*running = true
-	mu.Unlock()
-
-	defer func() {
-		mu.Lock()
-		*running = false
-		mu.Unlock()
-	}()
-
-	return f(ctx)
 }
