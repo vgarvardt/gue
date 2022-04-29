@@ -19,4 +19,4 @@
   - `JobPriorityHigh`
   - `JobPriorityDefault` - set by default when the `Job.Priority` is not explicitly set
   - `JobPriorityLow`
-  - `JobPriorityLowest` 
+  - `JobPriorityLowest`
