@@ -35,7 +35,7 @@ func testEnqueueOnlyType(t *testing.T, connPool adapter.ConnPool) {
 	// check resulting job
 	assert.Greater(t, j.ID, int64(0))
 	assert.Equal(t, defaultQueueName, j.Queue)
-	assert.Equal(t, int16(0), j.Priority)
+	assert.Equal(t, JobPriorityDefault, j.Priority)
 	assert.False(t, j.RunAt.IsZero())
 	assert.Equal(t, jobType, j.Type)
 	assert.Equal(t, []byte(`[]`), j.Args)
@@ -55,7 +55,7 @@ func testEnqueueWithPriority(t *testing.T, connPool adapter.ConnPool) {
 	c := NewClient(connPool)
 	ctx := context.Background()
 
-	want := int16(99)
+	want := JobPriority(99)
 	err := c.Enqueue(ctx, &Job{Type: "MyJob", Priority: want})
 	require.NoError(t, err)
 

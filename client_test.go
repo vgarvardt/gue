@@ -48,7 +48,7 @@ func testLockJob(t *testing.T, connPool adapter.ConnPool) {
 	// check values of returned Job
 	assert.Equal(t, newJob.ID, j.ID)
 	assert.Equal(t, defaultQueueName, j.Queue)
-	assert.Equal(t, int16(0), j.Priority)
+	assert.Equal(t, JobPriorityDefault, j.Priority)
 	assert.False(t, j.RunAt.IsZero())
 	assert.Equal(t, newJob.Type, j.Type)
 	assert.Equal(t, []byte(`[]`), j.Args)
@@ -167,7 +167,7 @@ func testLockJobByID(t *testing.T, connPool adapter.ConnPool) {
 	// check values of returned Job
 	assert.Equal(t, newJob.ID, j.ID)
 	assert.Equal(t, defaultQueueName, j.Queue)
-	assert.Equal(t, int16(0), j.Priority)
+	assert.Equal(t, JobPriorityDefault, j.Priority)
 	assert.False(t, j.RunAt.IsZero())
 	assert.Equal(t, newJob.Type, j.Type)
 	assert.Equal(t, []byte(`[]`), j.Args)
@@ -259,7 +259,7 @@ func testLockNextScheduledJob(t *testing.T, connPool adapter.ConnPool) {
 	// check values of returned Job
 	assert.Equal(t, newJob.ID, j.ID)
 	assert.Equal(t, defaultQueueName, j.Queue)
-	assert.Equal(t, int16(0), j.Priority)
+	assert.Equal(t, JobPriorityDefault, j.Priority)
 	assert.False(t, j.RunAt.IsZero())
 	assert.Equal(t, newJob.Type, j.Type)
 	assert.Equal(t, []byte(`[]`), j.Args)
@@ -545,6 +545,56 @@ func testJobErrorCustomBackoff(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, int32(1), j2.ErrorCount)
 	assert.Greater(t, j2.RunAt.Unix(), job.RunAt.Unix())
 	assert.Equal(t, job.RunAt.Add(time.Hour).Unix(), j2.RunAt.Unix())
+}
+
+func TestJobPriority(t *testing.T) {
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testJobPriority(t, openFunc(t))
+		})
+	}
+}
+
+func testJobPriority(t *testing.T, connPool adapter.ConnPool) {
+	var err error
+
+	c := NewClient(connPool)
+	ctx := context.Background()
+
+	// insert in the order different from expected to be locked
+	jobPriorityDefault := &Job{Type: "MyJob", Priority: JobPriorityDefault, Args: []byte(`"default"`)}
+	err = c.Enqueue(ctx, jobPriorityDefault)
+	require.NoError(t, err)
+
+	jobPriorityLowest := &Job{Type: "MyJob", Priority: JobPriorityLowest, Args: []byte(`"lowest"`)}
+	err = c.Enqueue(ctx, jobPriorityLowest)
+	require.NoError(t, err)
+
+	jobPriorityHighest := &Job{Type: "MyJob", Priority: JobPriorityHighest, Args: []byte(`"highest"`)}
+	err = c.Enqueue(ctx, jobPriorityHighest)
+	require.NoError(t, err)
+
+	jobPriorityLow := &Job{Type: "MyJob", Priority: JobPriorityLow, Args: []byte(`"low"`)}
+	err = c.Enqueue(ctx, jobPriorityLow)
+	require.NoError(t, err)
+
+	jobPriorityHigh := &Job{Type: "MyJob", Priority: JobPriorityHigh, Args: []byte(`"high"`)}
+	err = c.Enqueue(ctx, jobPriorityHigh)
+	require.NoError(t, err)
+
+	expectedOrder := []*Job{jobPriorityHighest, jobPriorityHigh, jobPriorityDefault, jobPriorityLow, jobPriorityLowest}
+	for _, expected := range expectedOrder {
+		j, err := c.LockJob(ctx, "")
+		require.NoError(t, err)
+		require.NotNil(t, j)
+		t.Cleanup(func() {
+			err := j.Done(ctx)
+			assert.NoError(t, err)
+		})
+
+		assert.Equal(t, expected.Priority, j.Priority)
+		assert.Equal(t, expected.Args, j.Args)
+	}
 }
 
 func findOneJob(t testing.TB, q adapter.Queryable) *Job {
