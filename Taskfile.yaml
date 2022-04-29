@@ -8,18 +8,15 @@ tasks:
   test:
     summary: Run tests
     cmds:
-      - task: ensure-docker-compose-version
       - task: test-deps-up
       - task: test-run
       - task: test-deps-down
 
-  ensure-docker-compose-version:
-    summary: Ensures that docker-compose is v2
-    cmds:
-      - cmd: docker-compose version --short | grep '^2'
-
   test-deps-up:
     summary: Starts test dependencies
+    preconditions:
+      - sh: docker-compose version --short | grep '^2'
+        msg: "docker-compose v2 is expected to be installed"
     cmds:
       - cmd: docker-compose up --detach --wait
 

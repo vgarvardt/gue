@@ -15,6 +15,18 @@ import (
 // to reschedule errored jobs.
 type Backoff func(retries int) time.Duration
 
+// JobPriority is the wrapper type for Job.Priority
+type JobPriority int16
+
+// Some shortcut values for JobPriority that can be any, but chances are high that one of these will be the most used.
+const (
+	JobPriorityHighest JobPriority = -32768
+	JobPriorityHigh    JobPriority = -16384
+	JobPriorityDefault JobPriority = 0
+	JobPriorityLow     JobPriority = 16384
+	JobPriorityLowest  JobPriority = 32767
+)
+
 // Job is a single unit of work for Gue to perform.
 type Job struct {
 	// ID is the unique database ID of the Job. It is ignored on job creation.
@@ -26,8 +38,8 @@ type Job struct {
 	// Priority is the priority of the Job. The default priority is 0, and a
 	// lower number means a higher priority.
 	//
-	// The highest priority is -32768, the lowest one is +32767
-	Priority int16
+	// The highest priority is JobPriorityHighest, the lowest one is JobPriorityLowest
+	Priority JobPriority
 
 	// RunAt is the time that this job should be executed. It defaults to now(),
 	// meaning the job will execute immediately. Set it to a value in the future
