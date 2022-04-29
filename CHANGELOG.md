@@ -20,3 +20,4 @@
   - `JobPriorityDefault` - set by default when the `Job.Priority` is not explicitly set
   - `JobPriorityLow`
   - `JobPriorityLowest`
+- `WorkerPool.WorkOne` method, can be useful for testing purpose mostly
