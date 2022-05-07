@@ -31,8 +31,8 @@ type CommandTag interface {
 // basic querying operations.
 type Queryable interface {
 	// Exec executes sql. sql can be either a prepared statement name or an SQL string.
-	// arguments should be referenced positionally from the sql string as $1, $2, etc.
-	Exec(ctx context.Context, sql string, arguments ...any) (CommandTag, error)
+	// args should be referenced positionally from the sql string as $1, $2, etc.
+	Exec(ctx context.Context, sql string, args ...any) (CommandTag, error)
 	// QueryRow executes sql with args. Any error that occurs while
 	// querying is deferred until calling Scan on the returned Row. That Row will
 	// error with ErrNoRows if no rows are returned.
@@ -51,11 +51,28 @@ type Tx interface {
 	Commit(ctx context.Context) error
 }
 
+// Conn is a single PostgreSQL connection.
+type Conn interface {
+	Queryable
+	// Ping checks if the DB and connection are alive.
+	Ping(ctx context.Context) error
+	// Begin starts a transaction with the default transaction mode.
+	Begin(ctx context.Context) (Tx, error)
+	// Release returns connection to the pool it was acquired from.
+	// Once Release has been called, other methods must not be called.
+	Release() error
+}
+
 // ConnPool is a PostgreSQL connection pool handle.
 type ConnPool interface {
 	Queryable
+	// Ping checks if the DB and connection are alive.
+	Ping(ctx context.Context) error
 	// Begin starts a transaction with the default transaction mode.
 	Begin(ctx context.Context) (Tx, error)
+	// Acquire returns a connection Conn from the ConnPool.
+	// Connection must be returned to the pool after usage by calling Conn.Release().
+	Acquire(ctx context.Context) (Conn, error)
 	// Close ends the use of a connection pool. It prevents any new connections from
 	// being acquired and closes available underlying connections. Any acquired
 	// connections will be closed when they are released.

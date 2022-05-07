@@ -1,5 +1,5 @@
 /*
-Package gue implements Golang queue on top of PostgreSQL.
+Package gue implements Golang queues on top of PostgreSQL.
 It uses transaction-level locks for concurrent work.
 
 PostgreSQL drivers
@@ -7,8 +7,9 @@ PostgreSQL drivers
 Package supports several PostgreSQL drivers using adapter interface internally.
 Currently, adapters for the following drivers have been implemented:
  - github.com/jackc/pgx v4
- - github.com/jackc/pgx v3
+ - github.com/jackc/pgx v5
  - github.com/lib/pq
+ - github.com/go-pg/pg/v10
 
 Usage
 
@@ -62,6 +63,7 @@ Here is a complete example showing worker setup for pgx/v4 and two jobs enqueued
 		wm := gue.WorkMap{
 			"PrintName": printName,
 		}
+
 		// create a pool w/ 2 workers
 		workers := gue.NewWorkerPool(gc, wm, 2, gue.WithPoolQueue("name_printer"))
 
