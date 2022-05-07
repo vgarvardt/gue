@@ -294,13 +294,3 @@ drivers have been implemented:
   with `adapter.NewStdLogger(...)`.
 - Uber `zap` - adapter that uses [`go.uber.org/zap`](https://pkg.go.dev/go.uber.org/zap) logger for logs output.
   Instantiate it with `adapter.zap.New(...)`.
-
-## Testing
-
-Linter and tests are running for every Pull Request, but it is possible to run linter and tests locally using `docker`
-and `make`.
-
-Run linter: `make link`. This command runs liner in docker container with the project source code mounted.
-
-Run tests: `make test`. This command runs project dependencies in docker containers if they are not started yet and runs
-go tests with coverage.
