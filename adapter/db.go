@@ -51,6 +51,7 @@ type Tx interface {
 	Commit(ctx context.Context) error
 }
 
+// Conn is a single PostgreSQL connection.
 type Conn interface {
 	Queryable
 	// Ping checks if the DB and connection are alive.
