@@ -49,8 +49,8 @@ func NewTx(tx *sql.Tx) adapter.Tx {
 }
 
 // Exec implements adapter.Tx.Exec() using github.com/lib/pq
-func (tx *aTx) Exec(ctx context.Context, sql string, arguments ...any) (adapter.CommandTag, error) {
-	ct, err := tx.tx.ExecContext(ctx, sql, arguments...)
+func (tx *aTx) Exec(ctx context.Context, sql string, args ...any) (adapter.CommandTag, error) {
+	ct, err := tx.tx.ExecContext(ctx, sql, args...)
 	return aCommandTag{ct}, err
 }
 
@@ -74,6 +74,37 @@ func (tx *aTx) Commit(_ context.Context) error {
 	return tx.tx.Commit()
 }
 
+type conn struct {
+	c *sql.Conn
+}
+
+// Ping implements adapter.Conn.Ping() using github.com/lib/pq
+func (c *conn) Ping(ctx context.Context) error {
+	return c.c.PingContext(ctx)
+}
+
+// Begin implements adapter.Conn.Begin() using github.com/lib/pq
+func (c *conn) Begin(ctx context.Context) (adapter.Tx, error) {
+	tx, err := c.c.BeginTx(ctx, nil)
+	return NewTx(tx), err
+}
+
+// Exec implements adapter.Conn.Exec() using github.com/lib/pq
+func (c *conn) Exec(ctx context.Context, sql string, args ...any) (adapter.CommandTag, error) {
+	r, err := c.c.ExecContext(ctx, sql, args...)
+	return aCommandTag{r}, err
+}
+
+// QueryRow implements adapter.Conn.QueryRow() github.com/lib/pq
+func (c *conn) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
+	return &aRow{c.c.QueryRowContext(ctx, sql, args...)}
+}
+
+// Release implements adapter.Conn.Release() using github.com/lib/pq
+func (c *conn) Release() error {
+	return c.c.Close()
+}
+
 // connPool implements adapter.ConnPool using github.com/lib/pq
 type connPool struct {
 	pool *sql.DB
@@ -84,9 +115,14 @@ func NewConnPool(pool *sql.DB) adapter.ConnPool {
 	return &connPool{pool}
 }
 
+// Ping implements adapter.ConnPool.Ping() using github.com/lib/pq
+func (c *connPool) Ping(ctx context.Context) error {
+	return c.pool.PingContext(ctx)
+}
+
 // Exec implements adapter.ConnPool.Exec() using github.com/lib/pq
-func (c *connPool) Exec(ctx context.Context, sql string, arguments ...any) (adapter.CommandTag, error) {
-	ct, err := c.pool.ExecContext(ctx, sql, arguments...)
+func (c *connPool) Exec(ctx context.Context, sql string, args ...any) (adapter.CommandTag, error) {
+	ct, err := c.pool.ExecContext(ctx, sql, args...)
 	return aCommandTag{ct}, err
 }
 
@@ -99,6 +135,12 @@ func (c *connPool) QueryRow(ctx context.Context, sql string, args ...any) adapte
 func (c *connPool) Begin(ctx context.Context) (adapter.Tx, error) {
 	tx, err := c.pool.BeginTx(ctx, nil)
 	return NewTx(tx), err
+}
+
+// Acquire implements adapter.ConnPool.Acquire() using github.com/lib/pq
+func (c *connPool) Acquire(ctx context.Context) (adapter.Conn, error) {
+	cc, err := c.pool.Conn(ctx)
+	return &conn{cc}, err
 }
 
 // Close implements adapter.ConnPool.Close() using github.com/lib/pq

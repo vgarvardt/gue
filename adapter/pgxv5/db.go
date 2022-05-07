@@ -46,8 +46,8 @@ func NewTx(tx pgx.Tx) adapter.Tx {
 }
 
 // Exec implements adapter.Tx.Exec() using github.com/jackc/pgx/v5
-func (tx *aTx) Exec(ctx context.Context, sql string, arguments ...any) (adapter.CommandTag, error) {
-	ct, err := tx.tx.Exec(ctx, sql, arguments...)
+func (tx *aTx) Exec(ctx context.Context, sql string, args ...any) (adapter.CommandTag, error) {
+	ct, err := tx.tx.Exec(ctx, sql, args...)
 	return aCommandTag{ct}, err
 }
 
@@ -71,6 +71,38 @@ func (tx *aTx) Commit(ctx context.Context) error {
 	return tx.tx.Commit(ctx)
 }
 
+type conn struct {
+	c *pgxpool.Conn
+}
+
+// Ping implements adapter.Conn.Ping() using github.com/jackc/pgx/v5
+func (c *conn) Ping(ctx context.Context) error {
+	return c.c.Ping(ctx)
+}
+
+// Begin implements adapter.Conn.Begin() using github.com/jackc/pgx/v5
+func (c *conn) Begin(ctx context.Context) (adapter.Tx, error) {
+	tx, err := c.c.Begin(ctx)
+	return NewTx(tx), err
+}
+
+// Exec implements adapter.Conn.Exec() using github.com/jackc/pgx/v5
+func (c *conn) Exec(ctx context.Context, sql string, args ...any) (adapter.CommandTag, error) {
+	r, err := c.c.Exec(ctx, sql, args...)
+	return aCommandTag{r}, err
+}
+
+// QueryRow implements adapter.Conn.QueryRow() github.com/jackc/pgx/v5
+func (c *conn) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
+	return &aRow{c.c.QueryRow(ctx, sql, args...)}
+}
+
+// Release implements adapter.Conn.Release() using github.com/jackc/pgx/v5
+func (c *conn) Release() error {
+	c.c.Release()
+	return nil
+}
+
 // connPool implements adapter.ConnPool using github.com/jackc/pgx/v5
 type connPool struct {
 	pool *pgxpool.Pool
@@ -81,6 +113,11 @@ func NewConnPool(pool *pgxpool.Pool) adapter.ConnPool {
 	return &connPool{pool}
 }
 
+// Ping implements adapter.ConnPool.Ping() using github.com/jackc/pgx/v5
+func (c *connPool) Ping(ctx context.Context) error {
+	return c.pool.Ping(ctx)
+}
+
 // Begin implements adapter.ConnPool.Begin() using github.com/jackc/pgx/v5
 func (c *connPool) Begin(ctx context.Context) (adapter.Tx, error) {
 	tx, err := c.pool.Begin(ctx)
@@ -88,14 +125,20 @@ func (c *connPool) Begin(ctx context.Context) (adapter.Tx, error) {
 }
 
 // Exec implements adapter.ConnPool.Exec() using github.com/jackc/pgx/v5
-func (c *connPool) Exec(ctx context.Context, sql string, arguments ...any) (adapter.CommandTag, error) {
-	ct, err := c.pool.Exec(ctx, sql, arguments...)
+func (c *connPool) Exec(ctx context.Context, sql string, args ...any) (adapter.CommandTag, error) {
+	ct, err := c.pool.Exec(ctx, sql, args...)
 	return aCommandTag{ct}, err
 }
 
 // QueryRow implements adapter.ConnPool.QueryRow() using github.com/jackc/pgx/v5
 func (c *connPool) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
 	return &aRow{c.pool.QueryRow(ctx, sql, args...)}
+}
+
+// Acquire implements adapter.ConnPool.Acquire() using github.com/jackc/pgx/v5
+func (c *connPool) Acquire(ctx context.Context) (adapter.Conn, error) {
+	cc, err := c.pool.Acquire(ctx)
+	return &conn{cc}, err
 }
 
 // Close implements adapter.ConnPool.Close() using github.com/jackc/pgx/v5

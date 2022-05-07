@@ -94,6 +94,37 @@ func (tx *aTx) Commit(ctx context.Context) error {
 	return tx.tx.CommitContext(ctx)
 }
 
+type conn struct {
+	c *pg.Conn
+}
+
+// Ping implements adapter.Conn.Ping() using github.com/go-pg/pg/v10
+func (c *conn) Ping(ctx context.Context) error {
+	return c.c.Ping(ctx)
+}
+
+// Begin implements adapter.Conn.Begin() using github.com/go-pg/pg/v10
+func (c *conn) Begin(ctx context.Context) (adapter.Tx, error) {
+	tx, err := c.c.BeginContext(ctx)
+	return NewTx(tx), err
+}
+
+// Exec implements adapter.Conn.Exec() using github.com/go-pg/pg/v10
+func (c *conn) Exec(ctx context.Context, sql string, args ...any) (adapter.CommandTag, error) {
+	r, err := c.c.ExecContext(ctx, formatSQL(sql), formatArgs(args)...)
+	return aCommandTag{r}, err
+}
+
+// QueryRow implements adapter.Conn.QueryRow() using github.com/go-pg/pg/v10
+func (c *conn) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
+	return &aRow{ctx, c.c, sql, args}
+}
+
+// Release implements adapter.Conn.Release() using github.com/go-pg/pg/v10
+func (c *conn) Release() error {
+	return c.c.Close()
+}
+
 type connPool struct {
 	db *pg.DB
 }
@@ -101,6 +132,11 @@ type connPool struct {
 // NewConnPool instantiates new adapter.ConnPool using github.com/go-pg/pg/v10
 func NewConnPool(db *pg.DB) adapter.ConnPool {
 	return &connPool{db}
+}
+
+// Ping implements adapter.ConnPool.Ping() using github.com/go-pg/pg/v10
+func (c *connPool) Ping(ctx context.Context) error {
+	return c.db.Ping(ctx)
 }
 
 // Begin implements adapter.ConnPool.Begin() using github.com/go-pg/pg/v10
@@ -118,6 +154,11 @@ func (c *connPool) Exec(ctx context.Context, sql string, args ...any) (adapter.C
 // QueryRow implements adapter.ConnPool.QueryRow() using github.com/go-pg/pg/v10
 func (c *connPool) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
 	return &aRow{ctx, c.db, sql, args}
+}
+
+// Acquire implements adapter.ConnPool.Acquire() using github.com/go-pg/pg/v10
+func (c *connPool) Acquire(_ context.Context) (adapter.Conn, error) {
+	return &conn{c.db.Conn()}, nil
 }
 
 // Close implements adapter.ConnPool.Close() using github.com/go-pg/pg/v10
