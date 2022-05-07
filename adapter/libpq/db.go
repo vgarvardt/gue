@@ -78,6 +78,11 @@ type conn struct {
 	c *sql.Conn
 }
 
+// NewConn instantiates new adapter.Conn using github.com/lib/pq
+func NewConn(c *sql.Conn) adapter.Conn {
+	return &conn{c}
+}
+
 // Ping implements adapter.Conn.Ping() using github.com/lib/pq
 func (c *conn) Ping(ctx context.Context) error {
 	return c.c.PingContext(ctx)
@@ -140,7 +145,7 @@ func (c *connPool) Begin(ctx context.Context) (adapter.Tx, error) {
 // Acquire implements adapter.ConnPool.Acquire() using github.com/lib/pq
 func (c *connPool) Acquire(ctx context.Context) (adapter.Conn, error) {
 	cc, err := c.pool.Conn(ctx)
-	return &conn{cc}, err
+	return NewConn(cc), err
 }
 
 // Close implements adapter.ConnPool.Close() using github.com/lib/pq

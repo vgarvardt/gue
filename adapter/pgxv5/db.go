@@ -75,6 +75,11 @@ type conn struct {
 	c *pgxpool.Conn
 }
 
+// NewConn instantiates new adapter.Conn using github.com/jackc/pgx/v5
+func NewConn(c *pgxpool.Conn) adapter.Conn {
+	return &conn{c}
+}
+
 // Ping implements adapter.Conn.Ping() using github.com/jackc/pgx/v5
 func (c *conn) Ping(ctx context.Context) error {
 	return c.c.Ping(ctx)
@@ -138,7 +143,7 @@ func (c *connPool) QueryRow(ctx context.Context, sql string, args ...any) adapte
 // Acquire implements adapter.ConnPool.Acquire() using github.com/jackc/pgx/v5
 func (c *connPool) Acquire(ctx context.Context) (adapter.Conn, error) {
 	cc, err := c.pool.Acquire(ctx)
-	return &conn{cc}, err
+	return NewConn(cc), err
 }
 
 // Close implements adapter.ConnPool.Close() using github.com/jackc/pgx/v5

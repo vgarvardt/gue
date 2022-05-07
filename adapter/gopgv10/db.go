@@ -98,6 +98,11 @@ type conn struct {
 	c *pg.Conn
 }
 
+// NewConn instantiates new adapter.Conn using github.com/go-pg/pg/v10
+func NewConn(c *pg.Conn) adapter.Conn {
+	return &conn{c}
+}
+
 // Ping implements adapter.Conn.Ping() using github.com/go-pg/pg/v10
 func (c *conn) Ping(ctx context.Context) error {
 	return c.c.Ping(ctx)
@@ -158,7 +163,7 @@ func (c *connPool) QueryRow(ctx context.Context, sql string, args ...any) adapte
 
 // Acquire implements adapter.ConnPool.Acquire() using github.com/go-pg/pg/v10
 func (c *connPool) Acquire(_ context.Context) (adapter.Conn, error) {
-	return &conn{c.db.Conn()}, nil
+	return NewConn(c.db.Conn()), nil
 }
 
 // Close implements adapter.ConnPool.Close() using github.com/go-pg/pg/v10
