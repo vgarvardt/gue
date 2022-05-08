@@ -188,8 +188,6 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 }
 
 func newID() string {
-	hash := md5.New()
-	// nolint:errcheck
-	hash.Write([]byte(time.Now().Format(time.RFC3339Nano)))
-	return hex.EncodeToString(hash.Sum(nil))[:6]
+	hash := md5.Sum([]byte(time.Now().Format(time.RFC3339Nano)))
+	return hex.EncodeToString(hash[:])[:6]
 }
