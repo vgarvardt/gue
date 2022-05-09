@@ -4,7 +4,8 @@
     "consoleFull"
   ],
   "ignore": [
-    "**/*_test.go"
+    "**/*_test.go",
+    "**/testing/mock.go"
   ],
   "absolute": true
 }
