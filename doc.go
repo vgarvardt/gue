@@ -6,10 +6,9 @@ PostgreSQL drivers
 
 Package supports several PostgreSQL drivers using adapter interface internally.
 Currently, adapters for the following drivers have been implemented:
- - github.com/jackc/pgx v4
- - github.com/jackc/pgx v5
+ - github.com/jackc/pgx/v4
+ - github.com/jackc/pgx/v5
  - github.com/lib/pq
- - github.com/go-pg/pg/v10
 
 Usage
 
