@@ -25,4 +25,4 @@
   - `JobPriorityLowest`
 - `WorkerPool.WorkOne` method, can be useful for testing purpose mostly
 - backoff implementation may return negative value to discard errored job immediately
-  - `gue.BackoffNever` backoff implementation discards the job on the first error 
+  - `gue.BackoffNever` backoff implementation discards the job on the first error

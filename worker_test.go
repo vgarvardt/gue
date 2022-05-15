@@ -275,7 +275,8 @@ func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
 	didWork := w.WorkOne(ctx)
 	assert.False(t, didWork)
 
-	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
+	job := Job{Type: "MyJob"}
+	err := c.Enqueue(ctx, &job)
 	require.NoError(t, err)
 
 	didWork = w.WorkOne(ctx)
@@ -292,8 +293,14 @@ func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
 	assert.NotNil(t, jobDoneHook.j)
 	assert.Error(t, jobDoneHook.err)
 
-	j := findOneJob(t, connPool)
+	j, err := c.LockJobByID(ctx, job.ID)
+	require.NoError(t, err)
 	require.NotNil(t, j)
+
+	t.Cleanup(func() {
+		err := j.Done(ctx)
+		assert.NoError(t, err)
+	})
 
 	assert.Equal(t, int32(1), j.ErrorCount)
 	assert.NotEqual(t, pgtype.Null, j.LastError.Status)
@@ -321,14 +328,21 @@ func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
 	}
 	w := NewWorker(c, wm)
 
-	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
+	job := Job{Type: "MyJob"}
+	err := c.Enqueue(ctx, &job)
 	require.NoError(t, err)
 
 	w.WorkOne(ctx)
 	assert.Equal(t, 1, called)
 
-	j := findOneJob(t, connPool)
+	j, err := c.LockJobByID(ctx, job.ID)
+	require.NoError(t, err)
 	require.NotNil(t, j)
+
+	t.Cleanup(func() {
+		err := j.Done(ctx)
+		assert.NoError(t, err)
+	})
 
 	assert.Equal(t, int32(1), j.ErrorCount)
 	assert.NotEqual(t, pgtype.Null, j.LastError.Status)
@@ -371,7 +385,8 @@ func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, 0, unknownJobTypeHook.called)
 	assert.Equal(t, 0, jobDoneHook.called)
 
-	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
+	job := Job{Type: "MyJob"}
+	err := c.Enqueue(ctx, &job)
 	require.NoError(t, err)
 
 	didWork = w.WorkOne(ctx)
@@ -387,8 +402,14 @@ func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
 
 	assert.Equal(t, 0, jobDoneHook.called)
 
-	j := findOneJob(t, connPool)
+	j, err := c.LockJobByID(ctx, job.ID)
+	require.NoError(t, err)
 	require.NotNil(t, j)
+
+	t.Cleanup(func() {
+		err := j.Done(ctx)
+		assert.NoError(t, err)
+	})
 
 	assert.Equal(t, int32(1), j.ErrorCount)
 	require.NotEqual(t, pgtype.Null, j.LastError.Status)
