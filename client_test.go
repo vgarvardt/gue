@@ -3,6 +3,7 @@ package gue
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -393,7 +394,8 @@ func testJobDelete(t *testing.T, connPool adapter.ConnPool) {
 	c := NewClient(connPool)
 	ctx := context.Background()
 
-	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
+	job := Job{Type: "MyJob"}
+	err := c.Enqueue(ctx, &job)
 	require.NoError(t, err)
 
 	j, err := c.LockJob(ctx, "")
@@ -407,8 +409,10 @@ func testJobDelete(t *testing.T, connPool adapter.ConnPool) {
 	require.NoError(t, err)
 
 	// make sure job was deleted
-	j2 := findOneJob(t, connPool)
-	assert.Nil(t, j2)
+	jj, err := c.LockJobByID(ctx, job.ID)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, adapter.ErrNoRows))
+	assert.Nil(t, jj)
 }
 
 func TestJobDone(t *testing.T) {
@@ -489,11 +493,12 @@ func testJobError(t *testing.T, connPool adapter.ConnPool) {
 	require.NoError(t, err)
 
 	// make sure job was not deleted
-	j2 := findOneJob(t, connPool)
+	j2, err := c.LockJobByID(ctx, job.ID)
+	require.NoError(t, err)
 	require.NotNil(t, j2)
 
 	t.Cleanup(func() {
-		err := j.Done(ctx)
+		err := j2.Done(ctx)
 		assert.NoError(t, err)
 	})
 
@@ -532,11 +537,12 @@ func testJobErrorCustomBackoff(t *testing.T, connPool adapter.ConnPool) {
 	require.NoError(t, err)
 
 	// make sure job was not deleted
-	j2 := findOneJob(t, connPool)
+	j2, err := c.LockJobByID(ctx, job.ID)
+	require.NoError(t, err)
 	require.NotNil(t, j2)
 
 	t.Cleanup(func() {
-		err := j.Done(ctx)
+		err := j2.Done(ctx)
 		assert.NoError(t, err)
 	})
 
