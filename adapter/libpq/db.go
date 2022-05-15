@@ -79,6 +79,7 @@ func (tx *aTx) QueryRow(ctx context.Context, sql string, args ...any) adapter.Ro
 	return &aRow{tx.tx.QueryRowContext(ctx, sql, args...)}
 }
 
+// Query implements adapter.Tx.Query() using github.com/lib/pq
 func (tx *aTx) Query(ctx context.Context, sql string, args ...any) (adapter.Rows, error) {
 	rows, err := tx.tx.QueryContext(ctx, sql, args...)
 	return &aRows{rows}, err
@@ -130,6 +131,7 @@ func (c *conn) QueryRow(ctx context.Context, sql string, args ...any) adapter.Ro
 	return &aRow{c.c.QueryRowContext(ctx, sql, args...)}
 }
 
+// Query implements adapter.Conn.Query() github.com/lib/pq
 func (c *conn) Query(ctx context.Context, sql string, args ...any) (adapter.Rows, error) {
 	rows, err := c.c.QueryContext(ctx, sql, args...)
 	return &aRows{rows}, err
@@ -166,6 +168,7 @@ func (c *connPool) QueryRow(ctx context.Context, sql string, args ...any) adapte
 	return &aRow{c.pool.QueryRowContext(ctx, sql, args...)}
 }
 
+// Query implements adapter.ConnPool.Query() using github.com/lib/pq
 func (c *connPool) Query(ctx context.Context, sql string, args ...any) (adapter.Rows, error) {
 	rows, err := c.pool.QueryContext(ctx, sql, args...)
 	return &aRows{rows}, err

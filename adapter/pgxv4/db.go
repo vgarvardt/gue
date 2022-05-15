@@ -76,6 +76,7 @@ func (tx *aTx) QueryRow(ctx context.Context, sql string, args ...any) adapter.Ro
 	return &aRow{tx.tx.QueryRow(ctx, sql, args...)}
 }
 
+// Query implements adapter.Tx.Query() using github.com/jackc/pgx/v4
 func (tx *aTx) Query(ctx context.Context, sql string, args ...any) (adapter.Rows, error) {
 	rows, err := tx.tx.Query(ctx, sql, args...)
 	return &aRows{rows}, err
@@ -127,6 +128,7 @@ func (c *conn) QueryRow(ctx context.Context, sql string, args ...any) adapter.Ro
 	return &aRow{c.c.QueryRow(ctx, sql, args...)}
 }
 
+// Query implements adapter.Conn.Query() github.com/jackc/pgx/v4
 func (c *conn) Query(ctx context.Context, sql string, args ...any) (adapter.Rows, error) {
 	rows, err := c.c.Query(ctx, sql, args...)
 	return &aRows{rows}, err
@@ -170,6 +172,7 @@ func (c *connPool) QueryRow(ctx context.Context, sql string, args ...any) adapte
 	return &aRow{c.pool.QueryRow(ctx, sql, args...)}
 }
 
+// Query implements adapter.ConnPool.Query() using github.com/jackc/pgx/v4
 func (c *connPool) Query(ctx context.Context, sql string, args ...any) (adapter.Rows, error) {
 	rows, err := c.pool.Query(ctx, sql, args...)
 	return &aRows{rows}, err
