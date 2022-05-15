@@ -3,6 +3,7 @@ package gue
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"sync"
 	"testing"
 	"time"
@@ -410,7 +411,7 @@ func testJobDelete(t *testing.T, connPool adapter.ConnPool) {
 	// make sure job was deleted
 	jj, err := c.LockJobByID(ctx, job.ID)
 	require.Error(t, err)
-	assert.Equal(t, adapter.ErrNoRows, err)
+	assert.True(t, errors.Is(err, adapter.ErrNoRows))
 	assert.Nil(t, jj)
 }
 
