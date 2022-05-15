@@ -38,6 +38,26 @@ func (ct aCommandTag) RowsAffected() int64 {
 	return ra
 }
 
+// aRows implements adapter.Rows using github.com/lib/pq
+type aRows struct {
+	rows *sql.Rows
+}
+
+// Next implements adapter.Rows.Next() using github.com/lib/pq
+func (r *aRows) Next() bool {
+	return r.rows.Next()
+}
+
+// Scan implements adapter.Rows.Scan() using github.com/lib/pq
+func (r *aRows) Scan(dest ...any) error {
+	return r.rows.Scan(dest...)
+}
+
+// Err implements adapter.Rows.Err() using github.com/lib/pq
+func (r *aRows) Err() error {
+	return r.rows.Err()
+}
+
 // aTx implements adapter.Tx using github.com/lib/pq
 type aTx struct {
 	tx *sql.Tx
@@ -57,6 +77,11 @@ func (tx *aTx) Exec(ctx context.Context, sql string, args ...any) (adapter.Comma
 // QueryRow implements adapter.Tx.QueryRow() using github.com/lib/pq
 func (tx *aTx) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
 	return &aRow{tx.tx.QueryRowContext(ctx, sql, args...)}
+}
+
+func (tx *aTx) Query(ctx context.Context, sql string, args ...any) (adapter.Rows, error) {
+	rows, err := tx.tx.QueryContext(ctx, sql, args...)
+	return &aRows{rows}, err
 }
 
 // Rollback implements adapter.Tx.Rollback() using github.com/lib/pq
@@ -105,6 +130,11 @@ func (c *conn) QueryRow(ctx context.Context, sql string, args ...any) adapter.Ro
 	return &aRow{c.c.QueryRowContext(ctx, sql, args...)}
 }
 
+func (c *conn) Query(ctx context.Context, sql string, args ...any) (adapter.Rows, error) {
+	rows, err := c.c.QueryContext(ctx, sql, args...)
+	return &aRows{rows}, err
+}
+
 // Release implements adapter.Conn.Release() using github.com/lib/pq
 func (c *conn) Release() error {
 	return c.c.Close()
@@ -134,6 +164,11 @@ func (c *connPool) Exec(ctx context.Context, sql string, args ...any) (adapter.C
 // QueryRow implements adapter.ConnPool.QueryRow() using github.com/lib/pq
 func (c *connPool) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
 	return &aRow{c.pool.QueryRowContext(ctx, sql, args...)}
+}
+
+func (c *connPool) Query(ctx context.Context, sql string, args ...any) (adapter.Rows, error) {
+	rows, err := c.pool.QueryContext(ctx, sql, args...)
+	return &aRows{rows}, err
 }
 
 // Begin implements adapter.ConnPool.Begin() using github.com/lib/pq

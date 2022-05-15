@@ -27,10 +27,9 @@ type OpenOpenTestPoolMaxConns func(t testing.TB, maxConnections int32) adapter.C
 
 // AllAdaptersOpenTestPool lists all available adapters with callbacks
 var AllAdaptersOpenTestPool = map[string]OpenTestPool{
-	"pgx/v4":    OpenTestPoolPGXv4,
-	"pgx/v5":    OpenTestPoolPGXv5,
-	"lib/pq":    OpenTestPoolLibPQ,
-	"go-pg/v10": OpenTestPoolGoPGv10,
+	"pgx/v4": OpenTestPoolPGXv4,
+	"pgx/v5": OpenTestPoolPGXv5,
+	"lib/pq": OpenTestPoolLibPQ,
 }
 
 func truncateAndClose(t testing.TB, pool adapter.ConnPool) {

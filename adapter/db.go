@@ -27,6 +27,18 @@ type CommandTag interface {
 	RowsAffected() int64
 }
 
+// Rows represents rows set returned by DB driver
+type Rows interface {
+	// Next prepares the next row for reading. It returns true if there is another
+	// row and false if no more rows are available. It automatically closes rows
+	// when all rows are read.
+	Next() bool
+	// Scan reads the values from the current row into dest values positionally.
+	Scan(dest ...any) error
+	// Err returns any error that occurred while reading.
+	Err() error
+}
+
 // Queryable is the base interface for different types of db connections that should implement
 // basic querying operations.
 type Queryable interface {
@@ -37,6 +49,9 @@ type Queryable interface {
 	// querying is deferred until calling Scan on the returned Row. That Row will
 	// error with ErrNoRows if no rows are returned.
 	QueryRow(ctx context.Context, sql string, args ...any) Row
+	// Query executes a query that returns rows, typically a SELECT.
+	// The args are for any placeholder parameters in the query.
+	Query(ctx context.Context, sql string, args ...any) (Rows, error)
 }
 
 // Tx represents a database transaction.

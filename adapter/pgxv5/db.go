@@ -35,6 +35,26 @@ func (ct aCommandTag) RowsAffected() int64 {
 	return ct.ct.RowsAffected()
 }
 
+// aRows implements adapter.Rows using github.com/jackc/pgx/v5
+type aRows struct {
+	rows pgx.Rows
+}
+
+// Next implements adapter.Rows.Next() using github.com/jackc/pgx/v5
+func (r *aRows) Next() bool {
+	return r.rows.Next()
+}
+
+// Scan implements adapter.Rows.Scan() using github.com/jackc/pgx/v5
+func (r *aRows) Scan(dest ...any) error {
+	return r.rows.Scan(dest...)
+}
+
+// Err implements adapter.Rows.Err() using github.com/jackc/pgx/v5
+func (r *aRows) Err() error {
+	return r.rows.Err()
+}
+
 // aTx implements adapter.Tx using github.com/jackc/pgx/v5
 type aTx struct {
 	tx pgx.Tx
@@ -54,6 +74,11 @@ func (tx *aTx) Exec(ctx context.Context, sql string, args ...any) (adapter.Comma
 // QueryRow implements adapter.Tx.QueryRow() using github.com/jackc/pgx/v5
 func (tx *aTx) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
 	return &aRow{tx.tx.QueryRow(ctx, sql, args...)}
+}
+
+func (tx *aTx) Query(ctx context.Context, sql string, args ...any) (adapter.Rows, error) {
+	rows, err := tx.tx.Query(ctx, sql, args...)
+	return &aRows{rows}, err
 }
 
 // Rollback implements adapter.Tx.Rollback() using github.com/jackc/pgx/v5
@@ -102,6 +127,11 @@ func (c *conn) QueryRow(ctx context.Context, sql string, args ...any) adapter.Ro
 	return &aRow{c.c.QueryRow(ctx, sql, args...)}
 }
 
+func (c *conn) Query(ctx context.Context, sql string, args ...any) (adapter.Rows, error) {
+	rows, err := c.c.Query(ctx, sql, args...)
+	return &aRows{rows}, err
+}
+
 // Release implements adapter.Conn.Release() using github.com/jackc/pgx/v5
 func (c *conn) Release() error {
 	c.c.Release()
@@ -138,6 +168,11 @@ func (c *connPool) Exec(ctx context.Context, sql string, args ...any) (adapter.C
 // QueryRow implements adapter.ConnPool.QueryRow() using github.com/jackc/pgx/v5
 func (c *connPool) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
 	return &aRow{c.pool.QueryRow(ctx, sql, args...)}
+}
+
+func (c *connPool) Query(ctx context.Context, sql string, args ...any) (adapter.Rows, error) {
+	rows, err := c.pool.Query(ctx, sql, args...)
+	return &aRows{rows}, err
 }
 
 // Acquire implements adapter.ConnPool.Acquire() using github.com/jackc/pgx/v5

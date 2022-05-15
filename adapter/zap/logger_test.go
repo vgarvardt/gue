@@ -13,7 +13,7 @@ import (
 	"github.com/vgarvardt/gue/v4/adapter"
 )
 
-func TestNe(t *testing.T) {
+func TestNew(t *testing.T) {
 	zapCore, logs := observer.New(zapcore.DebugLevel)
 	l := uberZap.New(zapCore)
 	ll := New(l)

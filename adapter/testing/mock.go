@@ -10,6 +10,7 @@ import (
 
 var (
 	_ adapter.Row        = &Row{}
+	_ adapter.Rows       = &Rows{}
 	_ adapter.CommandTag = &CommandTag{}
 	_ adapter.Queryable  = &Queryable{}
 	_ adapter.Tx         = &Tx{}
@@ -39,6 +40,29 @@ func (m *CommandTag) RowsAffected() int64 {
 	return args.Get(0).(int64)
 }
 
+// Rows mock implementation of adapter.Rows
+type Rows struct {
+	mock.Mock
+}
+
+// Next mock implementation of adapter.Rows.Next()
+func (m *Rows) Next() bool {
+	args := m.Called()
+	return args.Bool(0)
+}
+
+// Scan mock implementation of adapter.Rows.Scan()
+func (m *Rows) Scan(dest ...any) error {
+	args := m.Called(dest...)
+	return args.Error(0)
+}
+
+// Err mock implementation of adapter.Rows.Err()
+func (m *Rows) Err() error {
+	args := m.Called()
+	return args.Error(0)
+}
+
 // Queryable mock implementation of adapter.Queryable
 type Queryable struct {
 	mock.Mock
@@ -58,6 +82,16 @@ func (m *Queryable) Exec(ctx context.Context, sql string, args ...any) (adapter.
 func (m *Queryable) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
 	mArgs := m.Called(ctx, sql, args)
 	return mArgs.Get(0).(adapter.Row)
+}
+
+// Query mock implementation of adapter.Queryable.Query()
+func (m *Queryable) Query(ctx context.Context, sql string, args ...any) (adapter.Rows, error) {
+	mArgs := m.Called(ctx, sql, args)
+	arg0 := mArgs.Get(0)
+	if arg0 == nil {
+		return nil, mArgs.Error(1)
+	}
+	return arg0.(adapter.Rows), mArgs.Error(1)
 }
 
 // Tx mock implementation of adapter.Tx

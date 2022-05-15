@@ -622,6 +622,87 @@ func findOneJob(t testing.TB, q adapter.Queryable) *Job {
 	return j
 }
 
+func TestAdapterQuery(t *testing.T) {
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testAdapterQuery(t, openFunc(t))
+		})
+	}
+}
+
+func testAdapterQuery(t *testing.T, connPool adapter.ConnPool) {
+	var err error
+
+	c := NewClient(connPool)
+	ctx := context.Background()
+
+	now := time.Now()
+	queue := now.Format(time.RFC3339Nano)
+
+	// schedule several jobs
+	j1 := Job{Queue: queue, RunAt: now, Type: "test1"}
+	j2 := Job{Queue: queue, RunAt: now, Type: "test2"}
+	j3 := Job{Queue: queue, RunAt: now, Type: "test3"}
+
+	err = c.Enqueue(ctx, &j1)
+	require.NoError(t, err)
+	require.NotEmpty(t, j1.ID)
+
+	err = c.Enqueue(ctx, &j2)
+	require.NoError(t, err)
+	require.NotEmpty(t, j2.ID)
+
+	err = c.Enqueue(ctx, &j3)
+	require.NoError(t, err)
+	require.NotEmpty(t, j3.ID)
+
+	// test pool
+	testQueryableQuery(ctx, t, connPool, queue, &j1, &j2, &j3)
+
+	// test connection
+	conn, err := connPool.Acquire(ctx)
+	require.NoError(t, err)
+
+	testQueryableQuery(ctx, t, conn, queue, &j1, &j2, &j3)
+	err = conn.Release()
+	assert.NoError(t, err)
+
+	// test transaction
+	tx, err := connPool.Begin(ctx)
+	require.NoError(t, err)
+
+	testQueryableQuery(ctx, t, tx, queue, &j1, &j2, &j3)
+	err = tx.Commit(ctx)
+	assert.NoError(t, err)
+}
+
+func testQueryableQuery(ctx context.Context, t *testing.T, q adapter.Queryable, queue string, j1, j2, j3 *Job) {
+	t.Helper()
+
+	rows, err := q.Query(ctx, `SELECT job_id, job_type FROM gue_jobs WHERE queue = $1 ORDER BY job_id ASC`, queue)
+	require.NoError(t, err)
+
+	var jobs []*Job
+	for rows.Next() {
+		j := new(Job)
+		err := rows.Scan(&j.ID, &j.Type)
+		require.NoError(t, err)
+
+		jobs = append(jobs, j)
+	}
+	require.Len(t, jobs, 3)
+
+	err = rows.Err()
+	require.NoError(t, err)
+
+	assert.Equal(t, j1.ID, jobs[0].ID)
+	assert.Equal(t, j1.Type, jobs[0].Type)
+	assert.Equal(t, j2.ID, jobs[1].ID)
+	assert.Equal(t, j2.Type, jobs[1].Type)
+	assert.Equal(t, j3.ID, jobs[2].ID)
+	assert.Equal(t, j3.Type, jobs[2].Type)
+}
+
 func TestMultiSchema(t *testing.T) {
 	connPool := adapterTesting.OpenTestPoolLibPQCustomSchemas(t, "gue", "foo")
 	ctx := context.Background()

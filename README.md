@@ -152,7 +152,6 @@ drivers have been implemented:
 - [github.com/jackc/pgx/v4](https://github.com/jackc/pgx)
 - [github.com/jackc/pgx/v5](https://github.com/jackc/pgx)
 - [github.com/lib/pq](https://github.com/lib/pq)
-- [github.com/go-pg/pg/v10](https://github.com/go-pg/pg)
 
 ### `pgx/v4`
 
@@ -247,37 +246,6 @@ func main() {
 	defer db.Close()
 
 	poolAdapter := libpq.NewConnPool(db)
-
-	gc := gue.NewClient(poolAdapter)
-	...
-}
-```
-
-### `pg/v10`
-
-```go
-package main
-
-import (
-	"log"
-	"os"
-
-	"github.com/go-pg/pg/v10"
-
-	"github.com/vgarvardt/gue/v4"
-	"github.com/vgarvardt/gue/v4/adapter/gopgv10"
-)
-
-func main() {
-	opts, err := pg.ParseURL(os.Getenv("DATABASE_URL"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	db := pg.Connect(opts)
-	defer db.Close()
-
-	poolAdapter := gopgv10.NewConnPool(db)
 
 	gc := gue.NewClient(poolAdapter)
 	...
