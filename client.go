@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/vgarvardt/gue/v4/adapter"
-	"github.com/vgarvardt/gue/v4/adapter/exponential"
 )
 
 // ErrMissingType is returned when you attempt to enqueue a job with no Type
@@ -31,7 +30,7 @@ func NewClient(pool adapter.ConnPool, options ...ClientOption) *Client {
 	instance := Client{
 		pool:    pool,
 		logger:  adapter.NoOpLogger{},
-		backoff: exponential.Default,
+		backoff: DefaultExponentialBackoff,
 	}
 
 	for _, option := range options {
@@ -108,7 +107,7 @@ VALUES
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockJob(ctx context.Context, queue string) (*Job, error) {
-	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count
+	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error
 FROM gue_jobs
 WHERE queue = $1 AND run_at <= $2
 ORDER BY priority ASC
@@ -128,7 +127,7 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockJobByID(ctx context.Context, id int64) (*Job, error) {
-	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count
+	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error
 FROM gue_jobs
 WHERE job_id = $1 FOR UPDATE SKIP LOCKED`
 
@@ -149,7 +148,7 @@ WHERE job_id = $1 FOR UPDATE SKIP LOCKED`
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockNextScheduledJob(ctx context.Context, queue string) (*Job, error) {
-	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count
+	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error
 FROM gue_jobs
 WHERE queue = $1 AND run_at <= $2
 ORDER BY run_at, priority ASC
@@ -164,7 +163,7 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 		return nil, err
 	}
 
-	j := Job{pool: c.pool, tx: tx, backoff: c.backoff}
+	j := Job{pool: c.pool, tx: tx, backoff: c.backoff, logger: c.logger}
 
 	err = tx.QueryRow(ctx, sql, args...).Scan(
 		&j.ID,
@@ -174,6 +173,7 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 		&j.Type,
 		(*json.RawMessage)(&j.Args),
 		&j.ErrorCount,
+		&j.LastError,
 	)
 	if err == nil {
 		return &j, nil

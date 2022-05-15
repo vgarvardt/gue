@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/vgarvardt/gue/v4/adapter"
-	"github.com/vgarvardt/gue/v4/adapter/exponential"
 )
 
 func TestWithClientID(t *testing.T) {
@@ -43,7 +42,7 @@ func TestWithClientBackoff(t *testing.T) {
 		return time.Duration(retries) * time.Second
 	}
 
-	defaultPtr := reflect.ValueOf(exponential.Default).Pointer()
+	defaultPtr := reflect.ValueOf(DefaultExponentialBackoff).Pointer()
 	customPtr := reflect.ValueOf(customBackoff).Pointer()
 
 	clientWithDefaultBackoff := NewClient(nil)

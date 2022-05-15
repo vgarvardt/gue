@@ -11,10 +11,6 @@ import (
 	"github.com/vgarvardt/gue/v4/adapter"
 )
 
-// Backoff is the interface for backoff implementation that will be used
-// to reschedule errored jobs.
-type Backoff func(retries int) time.Duration
-
 // JobPriority is the wrapper type for Job.Priority
 type JobPriority int16
 
@@ -52,14 +48,13 @@ type Job struct {
 	// Args must be the bytes of a valid JSON string
 	Args []byte
 
-	// ErrorCount is the number of times this job has attempted to run, but
-	// failed with an error. It is ignored on job creation.
+	// ErrorCount is the number of times this job has attempted to run, but failed with an error.
+	// It is ignored on job creation.
 	// This field is initialised only when the Job is being retrieved from the DB and is not
 	// being updated when the current Job run errored.
 	ErrorCount int32
 
-	// LastError is the error message or stack trace from the last time the job
-	// failed. It is ignored on job creation.
+	// LastError is the error message or stack trace from the last time the job failed. It is ignored on job creation.
 	// This field is initialised only when the Job is being retrieved from the DB and is not
 	// being updated when the current Job run errored.
 	LastError pgtype.Text
@@ -69,6 +64,7 @@ type Job struct {
 	pool    adapter.ConnPool
 	tx      adapter.Tx
 	backoff Backoff
+	logger  adapter.Logger
 }
 
 // Tx returns DB transaction that this job is locked to. You may use
@@ -105,7 +101,7 @@ func (j *Job) Delete(ctx context.Context) error {
 }
 
 // Done commits transaction that marks job as done. If you got the job from the worker - it will take care of
-//cleaning up the job and resources, no need to do this manually in a WorkFunc.
+// cleaning up the job and resources, no need to do this manually in a WorkFunc.
 func (j *Job) Done(ctx context.Context) error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
@@ -142,16 +138,27 @@ func (j *Job) Error(ctx context.Context, msg string) (err error) {
 	}()
 
 	errorCount := j.ErrorCount + 1
+	backoff := j.backoff(int(errorCount))
+	if backoff < 0 {
+		j.logger.Info(
+			"Got negative backoff for a job, discarding it",
+			adapter.F("backoff", backoff),
+			adapter.F("job-type", j.Type),
+			adapter.F("job-queue", j.Queue),
+			adapter.F("job-errors", errorCount),
+		)
+		err = j.Delete(ctx)
+		return
+	}
 
 	now := time.Now().UTC()
-	newRunAt := now.Add(j.backoff(int(errorCount)))
+	newRunAt := now.Add(backoff)
 
-	_, err = j.tx.Exec(ctx, `UPDATE gue_jobs
-SET error_count = $1,
-    run_at      = $2,
-    last_error  = $3,
-    updated_at  = $4
-WHERE job_id    = $5`, errorCount, newRunAt, msg, now, j.ID)
+	_, err = j.tx.Exec(
+		ctx,
+		`UPDATE gue_jobs SET error_count = $1, run_at = $2, last_error = $3, updated_at = $4 WHERE job_id = $5`,
+		errorCount, newRunAt, msg, now, j.ID,
+	)
 
 	return err
 }
