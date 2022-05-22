@@ -74,7 +74,10 @@ func main() {
 
 	poolAdapter := pgxv4.NewConnPool(pgxPool)
 
-	gc := gue.NewClient(poolAdapter)
+	gc, err := gue.NewClient(poolAdapter)
+	if err != nil {
+		log.Fatal(err)
+	}
 	wm := gue.WorkMap{
 		jobTypePrinter: printName,
 	}
@@ -93,7 +96,10 @@ func main() {
 	}
 
 	// create a pool w/ 2 workers
-	workers := gue.NewWorkerPool(gc, wm, 2, gue.WithPoolQueue(printerQueue), gue.WithPoolHooksJobDone(finishedJobsLog))
+	workers, err := gue.NewWorkerPool(gc, wm, 2, gue.WithPoolQueue(printerQueue), gue.WithPoolHooksJobDone(finishedJobsLog))
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	ctx, shutdown := context.WithCancel(context.Background())
 
@@ -183,7 +189,7 @@ func main() {
 
 	poolAdapter := pgxv4.NewConnPool(pgxPool)
 
-	gc := gue.NewClient(poolAdapter)
+	gc, err := gue.NewClient(poolAdapter)
 	...
 }
 ```
@@ -217,7 +223,7 @@ func main() {
 
 	poolAdapter := pgxv5.NewConnPool(pgxPool)
 
-	gc := gue.NewClient(poolAdapter)
+	gc, err := gue.NewClient(poolAdapter)
 	...
 }
 ```
@@ -247,7 +253,7 @@ func main() {
 
 	poolAdapter := libpq.NewConnPool(db)
 
-	gc := gue.NewClient(poolAdapter)
+	gc, err := gue.NewClient(poolAdapter)
 	...
 }
 ```

@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/metric/nonrecording"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/vgarvardt/gue/v4/adapter"
 )
@@ -40,34 +42,41 @@ var dummyWM = WorkMap{
 }
 
 func TestWithWorkerPollInterval(t *testing.T) {
-	workerWithDefaultInterval := NewWorker(nil, dummyWM)
+	workerWithDefaultInterval, err := NewWorker(nil, dummyWM)
+	require.NoError(t, err)
 	assert.Equal(t, defaultPollInterval, workerWithDefaultInterval.interval)
 
 	customInterval := 12345 * time.Millisecond
-	workerWithCustomInterval := NewWorker(nil, dummyWM, WithWorkerPollInterval(customInterval))
+	workerWithCustomInterval, err := NewWorker(nil, dummyWM, WithWorkerPollInterval(customInterval))
+	require.NoError(t, err)
 	assert.Equal(t, customInterval, workerWithCustomInterval.interval)
 }
 
 func TestWithWorkerQueue(t *testing.T) {
-	workerWithDefaultQueue := NewWorker(nil, dummyWM)
+	workerWithDefaultQueue, err := NewWorker(nil, dummyWM)
+	require.NoError(t, err)
 	assert.Equal(t, defaultQueueName, workerWithDefaultQueue.queue)
 
 	customQueue := "fooBarBaz"
-	workerWithCustomQueue := NewWorker(nil, dummyWM, WithWorkerQueue(customQueue))
+	workerWithCustomQueue, err := NewWorker(nil, dummyWM, WithWorkerQueue(customQueue))
+	require.NoError(t, err)
 	assert.Equal(t, customQueue, workerWithCustomQueue.queue)
 }
 
 func TestWithWorkerID(t *testing.T) {
-	workerWithDefaultID := NewWorker(nil, dummyWM)
+	workerWithDefaultID, err := NewWorker(nil, dummyWM)
+	require.NoError(t, err)
 	assert.NotEmpty(t, workerWithDefaultID.id)
 
 	customID := "some-meaningful-id"
-	workerWithCustomID := NewWorker(nil, dummyWM, WithWorkerID(customID))
+	workerWithCustomID, err := NewWorker(nil, dummyWM, WithWorkerID(customID))
+	require.NoError(t, err)
 	assert.Equal(t, customID, workerWithCustomID.id)
 }
 
 func TestWithWorkerLogger(t *testing.T) {
-	workerWithDefaultLogger := NewWorker(nil, dummyWM)
+	workerWithDefaultLogger, err := NewWorker(nil, dummyWM)
+	require.NoError(t, err)
 	assert.IsType(t, adapter.NoOpLogger{}, workerWithDefaultLogger.logger)
 
 	logMessage := "hello"
@@ -77,46 +86,55 @@ func TestWithWorkerLogger(t *testing.T) {
 	// worker sets id as default logger field
 	l.On("With", mock.Anything).Return(l)
 
-	workerWithCustomLogger := NewWorker(nil, dummyWM, WithWorkerLogger(l))
+	workerWithCustomLogger, err := NewWorker(nil, dummyWM, WithWorkerLogger(l))
+	require.NoError(t, err)
 	workerWithCustomLogger.logger.Info(logMessage)
 
 	l.AssertExpectations(t)
 }
 
 func TestWithWorkerPollStrategy(t *testing.T) {
-	workerWithWorkerPollStrategy := NewWorker(nil, dummyWM, WithWorkerPollStrategy(RunAtPollStrategy))
+	workerWithWorkerPollStrategy, err := NewWorker(nil, dummyWM, WithWorkerPollStrategy(RunAtPollStrategy))
+	require.NoError(t, err)
 	assert.Equal(t, RunAtPollStrategy, workerWithWorkerPollStrategy.pollStrategy)
 }
 
 func TestWithPoolPollInterval(t *testing.T) {
-	workerPoolWithDefaultInterval := NewWorkerPool(nil, dummyWM, 2)
+	workerPoolWithDefaultInterval, err := NewWorkerPool(nil, dummyWM, 2)
+	require.NoError(t, err)
 	assert.Equal(t, defaultPollInterval, workerPoolWithDefaultInterval.interval)
 
 	customInterval := 12345 * time.Millisecond
-	workerPoolWithCustomInterval := NewWorkerPool(nil, dummyWM, 2, WithPoolPollInterval(customInterval))
+	workerPoolWithCustomInterval, err := NewWorkerPool(nil, dummyWM, 2, WithPoolPollInterval(customInterval))
+	require.NoError(t, err)
 	assert.Equal(t, customInterval, workerPoolWithCustomInterval.interval)
 }
 
 func TestWithPoolQueue(t *testing.T) {
-	workerPoolWithDefaultQueue := NewWorkerPool(nil, dummyWM, 2)
+	workerPoolWithDefaultQueue, err := NewWorkerPool(nil, dummyWM, 2)
+	require.NoError(t, err)
 	assert.Equal(t, defaultQueueName, workerPoolWithDefaultQueue.queue)
 
 	customQueue := "fooBarBaz"
-	workerPoolWithCustomQueue := NewWorkerPool(nil, dummyWM, 2, WithPoolQueue(customQueue))
+	workerPoolWithCustomQueue, err := NewWorkerPool(nil, dummyWM, 2, WithPoolQueue(customQueue))
+	require.NoError(t, err)
 	assert.Equal(t, customQueue, workerPoolWithCustomQueue.queue)
 }
 
 func TestWithPoolID(t *testing.T) {
-	workerPoolWithDefaultID := NewWorkerPool(nil, dummyWM, 2)
+	workerPoolWithDefaultID, err := NewWorkerPool(nil, dummyWM, 2)
+	require.NoError(t, err)
 	assert.NotEmpty(t, workerPoolWithDefaultID.id)
 
 	customID := "some-meaningful-id"
-	workerPoolWithCustomID := NewWorkerPool(nil, dummyWM, 2, WithPoolID(customID))
+	workerPoolWithCustomID, err := NewWorkerPool(nil, dummyWM, 2, WithPoolID(customID))
+	require.NoError(t, err)
 	assert.Equal(t, customID, workerPoolWithCustomID.id)
 }
 
 func TestWithPoolLogger(t *testing.T) {
-	workerPoolWithDefaultLogger := NewWorkerPool(nil, dummyWM, 2)
+	workerPoolWithDefaultLogger, err := NewWorkerPool(nil, dummyWM, 2)
+	require.NoError(t, err)
 	assert.IsType(t, adapter.NoOpLogger{}, workerPoolWithDefaultLogger.logger)
 
 	logMessage := "hello"
@@ -126,15 +144,41 @@ func TestWithPoolLogger(t *testing.T) {
 	// worker pool sets id as default logger field
 	l.On("With", mock.Anything).Return(l)
 
-	workerPoolWithCustomLogger := NewWorkerPool(nil, dummyWM, 2, WithPoolLogger(l))
+	workerPoolWithCustomLogger, err := NewWorkerPool(nil, dummyWM, 2, WithPoolLogger(l))
+	require.NoError(t, err)
 	workerPoolWithCustomLogger.logger.Info(logMessage)
 
 	l.AssertExpectations(t)
 }
 
 func TestWithPoolPollStrategy(t *testing.T) {
-	workerPoolWithPoolPollStrategy := NewWorkerPool(nil, dummyWM, 2, WithPoolPollStrategy(RunAtPollStrategy))
+	workerPoolWithPoolPollStrategy, err := NewWorkerPool(nil, dummyWM, 2, WithPoolPollStrategy(RunAtPollStrategy))
+	require.NoError(t, err)
 	assert.Equal(t, RunAtPollStrategy, workerPoolWithPoolPollStrategy.pollStrategy)
+}
+
+func TestWithPoolTracer(t *testing.T) {
+	customTracer := trace.NewNoopTracerProvider().Tracer("custom")
+
+	workerPoolWithTracer, err := NewWorkerPool(nil, dummyWM, 2, WithPoolTracer(customTracer))
+	require.NoError(t, err)
+	assert.Equal(t, customTracer, workerPoolWithTracer.tracer)
+
+	for i := range workerPoolWithTracer.workers {
+		assert.Equal(t, customTracer, workerPoolWithTracer.workers[i].tracer)
+	}
+}
+
+func TestWithPoolMeter(t *testing.T) {
+	customMeter := nonrecording.NewNoopMeterProvider().Meter("custom")
+
+	workerPoolWithMeter, err := NewWorkerPool(nil, dummyWM, 2, WithPoolMeter(customMeter))
+	require.NoError(t, err)
+	assert.Equal(t, customMeter, workerPoolWithMeter.meter)
+
+	for i := range workerPoolWithMeter.workers {
+		assert.Equal(t, customMeter, workerPoolWithMeter.workers[i].meter)
+	}
 }
 
 type dummyHook struct {
@@ -149,13 +193,15 @@ func TestWithWorkerHooksJobLocked(t *testing.T) {
 	ctx := context.Background()
 	hook := new(dummyHook)
 
-	workerWOutHooks := NewWorker(nil, dummyWM)
+	workerWOutHooks, err := NewWorker(nil, dummyWM)
+	require.NoError(t, err)
 	for _, h := range workerWOutHooks.hooksJobLocked {
 		h(ctx, nil, nil)
 	}
 	require.Equal(t, 0, hook.counter)
 
-	workerWithHooks := NewWorker(nil, dummyWM, WithWorkerHooksJobLocked(hook.handler, hook.handler, hook.handler))
+	workerWithHooks, err := NewWorker(nil, dummyWM, WithWorkerHooksJobLocked(hook.handler, hook.handler, hook.handler))
+	require.NoError(t, err)
 	for _, h := range workerWithHooks.hooksJobLocked {
 		h(ctx, nil, nil)
 	}
@@ -166,13 +212,15 @@ func TestWithWorkerHooksUnknownJobType(t *testing.T) {
 	ctx := context.Background()
 	hook := new(dummyHook)
 
-	workerWOutHooks := NewWorker(nil, dummyWM)
+	workerWOutHooks, err := NewWorker(nil, dummyWM)
+	require.NoError(t, err)
 	for _, h := range workerWOutHooks.hooksUnknownJobType {
 		h(ctx, nil, nil)
 	}
 	require.Equal(t, 0, hook.counter)
 
-	workerWithHooks := NewWorker(nil, dummyWM, WithWorkerHooksUnknownJobType(hook.handler, hook.handler, hook.handler))
+	workerWithHooks, err := NewWorker(nil, dummyWM, WithWorkerHooksUnknownJobType(hook.handler, hook.handler, hook.handler))
+	require.NoError(t, err)
 	for _, h := range workerWithHooks.hooksUnknownJobType {
 		h(ctx, nil, nil)
 	}
@@ -183,13 +231,15 @@ func TestWithWorkerHooksJobDone(t *testing.T) {
 	ctx := context.Background()
 	hook := new(dummyHook)
 
-	workerWOutHooks := NewWorker(nil, dummyWM)
+	workerWOutHooks, err := NewWorker(nil, dummyWM)
+	require.NoError(t, err)
 	for _, h := range workerWOutHooks.hooksJobDone {
 		h(ctx, nil, nil)
 	}
 	require.Equal(t, 0, hook.counter)
 
-	workerWithHooks := NewWorker(nil, dummyWM, WithWorkerHooksJobDone(hook.handler, hook.handler, hook.handler))
+	workerWithHooks, err := NewWorker(nil, dummyWM, WithWorkerHooksJobDone(hook.handler, hook.handler, hook.handler))
+	require.NoError(t, err)
 	for _, h := range workerWithHooks.hooksJobDone {
 		h(ctx, nil, nil)
 	}
@@ -200,7 +250,8 @@ func TestWithPoolHooksJobLocked(t *testing.T) {
 	ctx := context.Background()
 	hook := new(dummyHook)
 
-	poolWOutHooks := NewWorkerPool(nil, dummyWM, 3)
+	poolWOutHooks, err := NewWorkerPool(nil, dummyWM, 3)
+	require.NoError(t, err)
 	for _, w := range poolWOutHooks.workers {
 		for _, h := range w.hooksJobLocked {
 			h(ctx, nil, nil)
@@ -208,7 +259,8 @@ func TestWithPoolHooksJobLocked(t *testing.T) {
 	}
 	require.Equal(t, 0, hook.counter)
 
-	poolWithHooks := NewWorkerPool(nil, dummyWM, 3, WithPoolHooksJobLocked(hook.handler, hook.handler, hook.handler))
+	poolWithHooks, err := NewWorkerPool(nil, dummyWM, 3, WithPoolHooksJobLocked(hook.handler, hook.handler, hook.handler))
+	require.NoError(t, err)
 	for _, w := range poolWithHooks.workers {
 		for _, h := range w.hooksJobLocked {
 			h(ctx, nil, nil)
@@ -221,7 +273,8 @@ func TestWithPoolHooksUnknownJobType(t *testing.T) {
 	ctx := context.Background()
 	hook := new(dummyHook)
 
-	poolWOutHooks := NewWorkerPool(nil, dummyWM, 3)
+	poolWOutHooks, err := NewWorkerPool(nil, dummyWM, 3)
+	require.NoError(t, err)
 	for _, w := range poolWOutHooks.workers {
 		for _, h := range w.hooksUnknownJobType {
 			h(ctx, nil, nil)
@@ -229,7 +282,8 @@ func TestWithPoolHooksUnknownJobType(t *testing.T) {
 	}
 	require.Equal(t, 0, hook.counter)
 
-	poolWithHooks := NewWorkerPool(nil, dummyWM, 3, WithPoolHooksUnknownJobType(hook.handler, hook.handler, hook.handler))
+	poolWithHooks, err := NewWorkerPool(nil, dummyWM, 3, WithPoolHooksUnknownJobType(hook.handler, hook.handler, hook.handler))
+	require.NoError(t, err)
 	for _, w := range poolWithHooks.workers {
 		for _, h := range w.hooksUnknownJobType {
 			h(ctx, nil, nil)
@@ -242,7 +296,8 @@ func TestWithPoolHooksJobDone(t *testing.T) {
 	ctx := context.Background()
 	hook := new(dummyHook)
 
-	poolWOutHooks := NewWorkerPool(nil, dummyWM, 3)
+	poolWOutHooks, err := NewWorkerPool(nil, dummyWM, 3)
+	require.NoError(t, err)
 	for _, w := range poolWOutHooks.workers {
 		for _, h := range w.hooksJobDone {
 			h(ctx, nil, nil)
@@ -250,7 +305,8 @@ func TestWithPoolHooksJobDone(t *testing.T) {
 	}
 	require.Equal(t, 0, hook.counter)
 
-	poolWithHooks := NewWorkerPool(nil, dummyWM, 3, WithPoolHooksJobDone(hook.handler, hook.handler, hook.handler))
+	poolWithHooks, err := NewWorkerPool(nil, dummyWM, 3, WithPoolHooksJobDone(hook.handler, hook.handler, hook.handler))
+	require.NoError(t, err)
 	for _, w := range poolWithHooks.workers {
 		for _, h := range w.hooksJobDone {
 			h(ctx, nil, nil)

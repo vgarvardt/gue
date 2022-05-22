@@ -36,8 +36,10 @@ func TestWorkerWorkOne(t *testing.T) {
 }
 
 func testWorkerWorkOne(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	var success bool
 	wm := WorkMap{
@@ -51,18 +53,19 @@ func testWorkerWorkOne(t *testing.T, connPool adapter.ConnPool) {
 	unknownJobTypeHook := new(mockHook)
 	jobDoneHook := new(mockHook)
 
-	w := NewWorker(
+	w, err := NewWorker(
 		c,
 		wm,
 		WithWorkerHooksJobLocked(jobLockedHook.handler),
 		WithWorkerHooksUnknownJobType(unknownJobTypeHook.handler),
 		WithWorkerHooksJobDone(jobDoneHook.handler),
 	)
+	require.NoError(t, err)
 
 	didWork := w.WorkOne(ctx)
 	assert.False(t, didWork)
 
-	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
+	err = c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
 	didWork = w.WorkOne(ctx)
@@ -89,9 +92,11 @@ func TestWorker_Run(t *testing.T) {
 }
 
 func testWorkerRun(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
-	w := NewWorker(c, WorkMap{})
+	w, err := NewWorker(c, WorkMap{})
+	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -123,10 +128,12 @@ func TestWorkerPool_Run(t *testing.T) {
 }
 
 func testWorkerPoolRun(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	poolSize := 2
-	w := NewWorkerPool(c, WorkMap{}, poolSize)
+	w, err := NewWorkerPool(c, WorkMap{}, poolSize)
+	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -165,8 +172,10 @@ func TestWorkerPool_WorkOne(t *testing.T) {
 }
 
 func testWorkerPoolWorkOne(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	var success bool
 	wm := WorkMap{
@@ -180,7 +189,7 @@ func testWorkerPoolWorkOne(t *testing.T, connPool adapter.ConnPool) {
 	unknownJobTypeHook := new(mockHook)
 	jobDoneHook := new(mockHook)
 
-	w := NewWorkerPool(
+	w, err := NewWorkerPool(
 		c,
 		wm,
 		3,
@@ -188,11 +197,12 @@ func testWorkerPoolWorkOne(t *testing.T, connPool adapter.ConnPool) {
 		WithPoolHooksUnknownJobType(unknownJobTypeHook.handler),
 		WithPoolHooksJobDone(jobDoneHook.handler),
 	)
+	require.NoError(t, err)
 
 	didWork := w.WorkOne(ctx)
 	assert.False(t, didWork)
 
-	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
+	err = c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
 	didWork = w.WorkOne(ctx)
@@ -219,10 +229,13 @@ func BenchmarkWorker(b *testing.B) {
 }
 
 func benchmarkWorker(b *testing.B, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
 
-	w := NewWorker(c, WorkMap{"Nil": nilWorker})
+	c, err := NewClient(connPool)
+	require.NoError(b, err)
+
+	w, err := NewWorker(c, WorkMap{"Nil": nilWorker})
+	require.NoError(b, err)
 
 	for i := 0; i < b.N; i++ {
 		if err := c.Enqueue(ctx, &Job{Type: "Nil"}); err != nil {
@@ -249,8 +262,10 @@ func TestWorkerWorkReturnsError(t *testing.T) {
 }
 
 func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	called := 0
 	wm := WorkMap{
@@ -264,19 +279,20 @@ func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
 	unknownJobTypeHook := new(mockHook)
 	jobDoneHook := new(mockHook)
 
-	w := NewWorker(
+	w, err := NewWorker(
 		c,
 		wm,
 		WithWorkerHooksJobLocked(jobLockedHook.handler),
 		WithWorkerHooksUnknownJobType(unknownJobTypeHook.handler),
 		WithWorkerHooksJobDone(jobDoneHook.handler),
 	)
+	require.NoError(t, err)
 
 	didWork := w.WorkOne(ctx)
 	assert.False(t, didWork)
 
 	job := Job{Type: "MyJob"}
-	err := c.Enqueue(ctx, &job)
+	err = c.Enqueue(ctx, &job)
 	require.NoError(t, err)
 
 	didWork = w.WorkOne(ctx)
@@ -316,8 +332,10 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 }
 
 func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	called := 0
 	wm := WorkMap{
@@ -326,10 +344,11 @@ func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
 			panic("the panic msg")
 		},
 	}
-	w := NewWorker(c, wm)
+	w, err := NewWorker(c, wm)
+	require.NoError(t, err)
 
 	job := Job{Type: "MyJob"}
-	err := c.Enqueue(ctx, &job)
+	err = c.Enqueue(ctx, &job)
 	require.NoError(t, err)
 
 	w.WorkOne(ctx)
@@ -361,8 +380,10 @@ func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
 }
 
 func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	wm := WorkMap{}
 
@@ -370,13 +391,14 @@ func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
 	unknownJobTypeHook := new(mockHook)
 	jobDoneHook := new(mockHook)
 
-	w := NewWorker(
+	w, err := NewWorker(
 		c,
 		wm,
 		WithWorkerHooksJobLocked(jobLockedHook.handler),
 		WithWorkerHooksUnknownJobType(unknownJobTypeHook.handler),
 		WithWorkerHooksJobDone(jobDoneHook.handler),
 	)
+	require.NoError(t, err)
 
 	didWork := w.WorkOne(ctx)
 	assert.False(t, didWork)
@@ -386,7 +408,7 @@ func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, 0, jobDoneHook.called)
 
 	job := Job{Type: "MyJob"}
-	err := c.Enqueue(ctx, &job)
+	err = c.Enqueue(ctx, &job)
 	require.NoError(t, err)
 
 	didWork = w.WorkOne(ctx)

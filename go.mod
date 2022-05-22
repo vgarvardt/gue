@@ -8,8 +8,11 @@ require (
 	github.com/jackc/pgx/v4 v4.16.1
 	github.com/jackc/pgx/v5 v5.0.0-alpha.3
 	github.com/lib/pq v1.10.5
-	github.com/stretchr/testify v1.7.0
+	github.com/stretchr/testify v1.7.1
 	github.com/vgarvardt/backoff v1.0.0
+	go.opentelemetry.io/otel v1.7.0
+	go.opentelemetry.io/otel/metric v0.30.0
+	go.opentelemetry.io/otel/trace v1.7.0
 	go.uber.org/zap v1.21.0
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 )

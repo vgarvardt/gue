@@ -25,13 +25,15 @@ func TestLockJob(t *testing.T) {
 }
 
 func testLockJob(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	newJob := &Job{
 		Type: "MyJob",
 	}
-	err := c.Enqueue(ctx, newJob)
+	err = c.Enqueue(ctx, newJob)
 	require.NoError(t, err)
 	require.Greater(t, newJob.ID, int64(0))
 
@@ -66,10 +68,12 @@ func TestLockJobAlreadyLocked(t *testing.T) {
 }
 
 func testLockJobAlreadyLocked(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
 
-	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	err = c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
 	j, err := c.LockJob(ctx, "")
@@ -95,8 +99,10 @@ func TestLockJobNoJob(t *testing.T) {
 }
 
 func testLockJobNoJob(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	j, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
@@ -112,10 +118,12 @@ func TestLockJobCustomQueue(t *testing.T) {
 }
 
 func testLockJobCustomQueue(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
 
-	err := c.Enqueue(ctx, &Job{Type: "MyJob", Queue: "extra_priority"})
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	err = c.Enqueue(ctx, &Job{Type: "MyJob", Queue: "extra_priority"})
 	require.NoError(t, err)
 
 	j, err := c.LockJob(ctx, "")
@@ -144,13 +152,15 @@ func TestLockJobByID(t *testing.T) {
 }
 
 func testLockJobByID(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	newJob := &Job{
 		Type: "MyJob",
 	}
-	err := c.Enqueue(ctx, newJob)
+	err = c.Enqueue(ctx, newJob)
 	require.NoError(t, err)
 	require.Greater(t, newJob.ID, int64(0))
 
@@ -185,14 +195,16 @@ func TestLockJobByIDAlreadyLocked(t *testing.T) {
 }
 
 func testLockJobByIDAlreadyLocked(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	newJob := &Job{
 		Type: "MyJob",
 	}
 
-	err := c.Enqueue(ctx, newJob)
+	err = c.Enqueue(ctx, newJob)
 	require.NoError(t, err)
 
 	j, err := c.LockJobByID(ctx, newJob.ID)
@@ -218,8 +230,10 @@ func TestLockJobByIDNoJob(t *testing.T) {
 }
 
 func testLockJobByIDNoJob(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	j, err := c.LockJobByID(ctx, 0)
 	require.Error(t, err)
@@ -235,14 +249,16 @@ func TestLockNextScheduledJob(t *testing.T) {
 }
 
 func testLockNextScheduledJob(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	newJob := &Job{
 		Type:  "MyJob",
 		RunAt: time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC),
 	}
-	err := c.Enqueue(ctx, newJob)
+	err = c.Enqueue(ctx, newJob)
 	require.NoError(t, err)
 	require.Greater(t, newJob.ID, int64(0))
 
@@ -277,10 +293,12 @@ func TestLockNextScheduledJobAlreadyLocked(t *testing.T) {
 }
 
 func testLockNextScheduledJobAlreadyLocked(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
 
-	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	err = c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
 	j, err := c.LockNextScheduledJob(ctx, "")
@@ -306,8 +324,10 @@ func TestLockNextScheduledJobNoJob(t *testing.T) {
 }
 
 func testLockNextScheduledJobNoJob(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	j, err := c.LockNextScheduledJob(ctx, "")
 	require.NoError(t, err)
@@ -323,10 +343,12 @@ func TestJobTx(t *testing.T) {
 }
 
 func testJobTx(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
 
-	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	err = c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
 	j, err := c.LockJob(ctx, "")
@@ -350,10 +372,12 @@ func TestJobConnRace(t *testing.T) {
 }
 
 func testJobConnRace(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
 
-	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	err = c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
 	j, err := c.LockJob(ctx, "")
@@ -391,11 +415,13 @@ func TestJobDelete(t *testing.T) {
 }
 
 func testJobDelete(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
 
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
 	job := Job{Type: "MyJob"}
-	err := c.Enqueue(ctx, &job)
+	err = c.Enqueue(ctx, &job)
 	require.NoError(t, err)
 
 	j, err := c.LockJob(ctx, "")
@@ -424,10 +450,12 @@ func TestJobDone(t *testing.T) {
 }
 
 func testJobDone(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
 
-	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	err = c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
 	j, err := c.LockJob(ctx, "")
@@ -451,10 +479,12 @@ func TestJobDoneMultiple(t *testing.T) {
 }
 
 func testJobDoneMultiple(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
 
-	err := c.Enqueue(ctx, &Job{Type: "MyJob"})
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	err = c.Enqueue(ctx, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
 	j, err := c.LockJob(ctx, "")
@@ -477,11 +507,13 @@ func TestJobError(t *testing.T) {
 }
 
 func testJobError(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
 
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
 	job := &Job{Type: "MyJob"}
-	err := c.Enqueue(ctx, job)
+	err = c.Enqueue(ctx, job)
 	require.NoError(t, err)
 
 	j, err := c.LockJob(ctx, "")
@@ -517,15 +549,17 @@ func TestJobErrorCustomBackoff(t *testing.T) {
 }
 
 func testJobErrorCustomBackoff(t *testing.T, connPool adapter.ConnPool) {
+	ctx := context.Background()
+
 	customBackoff := func(retries int) time.Duration {
 		return time.Duration(retries) * time.Hour
 	}
 
-	c := NewClient(connPool, WithClientBackoff(customBackoff))
-	ctx := context.Background()
+	c, err := NewClient(connPool, WithClientBackoff(customBackoff))
+	require.NoError(t, err)
 
 	job := &Job{Type: "MyJob"}
-	err := c.Enqueue(ctx, job)
+	err = c.Enqueue(ctx, job)
 	require.NoError(t, err)
 
 	j, err := c.LockJob(ctx, "")
@@ -562,10 +596,10 @@ func TestJobPriority(t *testing.T) {
 }
 
 func testJobPriority(t *testing.T, connPool adapter.ConnPool) {
-	var err error
-
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	// insert in the order different from expected to be locked
 	jobPriorityDefault := &Job{Type: "MyJob", Priority: JobPriorityDefault, Args: []byte(`"default"`)}
@@ -637,10 +671,10 @@ func TestAdapterQuery(t *testing.T) {
 }
 
 func testAdapterQuery(t *testing.T, connPool adapter.ConnPool) {
-	var err error
-
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	now := time.Now()
 	queue := now.Format(time.RFC3339Nano)
@@ -722,7 +756,8 @@ func TestMultiSchema(t *testing.T) {
 	require.NoError(t, err)
 
 	// run basic gue client test to ensure it works as expected in its own schema known to search_path
-	c := NewClient(connPool)
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	newJob := &Job{
 		Type: "MyJob",

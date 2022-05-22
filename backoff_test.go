@@ -29,10 +29,11 @@ func testBackoff(t *testing.T, connPool adapter.ConnPool) {
 	now := time.Now()
 
 	t.Run("default exponential backoff", func(t *testing.T) {
-		c := NewClient(connPool, WithClientLogger(logger))
+		c, err := NewClient(connPool, WithClientLogger(logger))
+		require.NoError(t, err)
 
 		j := Job{RunAt: now, Type: "foo"}
-		err := c.Enqueue(ctx, &j)
+		err = c.Enqueue(ctx, &j)
 		require.NoError(t, err)
 		require.NotEmpty(t, j.ID)
 
@@ -55,10 +56,11 @@ func testBackoff(t *testing.T, connPool adapter.ConnPool) {
 	})
 
 	t.Run("never backoff", func(t *testing.T) {
-		c := NewClient(connPool, WithClientLogger(logger), WithClientBackoff(BackoffNever))
+		c, err := NewClient(connPool, WithClientLogger(logger), WithClientBackoff(BackoffNever))
+		require.NoError(t, err)
 
 		j := Job{RunAt: now, Type: "bar"}
-		err := c.Enqueue(ctx, &j)
+		err = c.Enqueue(ctx, &j)
 		require.NoError(t, err)
 		require.NotEmpty(t, j.ID)
 

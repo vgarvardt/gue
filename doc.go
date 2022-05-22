@@ -58,13 +58,20 @@ Here is a complete example showing worker setup for pgx/v4 and two jobs enqueued
 
 		poolAdapter := pgxv4.NewConnPool(pgxPool)
 
-		gc := gue.NewClient(poolAdapter)
+		gc, err := gue.NewClient(poolAdapter)
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		wm := gue.WorkMap{
 			"PrintName": printName,
 		}
 
 		// create a pool w/ 2 workers
-		workers := gue.NewWorkerPool(gc, wm, 2, gue.WithPoolQueue("name_printer"))
+		workers, err := gue.NewWorkerPool(gc, wm, 2, gue.WithPoolQueue("name_printer"))
+		if err != nil {
+			log.Fatal(err)
+		}
 
 		ctx, shutdown := context.WithCancel(context.Background())
 
