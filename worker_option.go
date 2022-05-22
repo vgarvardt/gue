@@ -3,6 +3,9 @@ package gue
 import (
 	"time"
 
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/vgarvardt/gue/v4/adapter"
 )
 
@@ -38,6 +41,20 @@ func WithWorkerID(id string) WorkerOption {
 func WithWorkerLogger(logger adapter.Logger) WorkerOption {
 	return func(w *Worker) {
 		w.logger = logger
+	}
+}
+
+// WithWorkerTracer sets trace.Tracer instance to the worker.
+func WithWorkerTracer(tracer trace.Tracer) WorkerOption {
+	return func(w *Worker) {
+		w.tracer = tracer
+	}
+}
+
+// WithWorkerMeter sets metric.Meter instance to the worker.
+func WithWorkerMeter(meter metric.Meter) WorkerOption {
+	return func(w *Worker) {
+		w.meter = meter
 	}
 }
 
@@ -107,6 +124,20 @@ func WithPoolLogger(logger adapter.Logger) WorkerPoolOption {
 func WithPoolPollStrategy(s PollStrategy) WorkerPoolOption {
 	return func(w *WorkerPool) {
 		w.pollStrategy = s
+	}
+}
+
+// WithPoolTracer sets trace.Tracer instance to every worker in the pool.
+func WithPoolTracer(tracer trace.Tracer) WorkerPoolOption {
+	return func(w *WorkerPool) {
+		w.tracer = tracer
+	}
+}
+
+// WithPoolMeter sets metric.Meter instance to every worker in the pool.
+func WithPoolMeter(meter metric.Meter) WorkerPoolOption {
+	return func(w *WorkerPool) {
+		w.meter = meter
 	}
 }
 

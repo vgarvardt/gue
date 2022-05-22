@@ -9,12 +9,24 @@ import (
 	"fmt"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/instrument"
+	"go.opentelemetry.io/otel/metric/instrument/syncint64"
+	"go.opentelemetry.io/otel/metric/nonrecording"
+	"go.opentelemetry.io/otel/metric/unit"
+
 	"github.com/vgarvardt/gue/v4/adapter"
 )
 
 // ErrMissingType is returned when you attempt to enqueue a job with no Type
 // specified.
 var ErrMissingType = errors.New("job type must be specified")
+
+var (
+	attrJobType = attribute.Key("job-type")
+	attrSuccess = attribute.Key("success")
+)
 
 // Client is a Gue client that can add jobs to the queue and remove jobs from
 // the queue.
@@ -23,14 +35,19 @@ type Client struct {
 	logger  adapter.Logger
 	id      string
 	backoff Backoff
+	meter   metric.Meter
+
+	mEnqueue syncint64.Counter
+	mLockJob syncint64.Counter
 }
 
 // NewClient creates a new Client that uses the pgx pool.
-func NewClient(pool adapter.ConnPool, options ...ClientOption) *Client {
+func NewClient(pool adapter.ConnPool, options ...ClientOption) (*Client, error) {
 	instance := Client{
 		pool:    pool,
 		logger:  adapter.NoOpLogger{},
 		backoff: DefaultExponentialBackoff,
+		meter:   nonrecording.NewNoopMeterProvider().Meter("noop"),
 	}
 
 	for _, option := range options {
@@ -43,7 +60,7 @@ func NewClient(pool adapter.ConnPool, options ...ClientOption) *Client {
 
 	instance.logger = instance.logger.With(adapter.F("client-id", instance.id))
 
-	return &instance
+	return &instance, instance.initMetrics()
 }
 
 // Enqueue adds a job to the queue.
@@ -89,6 +106,8 @@ VALUES
 		adapter.F("queue", j.Queue),
 		adapter.F("id", j.ID),
 	)
+
+	c.mEnqueue.Add(ctx, 1, attrJobType.String(j.Type), attrSuccess.Bool(err == nil))
 
 	return err
 }
@@ -160,6 +179,7 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`
 func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql string, args ...any) (*Job, error) {
 	tx, err := c.pool.Begin(ctx)
 	if err != nil {
+		c.mLockJob.Add(ctx, 1, attrJobType.String(""), attrSuccess.Bool(false))
 		return nil, err
 	}
 
@@ -176,6 +196,7 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 		&j.LastError,
 	)
 	if err == nil {
+		c.mLockJob.Add(ctx, 1, attrJobType.String(j.Type), attrSuccess.Bool(true))
 		return &j, nil
 	}
 
@@ -185,6 +206,26 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 	}
 
 	return nil, fmt.Errorf("could not lock a job (rollback result: %v): %w", rbErr, err)
+}
+
+func (c *Client) initMetrics() (err error) {
+	if c.mEnqueue, err = c.meter.SyncInt64().Counter(
+		"gue_client_enqueue",
+		instrument.WithDescription("Number of jobs being enqueued"),
+		instrument.WithUnit(unit.Dimensionless),
+	); err != nil {
+		return fmt.Errorf("could not register mEnqueue metric: %w", err)
+	}
+
+	if c.mLockJob, err = c.meter.SyncInt64().Counter(
+		"gue_client_lock_job",
+		instrument.WithDescription("Number of jobs being locked (consumed)"),
+		instrument.WithUnit(unit.Dimensionless),
+	); err != nil {
+		return fmt.Errorf("could not register mLockJob metric: %w", err)
+	}
+
+	return nil
 }
 
 func newID() string {

@@ -22,12 +22,14 @@ func TestEnqueueOnlyType(t *testing.T) {
 }
 
 func testEnqueueOnlyType(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	jobType := "MyJob"
 	job := Job{Type: jobType}
-	err := c.Enqueue(ctx, &job)
+	err = c.Enqueue(ctx, &job)
 	require.NoError(t, err)
 
 	j, err := c.LockJobByID(ctx, job.ID)
@@ -59,12 +61,14 @@ func TestEnqueueWithPriority(t *testing.T) {
 }
 
 func testEnqueueWithPriority(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	want := JobPriority(99)
 	job := Job{Type: "MyJob", Priority: want}
-	err := c.Enqueue(ctx, &job)
+	err = c.Enqueue(ctx, &job)
 	require.NoError(t, err)
 
 	j, err := c.LockJobByID(ctx, job.ID)
@@ -88,12 +92,14 @@ func TestEnqueueWithRunAt(t *testing.T) {
 }
 
 func testEnqueueWithRunAt(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	want := time.Now().Add(2 * time.Minute)
 	job := Job{Type: "MyJob", RunAt: want}
-	err := c.Enqueue(ctx, &job)
+	err = c.Enqueue(ctx, &job)
 	require.NoError(t, err)
 
 	j, err := c.LockJobByID(ctx, job.ID)
@@ -118,12 +124,14 @@ func TestEnqueueWithArgs(t *testing.T) {
 }
 
 func testEnqueueWithArgs(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	want := []byte(`{"arg1":0, "arg2":"a string"}`)
 	job := Job{Type: "MyJob", Args: want}
-	err := c.Enqueue(ctx, &job)
+	err = c.Enqueue(ctx, &job)
 	require.NoError(t, err)
 
 	j, err := c.LockJobByID(ctx, job.ID)
@@ -147,12 +155,14 @@ func TestEnqueueWithQueue(t *testing.T) {
 }
 
 func testEnqueueWithQueue(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	want := "special-work-queue"
 	job := Job{Type: "MyJob", Queue: want}
-	err := c.Enqueue(ctx, &job)
+	err = c.Enqueue(ctx, &job)
 	require.NoError(t, err)
 
 	j, err := c.LockJobByID(ctx, job.ID)
@@ -176,10 +186,12 @@ func TestEnqueueWithEmptyType(t *testing.T) {
 }
 
 func testEnqueueWithEmptyType(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
 
-	err := c.Enqueue(ctx, &Job{Type: ""})
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	err = c.Enqueue(ctx, &Job{Type: ""})
 	require.Equal(t, ErrMissingType, err)
 }
 
@@ -192,8 +204,10 @@ func TestEnqueueTx(t *testing.T) {
 }
 
 func testEnqueueTx(t *testing.T, connPool adapter.ConnPool) {
-	c := NewClient(connPool)
 	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
 
 	tx, err := connPool.Begin(ctx)
 	require.NoError(t, err)
