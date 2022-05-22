@@ -198,7 +198,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 
 		w.mDuration.Record(ctx, time.Now().Sub(processingStartedAt).Milliseconds(), attrJobType.String(j.Type))
 	}()
-	defer recoverPanic(ctx, span, ll, j)
+	defer recoverPanic(ctx, span, w.mWorked, ll, j)
 
 	for _, hook := range w.hooksJobLocked {
 		hook(ctx, j, nil)
@@ -278,7 +278,7 @@ func (w *Worker) initMetrics() (err error) {
 
 // recoverPanic tries to handle panics in job execution.
 // A stacktrace is stored into Job last_error.
-func recoverPanic(ctx context.Context, span trace.Span, logger adapter.Logger, j *Job) {
+func recoverPanic(ctx context.Context, span trace.Span, mWorked syncint64.Counter, logger adapter.Logger, j *Job) {
 	if r := recover(); r != nil {
 		// record an error on the job with panic message and stacktrace
 		stackBuf := make([]byte, 1024)
@@ -290,8 +290,10 @@ func recoverPanic(ctx context.Context, span trace.Span, logger adapter.Logger, j
 		fmt.Fprintln(buf, "[...]")
 		stacktrace := buf.String()
 
+		mWorked.Add(ctx, 1, attrJobType.String(j.Type), attrSuccess.Bool(false))
 		span.RecordError(errors.New("job panicked"), trace.WithAttributes(attribute.String("stacktrace", stacktrace)))
 		logger.Error("Job panicked", adapter.F("stacktrace", stacktrace))
+
 		if err := j.Error(ctx, stacktrace); err != nil {
 			span.RecordError(fmt.Errorf("failed to mark panicked job as error: %w", err))
 			logger.Error("Got an error on setting an error to a panicked job", adapter.Err(err))
