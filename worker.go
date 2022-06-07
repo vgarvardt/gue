@@ -16,6 +16,7 @@ import (
 	"go.opentelemetry.io/otel/metric/nonrecording"
 	"go.opentelemetry.io/otel/metric/unit"
 	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/multierr"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/vgarvardt/gue/v4/adapter"
@@ -285,10 +286,14 @@ func recoverPanic(ctx context.Context, span trace.Span, mWorked syncint64.Counte
 		n := runtime.Stack(stackBuf, false)
 
 		buf := new(bytes.Buffer)
-		fmt.Fprintf(buf, "%v\n", r)
-		fmt.Fprintln(buf, string(stackBuf[:n]))
-		fmt.Fprintln(buf, "[...]")
+		_, printRErr := fmt.Fprintf(buf, "%v\n", r)
+		_, printStackErr := fmt.Fprintln(buf, string(stackBuf[:n]))
+		_, printEllipsisErr := fmt.Fprintln(buf, "[...]")
 		stacktrace := buf.String()
+
+		if err := multierr.Combine(printRErr, printStackErr, printEllipsisErr); err != nil {
+			logger.Error("Could not build panicked job stacktrace", adapter.Err(err), adapter.F("runtime-stack", string(stackBuf[:n])))
+		}
 
 		mWorked.Add(ctx, 1, attrJobType.String(j.Type), attrSuccess.Bool(false))
 		span.RecordError(errors.New("job panicked"), trace.WithAttributes(attribute.String("stacktrace", stacktrace)))
