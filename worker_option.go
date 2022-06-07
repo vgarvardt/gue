@@ -76,7 +76,9 @@ func WithWorkerHooksUnknownJobType(hooks ...HookFunc) WorkerOption {
 	}
 }
 
-// WithWorkerHooksJobDone sets hooks that are called when worker finished working the job.
+// WithWorkerHooksJobDone sets hooks that are called when worker finished working the job,
+// right before the successfully executed job will be removed or errored job handler will be called to decide
+// if the Job will be re-queued or discarded.
 // Error field is set for the cases when the job was worked with an error.
 func WithWorkerHooksJobDone(hooks ...HookFunc) WorkerOption {
 	return func(w *Worker) {
