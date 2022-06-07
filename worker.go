@@ -229,13 +229,13 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 	if err = wf(ctx, j); err != nil {
 		w.mWorked.Add(ctx, 1, attrJobType.String(j.Type), attrSuccess.Bool(false))
 
+		for _, hook := range w.hooksJobDone {
+			hook(ctx, j, err)
+		}
+
 		if jErr := j.Error(ctx, err.Error()); jErr != nil {
 			span.RecordError(fmt.Errorf("failed to mark job as error: %w", err))
 			ll.Error("Got an error on setting an error to an errored job", adapter.Err(jErr), adapter.F("job-error", err))
-		}
-
-		for _, hook := range w.hooksJobDone {
-			hook(ctx, j, err)
 		}
 
 		return

@@ -437,3 +437,54 @@ func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
 	require.NotEqual(t, pgtype.Null, j.LastError.Status)
 	assert.Contains(t, j.LastError.String, `unknown job type: "MyJob"`)
 }
+
+// TestWorker_WorkOne_errorHookTx tests that JobDone hooks are running in the same transaction as the errored job
+func TestWorker_WorkOneErrorHookTx(t *testing.T) {
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testWorkerWorkOneErrorHookTx(t, openFunc(t))
+		})
+	}
+}
+
+func testWorkerWorkOneErrorHookTx(t *testing.T, connPool adapter.ConnPool) {
+	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	called := 0
+	jobErr := errors.New("the error msg")
+	wm := WorkMap{
+		"MyJob": func(ctx context.Context, j *Job) error {
+			called++
+			return jobErr
+		},
+	}
+
+	jobDoneHook := func(ctx context.Context, j *Job, err error) {
+		assert.Error(t, err)
+		assert.Equal(t, jobErr, err)
+
+		// ensure that transaction is still active
+		var count int64
+		txErr := j.Tx().QueryRow(ctx, `SELECT COUNT(1) FROM gue_jobs`).Scan(&count)
+		assert.NoError(t, txErr)
+		assert.Greater(t, count, int64(0))
+	}
+
+	w, err := NewWorker(
+		c,
+		wm,
+		WithWorkerHooksJobDone(jobDoneHook),
+	)
+	require.NoError(t, err)
+
+	job := Job{Type: "MyJob"}
+	err = c.Enqueue(ctx, &job)
+	require.NoError(t, err)
+
+	didWork := w.WorkOne(ctx)
+	assert.True(t, didWork)
+	assert.Equal(t, 1, called)
+}
