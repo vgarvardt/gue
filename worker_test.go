@@ -371,6 +371,56 @@ func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
 	assert.Contains(t, j.LastError.String, "worker_test.go:")
 }
 
+func TestWorkerWorkWithWorkerHooksJobDonePanic(t *testing.T) {
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testWorkerWorkWithWorkerHooksJobDonePanic(t, openFunc(t))
+		})
+	}
+}
+
+func testWorkerWorkWithWorkerHooksJobDonePanic(t *testing.T, connPool adapter.ConnPool) {
+	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	called := 0
+	wm := WorkMap{
+		"MyJob": func(ctx context.Context, j *Job) error {
+			called++
+			return nil
+		},
+	}
+	w, err := NewWorker(c, wm, WithWorkerHooksJobDone(func(ctx context.Context, j *Job, err error) {
+		panic("panic from the hook job done")
+	}))
+	require.NoError(t, err)
+
+	job := Job{Type: "MyJob"}
+	err = c.Enqueue(ctx, &job)
+	require.NoError(t, err)
+
+	w.WorkOne(ctx)
+	assert.Equal(t, 1, called)
+
+	j, err := c.LockJobByID(ctx, job.ID)
+	require.NoError(t, err)
+	require.NotNil(t, j)
+
+	t.Cleanup(func() {
+		err := j.Done(ctx)
+		assert.NoError(t, err)
+	})
+
+	assert.Equal(t, int32(1), j.ErrorCount)
+	assert.NotEqual(t, pgtype.Null, j.LastError.Status)
+	assert.Contains(t, j.LastError.String, "panic from the hook job done\n")
+	// basic check if a stacktrace is there - not the stacktrace format itself
+	assert.Contains(t, j.LastError.String, "worker.go:")
+	assert.Contains(t, j.LastError.String, "worker_test.go:")
+}
+
 func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
 	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
