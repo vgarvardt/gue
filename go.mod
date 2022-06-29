@@ -8,7 +8,7 @@ require (
 	github.com/jackc/pgx/v4 v4.16.1
 	github.com/jackc/pgx/v5 v5.0.0-alpha.4
 	github.com/lib/pq v1.10.6
-	github.com/stretchr/testify v1.7.5
+	github.com/stretchr/testify v1.8.0
 	github.com/vgarvardt/backoff v1.0.0
 	go.opentelemetry.io/otel v1.7.0
 	go.opentelemetry.io/otel/metric v0.30.0
