@@ -13,7 +13,6 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
-	"go.opentelemetry.io/otel/metric/nonrecording"
 	"go.opentelemetry.io/otel/metric/unit"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/multierr"
@@ -98,7 +97,7 @@ func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) (*Worker, error) 
 		logger:       adapter.NoOpLogger{},
 		pollStrategy: PriorityPollStrategy,
 		tracer:       trace.NewNoopTracerProvider().Tracer("noop"),
-		meter:        nonrecording.NewNoopMeterProvider().Meter("noop"),
+		meter:        metric.NewNoopMeterProvider().Meter("noop"),
 	}
 
 	for _, option := range options {
@@ -360,7 +359,7 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 		logger:       adapter.NoOpLogger{},
 		pollStrategy: PriorityPollStrategy,
 		tracer:       trace.NewNoopTracerProvider().Tracer("noop"),
-		meter:        nonrecording.NewNoopMeterProvider().Meter("noop"),
+		meter:        metric.NewNoopMeterProvider().Meter("noop"),
 	}
 
 	for _, option := range options {
