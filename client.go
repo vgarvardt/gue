@@ -13,7 +13,6 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
-	"go.opentelemetry.io/otel/metric/nonrecording"
 	"go.opentelemetry.io/otel/metric/unit"
 
 	"github.com/vgarvardt/gue/v4/adapter"
@@ -47,7 +46,7 @@ func NewClient(pool adapter.ConnPool, options ...ClientOption) (*Client, error) 
 		pool:    pool,
 		logger:  adapter.NoOpLogger{},
 		backoff: DefaultExponentialBackoff,
-		meter:   nonrecording.NewNoopMeterProvider().Meter("noop"),
+		meter:   metric.NewNoopMeterProvider().Meter("noop"),
 	}
 
 	for _, option := range options {
