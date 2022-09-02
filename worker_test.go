@@ -538,3 +538,68 @@ func testWorkerWorkOneErrorHookTx(t *testing.T, connPool adapter.ConnPool) {
 	assert.True(t, didWork)
 	assert.Equal(t, 1, called)
 }
+
+// TestWorker_WorkOneJobDonePanics tests that JobDone hook panic does not affect the job flow
+func TestWorker_WorkOneJobDonePanics(t *testing.T) {
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testWorkOneJobDonePanics(t, openFunc(t))
+		})
+	}
+}
+
+func testWorkOneJobDonePanics(t *testing.T, connPool adapter.ConnPool) {
+	ctx := context.Background()
+
+	// create a table for to log finished jobs
+	_, err := connPool.Exec(ctx, `
+CREATE TABLE IF NOT EXISTS finished_jobs_log
+(
+    job_id      BIGSERIAL   NOT NULL PRIMARY KEY,
+    run_at      TIMESTAMPTZ NOT NULL,
+    type        TEXT        NOT NULL,
+    queue       TEXT        NOT NULL
+);
+`)
+	require.NoError(t, err)
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	called := 0
+	wm := WorkMap{
+		"MyJob": func(ctx context.Context, j *Job) error {
+			called++
+			return nil
+		},
+	}
+
+	jobDoneHook := func(ctx context.Context, j *Job, err error) {
+		assert.NoError(t, err)
+
+		_, txErr := j.Tx().Exec(
+			ctx,
+			"INSERT INTO finished_jobs_log (queue, type, run_at) VALUES ($1, $2, now())",
+			j.Queue,
+			j.Type,
+		)
+		assert.NoError(t, txErr)
+
+		panic(errors.New("job done hook panicked"))
+	}
+
+	w, err := NewWorker(
+		c,
+		wm,
+		WithWorkerHooksJobDone(jobDoneHook),
+	)
+	require.NoError(t, err)
+
+	job := Job{Type: "MyJob"}
+	err = c.Enqueue(ctx, &job)
+	require.NoError(t, err)
+
+	didWork := w.WorkOne(ctx)
+	assert.True(t, didWork)
+	assert.Equal(t, 1, called)
+}

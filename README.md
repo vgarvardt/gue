@@ -200,6 +200,7 @@ func main() {
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 
@@ -215,7 +216,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	pgxPool, err := pgxpool.NewConfig(context.Background(), pgxCfg)
+	pgxPool, err := pgxpool.NewWithConfig(context.Background(), pgxCfg)
 	if err != nil {
 		log.Fatal(err)
 	}
