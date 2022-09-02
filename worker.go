@@ -422,9 +422,10 @@ func (w *WorkerPool) runGroup(ctx context.Context) error {
 
 	grp, ctx := errgroup.WithContext(ctx)
 	for i := range w.workers {
+		wctx := context.WithValue(ctx, "workerIndex", i)
 		worker := w.workers[i]
 		grp.Go(func() error {
-			return worker.Run(ctx)
+			return worker.Run(wctx)
 		})
 	}
 	return grp.Wait()
