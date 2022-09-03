@@ -181,6 +181,9 @@ func testWorkerPoolWorkOne(t *testing.T, connPool adapter.ConnPool) {
 	wm := WorkMap{
 		"MyJob": func(ctx context.Context, j *Job) error {
 			success = true
+
+			assert.Equal(t, 0, GetWorkerIdx(ctx))
+
 			return nil
 		},
 	}
