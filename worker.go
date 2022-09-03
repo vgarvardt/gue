@@ -424,7 +424,7 @@ func (w *WorkerPool) runGroup(ctx context.Context) error {
 	for i := range w.workers {
 		worker := w.workers[i]
 		grp.Go(func() error {
-			return worker.Run(SetWorkerIdx(ctx, i))
+			return worker.Run(setWorkerIdx(ctx, i))
 		})
 	}
 

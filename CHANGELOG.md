@@ -38,3 +38,4 @@
   - `gue_worker_jobs_duration` - histogram of jobs processing duration, exposes `job-type` attribute
 - [OpenTelemetry](https://github.com/open-telemetry/opentelemetry-go) Tracing is available for `Worker` -
   use `WithWorkerTracer()` or `WithPoolTracer()` option to set tracer for the worker instance
+- `GetWorkerIdx` function extracts worker index in the pool from the handler context

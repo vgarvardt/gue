@@ -13,8 +13,8 @@ const (
 	WorkerIdxUnknown = -1
 )
 
-// SetWorkerIdx sets the index of the worker in the pool to the worker context.
-func SetWorkerIdx(ctx context.Context, idx int) context.Context {
+// setWorkerIdx sets the index of the worker in the pool to the worker context.
+func setWorkerIdx(ctx context.Context, idx int) context.Context {
 	return context.WithValue(ctx, workerIdxKey, idx)
 }
 
