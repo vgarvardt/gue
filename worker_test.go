@@ -3,6 +3,7 @@ package gue
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -131,19 +132,39 @@ func testWorkerPoolRun(t *testing.T, connPool adapter.ConnPool) {
 	c, err := NewClient(connPool)
 	require.NoError(t, err)
 
-	poolSize := 2
-	w, err := NewWorkerPool(c, WorkMap{}, poolSize)
+	var (
+		m          sync.Mutex
+		jobsWorked int
+	)
+
+	w, err := NewWorkerPool(c, WorkMap{
+		"dummy-job": func(ctx context.Context, j *Job) error {
+			m.Lock()
+			defer m.Unlock()
+
+			assert.NotEqual(t, WorkerIdxUnknown, GetWorkerIdx(ctx))
+
+			jobsWorked++
+			return nil
+		},
+	}, 2)
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
+
+	jobsToWork := 15
+	for i := 0; i < jobsToWork; i++ {
+		err := c.Enqueue(ctx, &Job{Type: "dummy-job"})
+		require.NoError(t, err)
+	}
 
 	var grp errgroup.Group
 	grp.Go(func() error {
 		return w.Run(ctx)
 	})
 
-	// give worker time to start
-	time.Sleep(time.Second)
+	// give worker time to work the jobs
+	time.Sleep(5 * time.Second)
 
 	assert.True(t, w.running)
 	for i := range w.workers {
@@ -161,6 +182,8 @@ func testWorkerPoolRun(t *testing.T, connPool adapter.ConnPool) {
 	for i := range w.workers {
 		assert.False(t, w.workers[i].running)
 	}
+
+	assert.Equal(t, jobsToWork, jobsWorked)
 }
 
 func TestWorkerPool_WorkOne(t *testing.T) {
