@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"math"
 	"sync"
 	"testing"
 	"time"
@@ -584,7 +585,8 @@ func testJobErrorCustomBackoff(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, msg, j2.LastError.String)
 	assert.Equal(t, int32(1), j2.ErrorCount)
 	assert.Greater(t, j2.RunAt.Unix(), job.RunAt.Unix())
-	assert.Equal(t, job.RunAt.Add(time.Hour).Unix(), j2.RunAt.Unix())
+	// a diff in a sec is possible when doing dates math, so allow it
+	assert.LessOrEqual(t, math.Abs(job.RunAt.Add(time.Hour).Sub(j2.RunAt).Seconds()), float64(1))
 }
 
 func TestJobPriority(t *testing.T) {
