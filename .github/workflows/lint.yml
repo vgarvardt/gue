@@ -29,3 +29,12 @@ jobs:
           VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' }}
           DEFAULT_BRANCH: master
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # go validator works pretty bad in super-linter, we'll use the original one
+          VALIDATE_GO: false
+
+      - name: Lint Golang
+        uses: golangci/golangci-lint-action@v3
+        with:
+          only-new-issues: ${{ github.event_name == 'pull_request' }}
+          args: >
+            --config=./.github/linters/.golangci.yml
