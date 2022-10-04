@@ -2,8 +2,6 @@ package gue
 
 import (
 	"context"
-	"crypto/md5"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -45,16 +43,13 @@ func NewClient(pool adapter.ConnPool, options ...ClientOption) (*Client, error) 
 	instance := Client{
 		pool:    pool,
 		logger:  adapter.NoOpLogger{},
+		id:      RandomStringID(),
 		backoff: DefaultExponentialBackoff,
 		meter:   metric.NewNoopMeterProvider().Meter("noop"),
 	}
 
 	for _, option := range options {
 		option(&instance)
-	}
-
-	if instance.id == "" {
-		instance.id = newID()
 	}
 
 	instance.logger = instance.logger.With(adapter.F("client-id", instance.id))
@@ -225,9 +220,4 @@ func (c *Client) initMetrics() (err error) {
 	}
 
 	return nil
-}
-
-func newID() string {
-	hash := md5.Sum([]byte(time.Now().Format(time.RFC3339Nano)))
-	return hex.EncodeToString(hash[:])[:6]
 }

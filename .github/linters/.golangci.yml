@@ -1,16 +1,43 @@
 ---
-# See https://golangci-lint.run/usage/configuration/#config-file for more information
-run:
-  timeout: 5m
+# configure golangci-lint
+# based on https://github.com/github/super-linter/blob/main/TEMPLATES/.golangci.yml
 linters:
-  disable-all: true
   enable:
-    - gofmt
-    - revive
+    - gosec
+    - unconvert
+    - gocyclo
+    - goconst
     - goimports
-  fast: false
+    - gocritic
+    - govet
+    - revive
+    - gofmt
 linters-settings:
-  gofmt:
-    simplify: false
+  errcheck:
+    # report about assignment of errors to blank identifier: `num, _ := strconv.Atoi(numStr)`;
+    # default is false: such cases aren't reported by default.
+    check-blank: true
+  gocyclo:
+    # minimal code complexity to report, 30 by default
+    min-complexity: 15
+  maligned:
+    # print struct with more effective memory layout or not, false by default
+    suggest-new: true
+  revive:
+    rules:
+      - name: exported
+        arguments:
+          - disableStutteringCheck
+
 issues:
-  exclude-use-default: false
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - dupl
+        - gosec
+        - goconst
+        - staticcheck
+  include:
+    # based on the https://www.pixelstech.net/article/1650069870-golangci-lint-to-enable-comment-check-for-exported-functions
+    - EXC0012 # EXC0012 revive: Annoying issue about not having a comment. The rare codebase has such comments
+    - EXC0014 # EXC0014 revive: Annoying issue about not having a comment. The rare codebase has such comments
