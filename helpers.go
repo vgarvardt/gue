@@ -2,7 +2,7 @@ package gue
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"sync"
@@ -11,7 +11,7 @@ import (
 
 // RandomStringID returns random alphanumeric string that can be used as ID.
 func RandomStringID() string {
-	hash := md5.Sum([]byte(time.Now().Format(time.RFC3339Nano)))
+	hash := sha256.Sum256([]byte(time.Now().Format(time.RFC3339Nano)))
 	return hex.EncodeToString(hash[:])[:6]
 }
 
