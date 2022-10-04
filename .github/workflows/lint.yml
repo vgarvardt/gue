@@ -40,6 +40,6 @@ jobs:
       - name: Lint Golang
         uses: golangci/golangci-lint-action@v3
         with:
-          only-new-issues: false
+          only-new-issues: ${{ github.event_name == 'pull_request' }}
           args: >
             --config=./.github/linters/.golangci.yml
