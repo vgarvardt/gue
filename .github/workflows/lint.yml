@@ -1,13 +1,14 @@
 ---
-name: "PR Branch: Lint"
+name: "Lint"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 on:
-  pull_request:
+  push:
     branches: [ master ]
+  pull_request:
 
 jobs:
   lint:
@@ -25,6 +26,15 @@ jobs:
       - name: Lint Code Base
         uses: github/super-linter@v4
         env:
-          VALIDATE_ALL_CODEBASE: false
+          VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' }}
           DEFAULT_BRANCH: master
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # go validator works pretty bad in super-linter, we'll use the original one
+          VALIDATE_GO: false
+
+      - name: Lint Golang
+        uses: golangci/golangci-lint-action@v3
+        with:
+          only-new-issues: ${{ github.event_name == 'pull_request' }}
+          args: >
+            --config=./.github/linters/.golangci.yml

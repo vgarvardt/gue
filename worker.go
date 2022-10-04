@@ -93,6 +93,7 @@ func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) (*Worker, error) 
 		interval:     defaultPollInterval,
 		queue:        defaultQueueName,
 		c:            c,
+		id:           RandomStringID(),
 		wm:           wm,
 		logger:       adapter.NoOpLogger{},
 		pollStrategy: PriorityPollStrategy,
@@ -102,10 +103,6 @@ func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) (*Worker, error) 
 
 	for _, option := range options {
 		option(&w)
-	}
-
-	if w.id == "" {
-		w.id = newID()
 	}
 
 	switch w.pollStrategy {
@@ -124,13 +121,7 @@ func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) (*Worker, error) 
 // not run in its own goroutine, so it’s possible to wait for completion. Use
 // context cancellation to shut it down.
 func (w *Worker) Run(ctx context.Context) error {
-	return w.runLock(ctx, w.runLoop)
-}
-
-// runLock runs function f under a run lock. Any attempt to call runLock concurrently
-// will return an error.
-func (w *Worker) runLock(ctx context.Context, f func(ctx context.Context) error) error {
-	return runLock(ctx, f, &w.mu, &w.running, w.id)
+	return RunLock(ctx, w.runLoop, &w.mu, &w.running, w.id)
 }
 
 // runLoop pulls jobs off the Worker's queue at its interval.
@@ -305,24 +296,6 @@ func recoverPanic(ctx context.Context, span trace.Span, mWorked syncint64.Counte
 	}
 }
 
-func runLock(ctx context.Context, f func(ctx context.Context) error, mu *sync.Mutex, running *bool, id string) error {
-	mu.Lock()
-	if *running {
-		mu.Unlock()
-		return fmt.Errorf("worker[id=%s] is already running", id)
-	}
-	*running = true
-	mu.Unlock()
-
-	defer func() {
-		mu.Lock()
-		*running = false
-		mu.Unlock()
-	}()
-
-	return f(ctx)
-}
-
 // WorkerPool is a pool of Workers, each working jobs from the queue
 // at the specified interval using the WorkMap.
 type WorkerPool struct {
@@ -355,6 +328,7 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 		interval:     defaultPollInterval,
 		queue:        defaultQueueName,
 		c:            c,
+		id:           RandomStringID(),
 		workers:      make([]*Worker, poolSize),
 		logger:       adapter.NoOpLogger{},
 		pollStrategy: PriorityPollStrategy,
@@ -364,10 +338,6 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 
 	for _, option := range options {
 		option(&w)
-	}
-
-	if w.id == "" {
-		w.id = newID()
 	}
 
 	w.logger = w.logger.With(adapter.F("worker-pool-id", w.id))
@@ -401,18 +371,12 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 // Run blocks until all workers exit. Use context cancellation for
 // shutdown.
 func (w *WorkerPool) Run(ctx context.Context) error {
-	return w.runLock(ctx, w.runGroup)
+	return RunLock(ctx, w.runGroup, &w.mu, &w.running, w.id)
 }
 
 // WorkOne tries to consume single message from the queue.
 func (w *WorkerPool) WorkOne(ctx context.Context) (didWork bool) {
 	return w.workers[0].WorkOne(ctx)
-}
-
-// runLock runs function f under a run lock. Any attempt to call runLock concurrently
-// will return an error.
-func (w *WorkerPool) runLock(ctx context.Context, f func(ctx context.Context) error) error {
-	return runLock(ctx, f, &w.mu, &w.running, w.id)
 }
 
 // runGroup starts all the Workers in the WorkerPool in own goroutines

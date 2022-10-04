@@ -1,9 +1,14 @@
 ---
-name: "Base Branch: Test"
+name: "Test"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 on:
   push:
     branches: [ master ]
+  pull_request:
 
 jobs:
   test:
