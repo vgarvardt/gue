@@ -32,6 +32,11 @@ jobs:
           # go validator works pretty bad in super-linter, we'll use the original one
           VALIDATE_GO: false
 
+      - name: Setup dependencies
+        uses: ./.github/actions/setup-deps
+        with:
+          token: ${{secrets.GITHUB_TOKEN}}
+
       - name: Lint Golang
         uses: golangci/golangci-lint-action@v3
         with:

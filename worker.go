@@ -29,7 +29,7 @@ const (
 	defaultQueueName    = ""
 
 	// PriorityPollStrategy cares about the priority first to lock top priority jobs first even if there are available
-	//ones that should be executed earlier but with lower priority.
+	// ones that should be executed earlier but with lower priority.
 	PriorityPollStrategy PollStrategy = "OrderByPriority"
 	// RunAtPollStrategy cares about the scheduled time first to lock earliest to execute jobs first even if there
 	// are ones with a higher priority scheduled to a later time but already eligible for execution
@@ -187,7 +187,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 			ll.Error("Failed to mark job as done", adapter.Err(err))
 		}
 
-		w.mDuration.Record(ctx, time.Now().Sub(processingStartedAt).Milliseconds(), attrJobType.String(j.Type))
+		w.mDuration.Record(ctx, time.Since(processingStartedAt).Milliseconds(), attrJobType.String(j.Type))
 	}()
 	defer recoverPanic(ctx, span, w.mWorked, ll, j)
 
@@ -386,9 +386,10 @@ func (w *WorkerPool) runGroup(ctx context.Context) error {
 
 	grp, ctx := errgroup.WithContext(ctx)
 	for i := range w.workers {
-		worker := w.workers[i]
+		idx := i
+		worker := w.workers[idx]
 		grp.Go(func() error {
-			return worker.Run(setWorkerIdx(ctx, i))
+			return worker.Run(setWorkerIdx(ctx, idx))
 		})
 	}
 
