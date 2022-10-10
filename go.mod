@@ -6,7 +6,7 @@ require (
 	github.com/jackc/pgconn v1.13.0
 	github.com/jackc/pgtype v1.12.0
 	github.com/jackc/pgx/v4 v4.17.2
-	github.com/jackc/pgx/v5 v5.0.1
+	github.com/jackc/pgx/v5 v5.0.2
 	github.com/lib/pq v1.10.7
 	github.com/stretchr/testify v1.8.0
 	github.com/vgarvardt/backoff v1.0.0
