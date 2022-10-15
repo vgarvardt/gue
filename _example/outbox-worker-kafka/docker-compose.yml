@@ -1,0 +1,45 @@
+---
+version: '3.9'
+services:
+  postgres:
+    image: postgres:14
+    environment:
+      - POSTGRES_USER=outbox
+      - POSTGRES_PASSWORD=outbox
+      - POSTGRES_DATABASE=outbox
+    ports:
+      - '5432'
+    healthcheck:
+      test: [ 'CMD-SHELL', 'pg_isready -U test' ]
+      interval: 1s
+      timeout: 2s
+      retries: 20
+
+  redpanda:
+    image: docker.redpanda.com/vectorized/redpanda:v22.2.6
+    command:
+      - redpanda
+      - start
+      - --smp
+      - '1'
+      - --reserve-memory
+      - 0M
+      - --overprovisioned
+      - --node-id
+      - '0'
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:29092,OUTSIDE://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - PLAINTEXT://redpanda:29092,OUTSIDE://localhost:9092
+      - --pandaproxy-addr
+      - PLAINTEXT://0.0.0.0:28082,OUTSIDE://0.0.0.0:8082
+      - --advertise-pandaproxy-addr
+      - PLAINTEXT://redpanda:28082,OUTSIDE://localhost:8082
+    ports:
+      - '9092'
+    healthcheck:
+      test: [ 'CMD', 'curl', '--fail', 'localhost:9644/v1/status/ready' ]
+      start_period: 15s
+      interval: 2s
+      timeout: 1s
+      retries: 20
