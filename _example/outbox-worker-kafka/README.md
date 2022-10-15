@@ -1,8 +1,8 @@
 # Gue-based Outbox Worker for Kafka
 
-> **Disclaimer**: this Outbox Worker implementation is just a showcase of gue library usage and is not designed to be
+> **Disclaimer**: this Outbox Worker implementation is just a showcase example of gue library usage and is not designed to be
 > used in high load environments. There are ways of improving its performance and resilience, but they out of scope
-> for this showcase.
+> for this showcase example.
 
 This is simple [Transactional outbox pattern](https://microservices.io/patterns/data/transactional-outbox.html)
 implementation that uses `gue` for messages store/relay processes.
@@ -32,4 +32,4 @@ Once running it polls jobs from the `gue_jobs` table in the database and tries t
 
 To avoid spinning up real [Kafka](https://kafka.apache.org/), [Redpanda](https://redpanda.com/) instance is used - it
 uses Kafka-compatible protocol and consumes much less resources. Everything else is not so important for the purpose of
-this showcase.
+this showcase example.
