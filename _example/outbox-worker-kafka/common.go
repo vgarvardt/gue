@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"os/signal"
 	"path"
@@ -50,6 +51,7 @@ func newGueClient(ctx context.Context) (*gue.Client, error) {
 		return nil, errors.New("DB_DSN env var is not set, should be something like postgres://user:password@host:port/dbname")
 	}
 
+	log.Printf("Connecting to the DB %q\n", dbDSN)
 	connPoolConfig, err := pgxpool.ParseConfig(dbDSN)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse DB DSN to connection config: %w", err)
@@ -102,6 +104,7 @@ func createTestTopic() error {
 		return errors.New("KAFKA_BROKERS env var is not set, should be something like localhost:9092")
 	}
 
+	log.Printf("Initialising test kafka topic at %q\n", kafkaBrokers)
 	config := sarama.NewConfig()
 	ca, err := sarama.NewClusterAdmin(strings.Split(kafkaBrokers, ","), config)
 	if err != nil {
@@ -138,6 +141,7 @@ func newSyncProducer() (sarama.SyncProducer, error) {
 	config.Producer.Partitioner = sarama.NewHashPartitioner
 	config.Producer.Return.Successes = true
 
+	log.Printf("Initialising sync kafka producer at %q\n", kafkaBrokers)
 	producer, err := sarama.NewSyncProducer(strings.Split(kafkaBrokers, ","), config)
 	if err != nil {
 		return nil, fmt.Errorf("coulf not instantiate new sync producer: %w", err)
