@@ -18,6 +18,10 @@ import (
 	"github.com/vgarvardt/gue/v4/adapter/pgxv5"
 )
 
+//func init() {
+//	sarama.Logger = log.New(os.Stdout, "[Sarama] ", log.LstdFlags)
+//}
+
 const (
 	kafkaTopic    = "test-topic"
 	outboxQueue   = "outbox-kafka"
@@ -106,6 +110,8 @@ func createTestTopic() error {
 
 	log.Printf("Initialising test kafka topic at %q\n", kafkaBrokers)
 	config := sarama.NewConfig()
+	config.ClientID = "gue-outbox-worker-kafka-example-admin"
+
 	ca, err := sarama.NewClusterAdmin(strings.Split(kafkaBrokers, ","), config)
 	if err != nil {
 		return fmt.Errorf("could not create kafka cluster admin client: %w", err)

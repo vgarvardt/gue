@@ -28,7 +28,7 @@ Runs `gue` Worker, polls Jobs enqueued by the Client and tries to publish them t
 
 Once running it polls jobs from the `gue_jobs` table in the database and tries to publish messages to kafka.
 
-### A not on Kafka
+### A note on Kafka
 
 To avoid spinning up real [Kafka](https://kafka.apache.org/), [Redpanda](https://redpanda.com/) instance is used - it
 uses Kafka-compatible protocol and consumes much less resources. Everything else is not so important for the purpose of

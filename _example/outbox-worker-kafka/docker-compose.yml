@@ -36,7 +36,7 @@ services:
       - --advertise-pandaproxy-addr
       - PLAINTEXT://redpanda:28082,OUTSIDE://localhost:8082
     ports:
-      - '9092'
+      - '9092:9092'
     healthcheck:
       test: [ 'CMD', 'curl', '--fail', 'localhost:9644/v1/status/ready' ]
       start_period: 15s
