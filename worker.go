@@ -72,6 +72,9 @@ type Worker struct {
 	tracer       trace.Tracer
 	meter        metric.Meter
 
+	graceful    bool
+	gracefulCtx func() context.Context
+
 	hooksJobLocked      []HookFunc
 	hooksUnknownJobType []HookFunc
 	hooksJobDone        []HookFunc
@@ -132,8 +135,17 @@ func (w *Worker) runLoop(ctx context.Context) error {
 	defer timer.Stop()
 
 	for {
+		handlerCtx := ctx
+		if w.graceful {
+			if w.gracefulCtx == nil {
+				handlerCtx = context.Background()
+			} else {
+				handlerCtx = w.gracefulCtx()
+			}
+		}
+
 		// Try to work a job
-		if w.WorkOne(ctx) {
+		if w.WorkOne(handlerCtx) {
 			// Since we just did work, non-blocking check whether we should exit
 			select {
 			case <-ctx.Done():
@@ -312,6 +324,9 @@ type WorkerPool struct {
 	tracer       trace.Tracer
 	meter        metric.Meter
 
+	graceful    bool
+	gracefulCtx func() context.Context
+
 	hooksJobLocked      []HookFunc
 	hooksUnknownJobType []HookFunc
 	hooksJobDone        []HookFunc
@@ -362,6 +377,9 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 		if err != nil {
 			return nil, fmt.Errorf("could not init worker instance: %w", err)
 		}
+
+		w.workers[i].graceful = w.graceful
+		w.workers[i].gracefulCtx = w.gracefulCtx
 	}
 
 	return &w, nil
