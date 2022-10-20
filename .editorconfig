@@ -19,3 +19,7 @@ ij_go_import_sorting = gofmt
 ij_go_local_group_mode = project
 ij_go_move_all_imports_in_one_declaration = true
 ij_go_move_all_stdlib_imports_in_one_group = true
+
+[go.mod]
+indent_style = tab
+indent_size = 4

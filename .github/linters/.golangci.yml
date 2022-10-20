@@ -38,6 +38,7 @@ issues:
         - goconst
         - staticcheck
   include:
-    # based on the https://www.pixelstech.net/article/1650069870-golangci-lint-to-enable-comment-check-for-exported-functions
+    # based on the
+    # https://www.pixelstech.net/article/1650069870-golangci-lint-to-enable-comment-check-for-exported-functions
     - EXC0012 # EXC0012 revive: Annoying issue about not having a comment. The rare codebase has such comments
     - EXC0014 # EXC0014 revive: Annoying issue about not having a comment. The rare codebase has such comments
