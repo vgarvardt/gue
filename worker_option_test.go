@@ -99,6 +99,26 @@ func TestWithWorkerPollStrategy(t *testing.T) {
 	assert.Equal(t, RunAtPollStrategy, workerWithWorkerPollStrategy.pollStrategy)
 }
 
+func TestWithWorkerGracefulShutdown(t *testing.T) {
+	workerWithNoGraceful, err := NewWorker(nil, dummyWM)
+	require.NoError(t, err)
+	assert.False(t, workerWithNoGraceful.graceful)
+	assert.Nil(t, workerWithNoGraceful.gracefulCtx)
+
+	workerWithGracefulDefault, err := NewWorker(nil, dummyWM, WithWorkerGracefulShutdown(nil))
+	require.NoError(t, err)
+	assert.True(t, workerWithGracefulDefault.graceful)
+	assert.Nil(t, workerWithGracefulDefault.gracefulCtx)
+
+	ctx := context.WithValue(context.Background(), "foo", "bar")
+	workerWithGracefulCtx, err := NewWorker(nil, dummyWM, WithWorkerGracefulShutdown(func() context.Context {
+		return ctx
+	}))
+	require.NoError(t, err)
+	assert.True(t, workerWithGracefulCtx.graceful)
+	assert.Same(t, ctx, workerWithGracefulCtx.gracefulCtx())
+}
+
 func TestWithPoolPollInterval(t *testing.T) {
 	workerPoolWithDefaultInterval, err := NewWorkerPool(nil, dummyWM, 2)
 	require.NoError(t, err)
@@ -313,4 +333,36 @@ func TestWithPoolHooksJobDone(t *testing.T) {
 		}
 	}
 	require.Equal(t, 9, hook.counter)
+}
+
+func TestWithPoolGracefulShutdown(t *testing.T) {
+	poolWithNoGraceful, err := NewWorkerPool(nil, dummyWM, 5)
+	require.NoError(t, err)
+	assert.False(t, poolWithNoGraceful.graceful)
+	assert.Nil(t, poolWithNoGraceful.gracefulCtx)
+	for _, w := range poolWithNoGraceful.workers {
+		assert.False(t, w.graceful)
+		assert.Nil(t, w.gracefulCtx)
+	}
+
+	poolWithGracefulDefault, err := NewWorkerPool(nil, dummyWM, 5, WithPoolGracefulShutdown(nil))
+	require.NoError(t, err)
+	assert.True(t, poolWithGracefulDefault.graceful)
+	assert.Nil(t, poolWithGracefulDefault.gracefulCtx)
+	for _, w := range poolWithGracefulDefault.workers {
+		assert.True(t, w.graceful)
+		assert.Nil(t, w.gracefulCtx)
+	}
+
+	ctx := context.WithValue(context.Background(), "foo", "bar")
+	poolWithGracefulCtx, err := NewWorkerPool(nil, dummyWM, 5, WithPoolGracefulShutdown(func() context.Context {
+		return ctx
+	}))
+	require.NoError(t, err)
+	assert.True(t, poolWithGracefulCtx.graceful)
+	assert.Same(t, ctx, poolWithGracefulCtx.gracefulCtx())
+	for _, w := range poolWithGracefulCtx.workers {
+		assert.True(t, w.graceful)
+		assert.Same(t, ctx, poolWithGracefulCtx.gracefulCtx())
+	}
 }

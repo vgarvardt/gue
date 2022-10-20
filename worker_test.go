@@ -561,3 +561,125 @@ func testWorkerWorkOneErrorHookTx(t *testing.T, connPool adapter.ConnPool) {
 	assert.True(t, didWork)
 	assert.Equal(t, 1, called)
 }
+
+func TestNewWorker_GracefulShutdown(t *testing.T) {
+	connPool := adapterTesting.OpenTestPoolLibPQ(t)
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	var jobCancelled bool
+	wm := WorkMap{
+		"MyJob": func(ctx context.Context, j *Job) error {
+			select {
+			case <-ctx.Done():
+				jobCancelled = true
+			case <-time.After(5 * time.Second):
+				jobCancelled = false
+			}
+
+			return nil
+		},
+	}
+
+	ctxNonGraceful, cancelNonGraceful := context.WithTimeout(context.Background(), time.Second)
+	defer cancelNonGraceful()
+
+	err = c.Enqueue(ctxNonGraceful, &Job{Type: "MyJob"})
+	require.NoError(t, err)
+
+	wNonGraceful, err := NewWorker(c, wm)
+	require.NoError(t, err)
+
+	chDone := make(chan bool)
+	go func() {
+		err := wNonGraceful.Run(ctxNonGraceful)
+		assert.NoError(t, err)
+		chDone <- true
+	}()
+
+	<-chDone
+	require.True(t, jobCancelled)
+
+	ctxGraceful, cancelGraceful := context.WithTimeout(context.Background(), time.Second)
+	defer cancelGraceful()
+
+	err = c.Enqueue(ctxGraceful, &Job{Type: "MyJob"})
+	require.NoError(t, err)
+
+	wGraceful, err := NewWorker(c, wm, WithWorkerGracefulShutdown(nil))
+	require.NoError(t, err)
+
+	go func() {
+		err := wGraceful.Run(ctxGraceful)
+		assert.NoError(t, err)
+		chDone <- true
+	}()
+
+	<-chDone
+	require.False(t, jobCancelled)
+}
+
+func TestNewWorkerPool_GracefulShutdown(t *testing.T) {
+	connPool := adapterTesting.OpenTestPoolLibPQ(t)
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	const numWorkers = 5
+	jobCancelled, jobFinished := 0, 0
+	wm := WorkMap{
+		"MyJob": func(ctx context.Context, j *Job) error {
+			select {
+			case <-ctx.Done():
+				jobCancelled++
+			case <-time.After(5 * time.Second):
+				jobFinished++
+			}
+
+			return nil
+		},
+	}
+
+	ctxNonGraceful, cancelNonGraceful := context.WithTimeout(context.Background(), time.Second)
+	defer cancelNonGraceful()
+
+	for i := 0; i < numWorkers; i++ {
+		err = c.Enqueue(ctxNonGraceful, &Job{Type: "MyJob"})
+		require.NoError(t, err)
+	}
+
+	wNonGraceful, err := NewWorkerPool(c, wm, numWorkers)
+	require.NoError(t, err)
+
+	chDone := make(chan bool)
+	go func() {
+		err := wNonGraceful.Run(ctxNonGraceful)
+		assert.NoError(t, err)
+		chDone <- true
+	}()
+
+	<-chDone
+	assert.Equal(t, numWorkers, jobCancelled)
+	assert.Equal(t, 0, jobFinished)
+
+	jobCancelled, jobFinished = 0, 0
+	ctxGraceful, cancelGraceful := context.WithTimeout(context.Background(), time.Second)
+	defer cancelGraceful()
+
+	err = c.Enqueue(ctxGraceful, &Job{Type: "MyJob"})
+	require.NoError(t, err)
+
+	wGraceful, err := NewWorkerPool(c, wm, numWorkers, WithPoolGracefulShutdown(nil))
+	require.NoError(t, err)
+
+	go func() {
+		err := wGraceful.Run(ctxGraceful)
+		assert.NoError(t, err)
+		chDone <- true
+	}()
+
+	<-chDone
+	assert.Equal(t, 0, jobCancelled)
+	assert.Equal(t, numWorkers, jobFinished)
+}
