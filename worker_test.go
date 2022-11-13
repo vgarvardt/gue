@@ -10,10 +10,14 @@ import (
 	"github.com/jackc/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest/observer"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/vgarvardt/gue/v4/adapter"
 	adapterTesting "github.com/vgarvardt/gue/v4/adapter/testing"
+	adapterZap "github.com/vgarvardt/gue/v4/adapter/zap"
 )
 
 type mockHook struct {
@@ -356,6 +360,8 @@ func TestWorkerWorkRescuesPanic(t *testing.T) {
 
 func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
 	ctx := context.Background()
+	observed, logs := observer.New(zapcore.DebugLevel)
+	logger := zap.New(observed)
 
 	c, err := NewClient(connPool)
 	require.NoError(t, err)
@@ -367,7 +373,7 @@ func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
 			panic("the panic msg")
 		},
 	}
-	w, err := NewWorker(c, wm)
+	w, err := NewWorker(c, wm, WithWorkerLogger(adapterZap.New(logger)))
 	require.NoError(t, err)
 
 	job := Job{Type: "MyJob"}
@@ -392,6 +398,9 @@ func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
 	// basic check if a stacktrace is there - not the stacktrace format itself
 	assert.Contains(t, j.LastError.String, "worker.go:")
 	assert.Contains(t, j.LastError.String, "worker_test.go:")
+
+	panicLogs := logs.FilterLevelExact(zapcore.ErrorLevel).FilterMessage("Job panicked").All()
+	require.Len(t, panicLogs, 1)
 }
 
 func TestWorkerWorkWithWorkerHooksJobDonePanic(t *testing.T) {
