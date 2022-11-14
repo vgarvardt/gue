@@ -41,7 +41,6 @@ func testLockJob(t *testing.T, connPool adapter.ConnPool) {
 	require.NoError(t, err)
 
 	require.NotNil(t, j.tx)
-	require.NotNil(t, j.pool)
 
 	t.Cleanup(func() {
 		err := j.Done(ctx)
@@ -168,7 +167,6 @@ func testLockJobByID(t *testing.T, connPool adapter.ConnPool) {
 	require.NoError(t, err)
 
 	require.NotNil(t, j.tx)
-	require.NotNil(t, j.pool)
 
 	t.Cleanup(func() {
 		err := j.Done(ctx)
@@ -266,7 +264,6 @@ func testLockNextScheduledJob(t *testing.T, connPool adapter.ConnPool) {
 	require.NoError(t, err)
 
 	require.NotNil(t, j.tx)
-	require.NotNil(t, j.pool)
 
 	t.Cleanup(func() {
 		err := j.Done(ctx)
@@ -465,9 +462,8 @@ func testJobDone(t *testing.T, connPool adapter.ConnPool) {
 	err = j.Done(ctx)
 	require.NoError(t, err)
 
-	// make sure conn and pool were cleared
+	// make sure tx was cleared
 	assert.Nil(t, j.tx)
-	assert.Nil(t, j.pool)
 }
 
 func TestJobDoneMultiple(t *testing.T) {
@@ -771,7 +767,6 @@ func TestMultiSchema(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NotNil(t, j.tx)
-	require.NotNil(t, j.pool)
 
 	t.Cleanup(func() {
 		err := j.Done(ctx)

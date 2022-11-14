@@ -60,7 +60,6 @@ type Job struct {
 
 	mu      sync.Mutex
 	deleted bool
-	pool    adapter.ConnPool
 	tx      adapter.Tx
 	backoff Backoff
 	logger  adapter.Logger
@@ -71,9 +70,6 @@ type Job struct {
 // will be committed. This function will return nil if the Job's
 // transaction was closed with Done().
 func (j *Job) Tx() adapter.Tx {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-
 	return j.tx
 }
 
@@ -105,7 +101,7 @@ func (j *Job) Done(ctx context.Context) error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	if j.tx == nil || j.pool == nil {
+	if j.tx == nil {
 		// already marked as done
 		return nil
 	}
@@ -114,7 +110,6 @@ func (j *Job) Done(ctx context.Context) error {
 		return err
 	}
 
-	j.pool = nil
 	j.tx = nil
 
 	return nil
