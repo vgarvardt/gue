@@ -24,7 +24,9 @@ MD007:
 MD010:
   code_blocks: false          # Ignore no-hard-tabs in cde blocks because that's how formatting for golang works
 MD013:
-  line_length: 400            # Line length 80 is far to short
+  line_length: 120            # Line length 80 is far too short
+MD024:
+  siblings_only: true         # Allow the same headers for different sections
 MD026:
   punctuation: ".,;:!。，；:"  # List of not allowed
 MD029: false                  # Ordered list item prefix

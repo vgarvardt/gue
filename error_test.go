@@ -96,7 +96,7 @@ func testErrRescheduleJobAt(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, int32(1), jLocked2.ErrorCount)
 	assert.True(t, jLocked2.LastError.Valid)
 	assert.Equal(t, errRescheduleStr, jLocked2.LastError.String)
-	assert.True(t, jLocked2.RunAt.Equal(rescheduleAt))
+	assert.True(t, jLocked2.RunAt.Round(time.Second).Equal(rescheduleAt.Round(time.Second)))
 
 	err = jLocked2.Done(ctx)
 	require.NoError(t, err)
