@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -346,7 +345,7 @@ func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
 	})
 
 	assert.Equal(t, int32(1), j.ErrorCount)
-	assert.NotEqual(t, pgtype.Null, j.LastError.Status)
+	assert.True(t, j.LastError.Valid)
 	assert.Equal(t, "the error msg", j.LastError.String)
 }
 
@@ -393,7 +392,7 @@ func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
 	})
 
 	assert.Equal(t, int32(1), j.ErrorCount)
-	assert.NotEqual(t, pgtype.Null, j.LastError.Status)
+	assert.True(t, j.LastError.Valid)
 	assert.Contains(t, j.LastError.String, "the panic msg\n")
 	// basic check if a stacktrace is there - not the stacktrace format itself
 	assert.Contains(t, j.LastError.String, "worker.go:")
@@ -446,7 +445,7 @@ func testWorkerWorkWithWorkerHooksJobDonePanic(t *testing.T, connPool adapter.Co
 	})
 
 	assert.Equal(t, int32(1), j.ErrorCount)
-	assert.NotEqual(t, pgtype.Null, j.LastError.Status)
+	assert.True(t, j.LastError.Valid)
 	assert.Contains(t, j.LastError.String, "panic from the hook job done\n")
 	// basic check if a stacktrace is there - not the stacktrace format itself
 	assert.Contains(t, j.LastError.String, "worker.go:")
@@ -516,7 +515,7 @@ func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
 	})
 
 	assert.Equal(t, int32(1), j.ErrorCount)
-	require.NotEqual(t, pgtype.Null, j.LastError.Status)
+	assert.True(t, j.LastError.Valid)
 	assert.Contains(t, j.LastError.String, `unknown job type: "MyJob"`)
 }
 
