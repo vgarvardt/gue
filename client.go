@@ -2,7 +2,6 @@ package gue
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -13,7 +12,7 @@ import (
 	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 	"go.opentelemetry.io/otel/metric/unit"
 
-	"github.com/vgarvardt/gue/v4/adapter"
+	"github.com/vgarvardt/gue/v5/adapter"
 )
 
 // ErrMissingType is returned when you attempt to enqueue a job with no Type
@@ -84,15 +83,15 @@ func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) e
 		j.RunAt = now
 	}
 
-	if len(j.Args) == 0 {
-		j.Args = []byte(`[]`)
+	if j.Args == nil {
+		j.Args = []byte{}
 	}
 
 	err := q.QueryRow(ctx, `INSERT INTO gue_jobs
 (queue, priority, run_at, job_type, args, created_at, updated_at)
 VALUES
 ($1, $2, $3, $4, $5, $6, $6) RETURNING job_id
-`, j.Queue, j.Priority, j.RunAt, j.Type, json.RawMessage(j.Args), now).Scan(&j.ID)
+`, j.Queue, j.Priority, j.RunAt, j.Type, j.Args, now).Scan(&j.ID)
 
 	c.logger.Debug(
 		"Tried to enqueue a job",
@@ -185,7 +184,7 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 		&j.Priority,
 		&j.RunAt,
 		&j.Type,
-		(*json.RawMessage)(&j.Args),
+		&j.Args,
 		&j.ErrorCount,
 		&j.LastError,
 	)

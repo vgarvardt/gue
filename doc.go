@@ -24,11 +24,11 @@ Here is a complete example showing worker setup for pgx/v4 and two jobs enqueued
 		"os"
 		"time"
 
-		"github.com/jackc/pgx/v4/pgxpool"
+		"github.com/jackc/pgx/v5/pgxpool"
 		"golang.org/x/sync/errgroup"
 
-		"github.com/vgarvardt/gue/v4"
-		"github.com/vgarvardt/gue/v4/adapter/pgxv4"
+		"github.com/vgarvardt/gue/v5"
+		"github.com/vgarvardt/gue/v5/adapter/pgxv5"
 	)
 
 	type printNameArgs struct {
@@ -50,13 +50,13 @@ Here is a complete example showing worker setup for pgx/v4 and two jobs enqueued
 			log.Fatal(err)
 		}
 
-		pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
+		pgxPool, err := pgxpool.NewWithConfig(context.Background(), pgxCfg)
 		if err != nil {
 			log.Fatal(err)
 		}
 		defer pgxPool.Close()
 
-		poolAdapter := pgxv4.NewConnPool(pgxPool)
+		poolAdapter := pgxv5.NewConnPool(pgxPool)
 
 		gc, err := gue.NewClient(poolAdapter)
 		if err != nil {
