@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -49,7 +48,7 @@ func testEnqueueOnlyType(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, jobType, j.Type)
 	assert.Equal(t, []byte(`[]`), j.Args)
 	assert.Equal(t, int32(0), j.ErrorCount)
-	assert.NotEqual(t, pgtype.Present, j.LastError.Status)
+	assert.False(t, j.LastError.Valid)
 }
 
 func TestEnqueueWithPriority(t *testing.T) {

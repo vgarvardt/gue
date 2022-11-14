@@ -2,11 +2,10 @@ package gue
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"sync"
 	"time"
-
-	"github.com/jackc/pgtype"
 
 	"github.com/vgarvardt/gue/v4/adapter"
 )
@@ -57,7 +56,7 @@ type Job struct {
 	// LastError is the error message or stack trace from the last time the job failed. It is ignored on job creation.
 	// This field is initialised only when the Job is being retrieved from the DB and is not
 	// being updated when the current Job run errored.
-	LastError pgtype.Text
+	LastError sql.NullString
 
 	mu      sync.Mutex
 	deleted bool
@@ -129,7 +128,7 @@ func (j *Job) Done(ctx context.Context) error {
 // so calling Done() is not required, although calling it will not cause any issues.
 // If you got the job from the worker - it will take care of cleaning up the job and resources,
 // no need to do this manually in a WorkFunc.
-func (j *Job) Error(ctx context.Context, msg string) (err error) {
+func (j *Job) Error(ctx context.Context, jErr error) (err error) {
 	defer func() {
 		doneErr := j.Done(ctx)
 		if doneErr != nil {
@@ -138,27 +137,39 @@ func (j *Job) Error(ctx context.Context, msg string) (err error) {
 	}()
 
 	errorCount := j.ErrorCount + 1
-	backoff := j.backoff(int(errorCount))
-	if backoff < 0 {
+	now := time.Now().UTC()
+	newRunAt := j.calculateErrorRunAt(jErr, now, errorCount)
+	if newRunAt.IsZero() {
 		j.logger.Info(
-			"Got negative backoff for a job, discarding it",
-			adapter.F("backoff", backoff),
+			"Got empty new run at for the errored job, discarding it",
 			adapter.F("job-type", j.Type),
 			adapter.F("job-queue", j.Queue),
 			adapter.F("job-errors", errorCount),
+			adapter.Err(jErr),
 		)
 		err = j.Delete(ctx)
 		return
 	}
 
-	now := time.Now().UTC()
-	newRunAt := now.Add(backoff)
-
 	_, err = j.tx.Exec(
 		ctx,
 		`UPDATE gue_jobs SET error_count = $1, run_at = $2, last_error = $3, updated_at = $4 WHERE job_id = $5`,
-		errorCount, newRunAt, msg, now, j.ID,
+		errorCount, newRunAt, jErr.Error(), now, j.ID,
 	)
 
 	return err
+}
+
+func (j *Job) calculateErrorRunAt(err error, now time.Time, errorCount int32) time.Time {
+	errReschedule, ok := err.(ErrJobReschedule)
+	if ok {
+		return errReschedule.rescheduleJobAt()
+	}
+
+	backoff := j.backoff(int(errorCount))
+	if backoff < 0 {
+		return time.Time{}
+	}
+
+	return now.Add(backoff)
 }

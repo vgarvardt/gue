@@ -217,7 +217,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 		ll.Error("Got a job with unknown type")
 
 		errUnknownType := fmt.Errorf("worker[id=%s] unknown job type: %q", w.id, j.Type)
-		if err = j.Error(ctx, errUnknownType.Error()); err != nil {
+		if err = j.Error(ctx, errUnknownType); err != nil {
 			span.RecordError(fmt.Errorf("failed to mark job as error: %w", err))
 			ll.Error("Got an error on setting an error to unknown job", adapter.Err(err))
 		}
@@ -236,7 +236,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 			hook(ctx, j, err)
 		}
 
-		if jErr := j.Error(ctx, err.Error()); jErr != nil {
+		if jErr := j.Error(ctx, err); jErr != nil {
 			span.RecordError(fmt.Errorf("failed to mark job as error: %w", err))
 			ll.Error("Got an error on setting an error to an errored job", adapter.Err(jErr), adapter.F("job-error", err))
 		}
@@ -301,7 +301,7 @@ func recoverPanic(ctx context.Context, span trace.Span, mWorked syncint64.Counte
 		span.RecordError(errors.New("job panicked"), trace.WithAttributes(attribute.String("stacktrace", stacktrace)))
 		logger.Error("Job panicked", adapter.F("stacktrace", stacktrace))
 
-		if err := j.Error(ctx, stacktrace); err != nil {
+		if err := j.Error(ctx, errors.New(stacktrace)); err != nil {
 			span.RecordError(fmt.Errorf("failed to mark panicked job as error: %w", err))
 			logger.Error("Got an error on setting an error to a panicked job", adapter.Err(err))
 		}

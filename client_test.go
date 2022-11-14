@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgtype"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -57,7 +56,7 @@ func testLockJob(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, newJob.Type, j.Type)
 	assert.Equal(t, []byte(`[]`), j.Args)
 	assert.Equal(t, int32(0), j.ErrorCount)
-	assert.NotEqual(t, pgtype.Present, j.LastError.Status)
+	assert.False(t, j.LastError.Valid)
 }
 
 func TestLockJobAlreadyLocked(t *testing.T) {
@@ -184,7 +183,7 @@ func testLockJobByID(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, newJob.Type, j.Type)
 	assert.Equal(t, []byte(`[]`), j.Args)
 	assert.Equal(t, int32(0), j.ErrorCount)
-	assert.NotEqual(t, pgtype.Present, j.LastError.Status)
+	assert.False(t, j.LastError.Valid)
 }
 
 func TestLockJobByIDAlreadyLocked(t *testing.T) {
@@ -282,7 +281,7 @@ func testLockNextScheduledJob(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, newJob.Type, j.Type)
 	assert.Equal(t, []byte(`[]`), j.Args)
 	assert.Equal(t, int32(0), j.ErrorCount)
-	assert.NotEqual(t, pgtype.Present, j.LastError.Status)
+	assert.False(t, j.LastError.Valid)
 }
 
 func TestLockNextScheduledJobAlreadyLocked(t *testing.T) {
@@ -522,7 +521,7 @@ func testJobError(t *testing.T, connPool adapter.ConnPool) {
 	require.NotNil(t, j)
 
 	msg := "world\nended"
-	err = j.Error(ctx, msg)
+	err = j.Error(ctx, errors.New(msg))
 	require.NoError(t, err)
 
 	// make sure job was not deleted
@@ -535,7 +534,7 @@ func testJobError(t *testing.T, connPool adapter.ConnPool) {
 		assert.NoError(t, err)
 	})
 
-	assert.NotEqual(t, pgtype.Null, j2.LastError.Status)
+	assert.True(t, j2.LastError.Valid)
 	assert.Equal(t, msg, j2.LastError.String)
 	assert.Equal(t, int32(1), j2.ErrorCount)
 	assert.Greater(t, j2.RunAt.Unix(), job.RunAt.Unix())
@@ -568,7 +567,7 @@ func testJobErrorCustomBackoff(t *testing.T, connPool adapter.ConnPool) {
 	require.NotNil(t, j)
 
 	msg := "world\nended"
-	err = j.Error(ctx, msg)
+	err = j.Error(ctx, errors.New(msg))
 	require.NoError(t, err)
 
 	// make sure job was not deleted
@@ -581,7 +580,7 @@ func testJobErrorCustomBackoff(t *testing.T, connPool adapter.ConnPool) {
 		assert.NoError(t, err)
 	})
 
-	assert.NotEqual(t, pgtype.Null, j2.LastError.Status)
+	assert.True(t, j2.LastError.Valid)
 	assert.Equal(t, msg, j2.LastError.String)
 	assert.Equal(t, int32(1), j2.ErrorCount)
 	assert.Greater(t, j2.RunAt.Unix(), job.RunAt.Unix())
