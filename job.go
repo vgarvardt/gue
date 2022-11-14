@@ -31,6 +31,9 @@ type Job struct {
 	// Queue is the name of the queue. It defaults to the empty queue "".
 	Queue string
 
+	// JobBatchId is the name of a set of items running in a queue
+	JobBatchId string
+
 	// Priority is the priority of the Job. The default priority is 0, and a
 	// lower number means a higher priority.
 	//

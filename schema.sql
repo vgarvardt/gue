@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS gue_jobs
     error_count INTEGER     NOT NULL DEFAULT 0,
     last_error  TEXT,
     queue       TEXT        NOT NULL,
+		job_batch_id   TEXT        NOT NULL,
     created_at  TIMESTAMPTZ NOT NULL,
     updated_at  TIMESTAMPTZ NOT NULL
 );

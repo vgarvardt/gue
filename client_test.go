@@ -32,7 +32,8 @@ func testLockJob(t *testing.T, connPool adapter.ConnPool) {
 	require.NoError(t, err)
 
 	newJob := &Job{
-		Type: "MyJob",
+		Type:       "MyJob",
+		JobBatchId: "foo",
 	}
 	err = c.Enqueue(ctx, newJob)
 	require.NoError(t, err)
@@ -56,6 +57,7 @@ func testLockJob(t *testing.T, connPool adapter.ConnPool) {
 	assert.False(t, j.RunAt.IsZero())
 	assert.Equal(t, newJob.Type, j.Type)
 	assert.Equal(t, []byte(`[]`), j.Args)
+	assert.Equal(t, "foo", j.JobBatchId)
 	assert.Equal(t, int32(0), j.ErrorCount)
 	assert.NotEqual(t, pgtype.Present, j.LastError.Status)
 }
@@ -645,7 +647,7 @@ func findOneJob(t testing.TB, q adapter.Queryable) *Job {
 	j := new(Job)
 	err := q.QueryRow(
 		context.Background(),
-		`SELECT priority, run_at, job_id, job_type, args, error_count, last_error, queue FROM gue_jobs LIMIT 1`,
+		`SELECT priority, run_at, job_id, job_type, args, error_count, last_error, queue, job_batch_id FROM gue_jobs LIMIT 1`,
 	).Scan(
 		&j.Priority,
 		&j.RunAt,
@@ -655,6 +657,7 @@ func findOneJob(t testing.TB, q adapter.Queryable) *Job {
 		&j.ErrorCount,
 		&j.LastError,
 		&j.Queue,
+		&j.JobBatchId,
 	)
 	if err == adapter.ErrNoRows {
 		return nil
