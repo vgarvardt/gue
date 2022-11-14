@@ -9,8 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/vgarvardt/gue/v4/adapter"
-	adapterTesting "github.com/vgarvardt/gue/v4/adapter/testing"
+	"github.com/vgarvardt/gue/v5/adapter"
+	adapterTesting "github.com/vgarvardt/gue/v5/adapter/testing"
 )
 
 func TestErrRescheduleJobIn(t *testing.T) {

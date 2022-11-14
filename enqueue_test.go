@@ -8,8 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/vgarvardt/gue/v4/adapter"
-	adapterTesting "github.com/vgarvardt/gue/v4/adapter/testing"
+	"github.com/vgarvardt/gue/v5/adapter"
+	adapterTesting "github.com/vgarvardt/gue/v5/adapter/testing"
 )
 
 func TestEnqueueOnlyType(t *testing.T) {
@@ -46,7 +46,7 @@ func testEnqueueOnlyType(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, JobPriorityDefault, j.Priority)
 	assert.False(t, j.RunAt.IsZero())
 	assert.Equal(t, jobType, j.Type)
-	assert.Equal(t, []byte(`[]`), j.Args)
+	assert.Equal(t, []byte(``), j.Args)
 	assert.Equal(t, int32(0), j.ErrorCount)
 	assert.False(t, j.LastError.Valid)
 }
@@ -142,7 +142,7 @@ func testEnqueueWithArgs(t *testing.T, connPool adapter.ConnPool) {
 		assert.NoError(t, err)
 	})
 
-	assert.JSONEq(t, string(want), string(j.Args))
+	assert.Equal(t, want, j.Args)
 }
 
 func TestEnqueueWithQueue(t *testing.T) {

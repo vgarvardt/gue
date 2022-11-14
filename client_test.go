@@ -2,7 +2,6 @@ package gue
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"math"
 	"sync"
@@ -12,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/vgarvardt/gue/v4/adapter"
-	adapterTesting "github.com/vgarvardt/gue/v4/adapter/testing"
+	"github.com/vgarvardt/gue/v5/adapter"
+	adapterTesting "github.com/vgarvardt/gue/v5/adapter/testing"
 )
 
 func TestLockJob(t *testing.T) {
@@ -32,6 +31,7 @@ func testLockJob(t *testing.T, connPool adapter.ConnPool) {
 
 	newJob := &Job{
 		Type: "MyJob",
+		Args: []byte(`{invalid]json>`),
 	}
 	err = c.Enqueue(ctx, newJob)
 	require.NoError(t, err)
@@ -53,7 +53,7 @@ func testLockJob(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, JobPriorityDefault, j.Priority)
 	assert.False(t, j.RunAt.IsZero())
 	assert.Equal(t, newJob.Type, j.Type)
-	assert.Equal(t, []byte(`[]`), j.Args)
+	assert.Equal(t, []byte(`{invalid]json>`), j.Args)
 	assert.Equal(t, int32(0), j.ErrorCount)
 	assert.False(t, j.LastError.Valid)
 }
@@ -179,7 +179,7 @@ func testLockJobByID(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, JobPriorityDefault, j.Priority)
 	assert.False(t, j.RunAt.IsZero())
 	assert.Equal(t, newJob.Type, j.Type)
-	assert.Equal(t, []byte(`[]`), j.Args)
+	assert.Equal(t, []byte(``), j.Args)
 	assert.Equal(t, int32(0), j.ErrorCount)
 	assert.False(t, j.LastError.Valid)
 }
@@ -276,7 +276,7 @@ func testLockNextScheduledJob(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, JobPriorityDefault, j.Priority)
 	assert.False(t, j.RunAt.IsZero())
 	assert.Equal(t, newJob.Type, j.Type)
-	assert.Equal(t, []byte(`[]`), j.Args)
+	assert.Equal(t, []byte(``), j.Args)
 	assert.Equal(t, int32(0), j.ErrorCount)
 	assert.False(t, j.LastError.Valid)
 }
@@ -599,23 +599,23 @@ func testJobPriority(t *testing.T, connPool adapter.ConnPool) {
 	require.NoError(t, err)
 
 	// insert in the order different from expected to be locked
-	jobPriorityDefault := &Job{Type: "MyJob", Priority: JobPriorityDefault, Args: []byte(`"default"`)}
+	jobPriorityDefault := &Job{Type: "MyJob", Priority: JobPriorityDefault, Args: []byte(`default`)}
 	err = c.Enqueue(ctx, jobPriorityDefault)
 	require.NoError(t, err)
 
-	jobPriorityLowest := &Job{Type: "MyJob", Priority: JobPriorityLowest, Args: []byte(`"lowest"`)}
+	jobPriorityLowest := &Job{Type: "MyJob", Priority: JobPriorityLowest, Args: []byte(`lowest`)}
 	err = c.Enqueue(ctx, jobPriorityLowest)
 	require.NoError(t, err)
 
-	jobPriorityHighest := &Job{Type: "MyJob", Priority: JobPriorityHighest, Args: []byte(`"highest"`)}
+	jobPriorityHighest := &Job{Type: "MyJob", Priority: JobPriorityHighest, Args: []byte(`highest`)}
 	err = c.Enqueue(ctx, jobPriorityHighest)
 	require.NoError(t, err)
 
-	jobPriorityLow := &Job{Type: "MyJob", Priority: JobPriorityLow, Args: []byte(`"low"`)}
+	jobPriorityLow := &Job{Type: "MyJob", Priority: JobPriorityLow, Args: []byte(`low`)}
 	err = c.Enqueue(ctx, jobPriorityLow)
 	require.NoError(t, err)
 
-	jobPriorityHigh := &Job{Type: "MyJob", Priority: JobPriorityHigh, Args: []byte(`"high"`)}
+	jobPriorityHigh := &Job{Type: "MyJob", Priority: JobPriorityHigh, Args: []byte(`high`)}
 	err = c.Enqueue(ctx, jobPriorityHigh)
 	require.NoError(t, err)
 
@@ -646,7 +646,7 @@ func findOneJob(t testing.TB, q adapter.Queryable) *Job {
 		&j.RunAt,
 		&j.ID,
 		&j.Type,
-		(*json.RawMessage)(&j.Args),
+		&j.Args,
 		&j.ErrorCount,
 		&j.LastError,
 		&j.Queue,

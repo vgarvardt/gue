@@ -1,4 +1,4 @@
-module github.com/vgarvardt/gue/v4
+module github.com/vgarvardt/gue/v5
 
 go 1.18
 

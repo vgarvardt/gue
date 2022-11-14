@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS gue_jobs
     priority    SMALLINT    NOT NULL,
     run_at      TIMESTAMPTZ NOT NULL,
     job_type    TEXT        NOT NULL,
-    args        JSON        NOT NULL,
+    args        BYTEA       NOT NULL,
     error_count INTEGER     NOT NULL DEFAULT 0,
     last_error  TEXT,
     queue       TEXT        NOT NULL,
@@ -13,5 +13,3 @@ CREATE TABLE IF NOT EXISTS gue_jobs
 );
 
 CREATE INDEX IF NOT EXISTS idx_gue_jobs_selector ON gue_jobs (queue, run_at, priority);
-
-COMMENT ON TABLE gue_jobs IS '1';

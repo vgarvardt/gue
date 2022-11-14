@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vgarvardt/gue/v4/adapter"
+	"github.com/vgarvardt/gue/v5/adapter"
 )
 
 // JobPriority is the wrapper type for Job.Priority
@@ -44,18 +44,18 @@ type Job struct {
 	// Type maps job to a worker func.
 	Type string
 
-	// Args must be the bytes of a valid JSON string
+	// Args for the job.
 	Args []byte
 
 	// ErrorCount is the number of times this job has attempted to run, but failed with an error.
 	// It is ignored on job creation.
 	// This field is initialised only when the Job is being retrieved from the DB and is not
-	// being updated when the current Job run errored.
+	// being updated when the current Job handler errored.
 	ErrorCount int32
 
 	// LastError is the error message or stack trace from the last time the job failed. It is ignored on job creation.
 	// This field is initialised only when the Job is being retrieved from the DB and is not
-	// being updated when the current Job run errored.
+	// being updated when the current Job run errored. This field supposed to be used mostly for the debug reasons.
 	LastError sql.NullString
 
 	mu      sync.Mutex
