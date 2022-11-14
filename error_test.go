@@ -22,6 +22,8 @@ func TestErrRescheduleJobIn(t *testing.T) {
 }
 
 func testErrRescheduleJobIn(t *testing.T, connPool adapter.ConnPool) {
+	t.Helper()
+
 	ctx := context.Background()
 	now := time.Now()
 
@@ -64,6 +66,8 @@ func TestErrRescheduleJobAt(t *testing.T) {
 }
 
 func testErrRescheduleJobAt(t *testing.T, connPool adapter.ConnPool) {
+	t.Helper()
+
 	ctx := context.Background()
 	now := time.Now()
 	rescheduleAt := now.Add(3 * time.Hour)
@@ -107,6 +111,8 @@ func TestErrDiscardJob(t *testing.T) {
 }
 
 func testErrDiscardJob(t *testing.T, connPool adapter.ConnPool) {
+	t.Helper()
+
 	ctx := context.Background()
 	now := time.Now()
 

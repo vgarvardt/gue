@@ -1,5 +1,19 @@
 # Changelog
 
+## v5
+
+### Breaking
+
+- `Job.Error()` accepts `error` instance instead of error string
+- `Job.LastError` type changed from `github.com/jackc/pgtype.Text` to stdlib `database/sql.NullString`
+
+### New
+
+- Handler may return special typed errors to control rescheduling/discarding of the jobs on the individual basis
+  - `ErrRescheduleJobIn()` - reschedule Job after some interval from the current time
+  - `ErrRescheduleJobAt()` - reschedule Job to some specific time
+  - `ErrDiscardJob()` - discard a Job
+
 ## v4
 
 ### Breaking
