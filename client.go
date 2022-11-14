@@ -177,7 +177,7 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 		return nil, err
 	}
 
-	j := Job{pool: c.pool, tx: tx, backoff: c.backoff, logger: c.logger}
+	j := Job{tx: tx, backoff: c.backoff, logger: c.logger}
 
 	err = tx.QueryRow(ctx, sql, args...).Scan(
 		&j.ID,

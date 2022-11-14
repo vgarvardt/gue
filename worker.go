@@ -36,8 +36,12 @@ const (
 	RunAtPollStrategy PollStrategy = "OrderByRunAtPriority"
 )
 
-// WorkFunc is a function that performs a Job. If an error is returned, the job
-// is re-enqueued with exponential backoff.
+// WorkFunc is the handler function that performs the Job. If an error is returned, the Job
+// is either re-enqueued with the given backoff or is discarded based on the worker backoff strategy
+// and returned error.
+//
+// Modifying Job fields and calling any methods that are modifying its state within the handler may lead to undefined
+// behaviour. Please never do this.
 type WorkFunc func(ctx context.Context, j *Job) error
 
 // HookFunc is a function that may react to a Job lifecycle events. All the callbacks are being executed synchronously,
