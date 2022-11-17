@@ -28,6 +28,8 @@ const (
 	defaultPollInterval = 5 * time.Second
 	defaultQueueName    = ""
 
+	defaultPanicStackBufSize = 1024
+
 	// PriorityPollStrategy cares about the priority first to lock top priority jobs first even if there are available
 	// ones that should be executed earlier but with lower priority.
 	PriorityPollStrategy PollStrategy = "OrderByPriority"
@@ -73,11 +75,12 @@ type Worker struct {
 	running      bool
 	pollStrategy PollStrategy
 	pollFunc     pollFunc
-	tracer       trace.Tracer
-	meter        metric.Meter
 
 	graceful    bool
 	gracefulCtx func() context.Context
+
+	tracer trace.Tracer
+	meter  metric.Meter
 
 	hooksJobLocked      []HookFunc
 	hooksUnknownJobType []HookFunc
@@ -85,6 +88,8 @@ type Worker struct {
 
 	mWorked   syncint64.Counter
 	mDuration syncint64.Histogram
+
+	panicStackBufSize int
 }
 
 // NewWorker returns a Worker that fetches Jobs from the Client and executes
@@ -106,6 +111,8 @@ func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) (*Worker, error) 
 		pollStrategy: PriorityPollStrategy,
 		tracer:       trace.NewNoopTracerProvider().Tracer("noop"),
 		meter:        metric.NewNoopMeterProvider().Meter("noop"),
+
+		panicStackBufSize: defaultPanicStackBufSize,
 	}
 
 	for _, option := range options {
@@ -205,7 +212,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 
 		w.mDuration.Record(ctx, time.Since(processingStartedAt).Milliseconds(), attrJobType.String(j.Type))
 	}()
-	defer recoverPanic(ctx, span, w.mWorked, ll, j)
+	defer w.recoverPanic(ctx, ll, j)
 
 	for _, hook := range w.hooksJobLocked {
 		hook(ctx, j, nil)
@@ -285,10 +292,13 @@ func (w *Worker) initMetrics() (err error) {
 
 // recoverPanic tries to handle panics in job execution.
 // A stacktrace is stored into Job last_error.
-func recoverPanic(ctx context.Context, span trace.Span, mWorked syncint64.Counter, logger adapter.Logger, j *Job) {
+func (w *Worker) recoverPanic(ctx context.Context, logger adapter.Logger, j *Job) {
 	if r := recover(); r != nil {
+		ctx, span := w.tracer.Start(ctx, "Worker.recoverPanic")
+		defer span.End()
+
 		// record an error on the job with panic message and stacktrace
-		stackBuf := make([]byte, 1024)
+		stackBuf := make([]byte, w.panicStackBufSize)
 		n := runtime.Stack(stackBuf, false)
 
 		buf := new(bytes.Buffer)
@@ -301,7 +311,7 @@ func recoverPanic(ctx context.Context, span trace.Span, mWorked syncint64.Counte
 			logger.Error("Could not build panicked job stacktrace", adapter.Err(err), adapter.F("runtime-stack", string(stackBuf[:n])))
 		}
 
-		mWorked.Add(ctx, 1, attrJobType.String(j.Type), attrSuccess.Bool(false))
+		w.mWorked.Add(ctx, 1, attrJobType.String(j.Type), attrSuccess.Bool(false))
 		span.RecordError(errors.New("job panicked"), trace.WithAttributes(attribute.String("stacktrace", stacktrace)))
 		logger.Error("Job panicked", adapter.F("stacktrace", stacktrace))
 
@@ -325,15 +335,18 @@ type WorkerPool struct {
 	mu           sync.Mutex
 	running      bool
 	pollStrategy PollStrategy
-	tracer       trace.Tracer
-	meter        metric.Meter
 
 	graceful    bool
 	gracefulCtx func() context.Context
 
+	tracer trace.Tracer
+	meter  metric.Meter
+
 	hooksJobLocked      []HookFunc
 	hooksUnknownJobType []HookFunc
 	hooksJobDone        []HookFunc
+
+	panicStackBufSize int
 }
 
 // NewWorkerPool creates a new WorkerPool with count workers using the Client c.
@@ -353,6 +366,8 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 		pollStrategy: PriorityPollStrategy,
 		tracer:       trace.NewNoopTracerProvider().Tracer("noop"),
 		meter:        metric.NewNoopMeterProvider().Meter("noop"),
+
+		panicStackBufSize: defaultPanicStackBufSize,
 	}
 
 	for _, option := range options {
@@ -376,6 +391,7 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 			WithWorkerHooksJobLocked(w.hooksJobLocked...),
 			WithWorkerHooksUnknownJobType(w.hooksUnknownJobType...),
 			WithWorkerHooksJobDone(w.hooksJobDone...),
+			WithWorkerPanicStackBufSize(w.panicStackBufSize),
 		)
 
 		if err != nil {
