@@ -119,6 +119,16 @@ func TestWithWorkerGracefulShutdown(t *testing.T) {
 	assert.Same(t, ctx, workerWithGracefulCtx.gracefulCtx())
 }
 
+func TestWithWorkerPanicStackBufSize(t *testing.T) {
+	workerWithDefaultSize, err := NewWorker(nil, dummyWM)
+	require.NoError(t, err)
+	assert.Equal(t, defaultPanicStackBufSize, workerWithDefaultSize.panicStackBufSize)
+
+	workerWithCustomSize, err := NewWorker(nil, dummyWM, WithWorkerPanicStackBufSize(1234))
+	require.NoError(t, err)
+	assert.Equal(t, 1234, workerWithCustomSize.panicStackBufSize)
+}
+
 func TestWithPoolPollInterval(t *testing.T) {
 	workerPoolWithDefaultInterval, err := NewWorkerPool(nil, dummyWM, 2)
 	require.NoError(t, err)
@@ -364,5 +374,21 @@ func TestWithPoolGracefulShutdown(t *testing.T) {
 	for _, w := range poolWithGracefulCtx.workers {
 		assert.True(t, w.graceful)
 		assert.Same(t, ctx, poolWithGracefulCtx.gracefulCtx())
+	}
+}
+
+func TestWithPoolPanicStackBufSize(t *testing.T) {
+	poolWithDefaultSize, err := NewWorkerPool(nil, dummyWM, 2)
+	require.NoError(t, err)
+	assert.Equal(t, defaultPanicStackBufSize, poolWithDefaultSize.panicStackBufSize)
+	for _, w := range poolWithDefaultSize.workers {
+		assert.Equal(t, defaultPanicStackBufSize, w.panicStackBufSize)
+	}
+
+	poolWithCustomSize, err := NewWorkerPool(nil, dummyWM, 3, WithPoolPanicStackBufSize(12345))
+	require.NoError(t, err)
+	assert.Equal(t, 12345, poolWithCustomSize.panicStackBufSize)
+	for _, w := range poolWithCustomSize.workers {
+		assert.Equal(t, 12345, w.panicStackBufSize)
 	}
 }
