@@ -3,7 +3,6 @@ package testing
 import (
 	"context"
 	"database/sql"
-	"io/ioutil"
 	"os"
 	"sync"
 	"testing"
@@ -63,7 +62,7 @@ func doApplyMigrations(t testing.TB, schema string) {
 		assert.NoError(t, err)
 	}()
 
-	migrationSQL, err := ioutil.ReadFile("./schema.sql")
+	migrationSQL, err := os.ReadFile("./schema.sql")
 	require.NoError(t, err)
 
 	if schema != "" {
