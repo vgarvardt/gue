@@ -26,7 +26,15 @@ var (
 	}
 )
 
-// NewExponentialBackoff instantiates new exponential backoff implementation with config
-func NewExponentialBackoff(cfg exp.Config) func(retries int) time.Duration {
+// NewExponentialBackoff instantiates new exponential Backoff implementation with config
+func NewExponentialBackoff(cfg exp.Config) Backoff {
 	return exp.Exponential{Config: cfg}.Backoff
+}
+
+// NewConstantBackoff instantiates new backoff implementation with teh constant retry duration that does not depend
+// on the retry.
+func NewConstantBackoff(d time.Duration) Backoff {
+	return func(int) time.Duration {
+		return d
+	}
 }
