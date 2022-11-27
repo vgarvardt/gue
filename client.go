@@ -2,10 +2,10 @@ package gue
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"io"
-	"math/rand"
 	"time"
 
 	"github.com/oklog/ulid/v2"
@@ -51,7 +51,7 @@ func NewClient(pool adapter.ConnPool, options ...ClientOption) (*Client, error) 
 		backoff: DefaultExponentialBackoff,
 		meter:   metric.NewNoopMeterProvider().Meter("noop"),
 		entropy: &ulid.LockedMonotonicReader{
-			MonotonicReader: ulid.Monotonic(rand.New(rand.NewSource(time.Now().UnixNano())), 0),
+			MonotonicReader: ulid.Monotonic(rand.Reader, 0),
 		},
 	}
 
@@ -79,7 +79,7 @@ func (c *Client) EnqueueTx(ctx context.Context, j *Job, tx adapter.Tx) error {
 	return c.execEnqueue(ctx, j, tx)
 }
 
-func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) error {
+func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) (err error) {
 	if j.Type == "" {
 		return ErrMissingType
 	}
@@ -95,8 +95,10 @@ func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) e
 		j.Args = []byte{}
 	}
 
-	j.ID = ulid.MustNew(ulid.Timestamp(now), c.entropy)
-	_, err := q.Exec(ctx, `INSERT INTO gue_jobs
+	if j.ID, err = ulid.New(ulid.Timestamp(now), c.entropy); err != nil {
+		return fmt.Errorf("could not generate new Job ULID ID: %w", err)
+	}
+	_, err = q.Exec(ctx, `INSERT INTO gue_jobs
 (job_id, queue, priority, run_at, job_type, args, created_at, updated_at)
 VALUES
 ($1, $2, $3, $4, $5, $6, $7, $7)
