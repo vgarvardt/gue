@@ -66,19 +66,19 @@ func NewTx(tx pgx.Tx) adapter.Tx {
 }
 
 // Exec implements adapter.Tx.Exec() using github.com/jackc/pgx/v5
-func (tx *aTx) Exec(ctx context.Context, sql string, args ...any) (adapter.CommandTag, error) {
-	ct, err := tx.tx.Exec(ctx, sql, args...)
+func (tx *aTx) Exec(ctx context.Context, query string, args ...any) (adapter.CommandTag, error) {
+	ct, err := tx.tx.Exec(ctx, query, args...)
 	return aCommandTag{ct}, err
 }
 
 // QueryRow implements adapter.Tx.QueryRow() using github.com/jackc/pgx/v5
-func (tx *aTx) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
-	return &aRow{tx.tx.QueryRow(ctx, sql, args...)}
+func (tx *aTx) QueryRow(ctx context.Context, query string, args ...any) adapter.Row {
+	return &aRow{tx.tx.QueryRow(ctx, query, args...)}
 }
 
 // Query implements adapter.Tx.Query() using github.com/jackc/pgx/v5
-func (tx *aTx) Query(ctx context.Context, sql string, args ...any) (adapter.Rows, error) {
-	rows, err := tx.tx.Query(ctx, sql, args...)
+func (tx *aTx) Query(ctx context.Context, query string, args ...any) (adapter.Rows, error) {
+	rows, err := tx.tx.Query(ctx, query, args...)
 	return &aRows{rows}, err
 }
 
@@ -118,19 +118,19 @@ func (c *conn) Begin(ctx context.Context) (adapter.Tx, error) {
 }
 
 // Exec implements adapter.Conn.Exec() using github.com/jackc/pgx/v5
-func (c *conn) Exec(ctx context.Context, sql string, args ...any) (adapter.CommandTag, error) {
-	r, err := c.c.Exec(ctx, sql, args...)
+func (c *conn) Exec(ctx context.Context, query string, args ...any) (adapter.CommandTag, error) {
+	r, err := c.c.Exec(ctx, query, args...)
 	return aCommandTag{r}, err
 }
 
 // QueryRow implements adapter.Conn.QueryRow() github.com/jackc/pgx/v5
-func (c *conn) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
-	return &aRow{c.c.QueryRow(ctx, sql, args...)}
+func (c *conn) QueryRow(ctx context.Context, query string, args ...any) adapter.Row {
+	return &aRow{c.c.QueryRow(ctx, query, args...)}
 }
 
 // Query implements adapter.Conn.Query() github.com/jackc/pgx/v5
-func (c *conn) Query(ctx context.Context, sql string, args ...any) (adapter.Rows, error) {
-	rows, err := c.c.Query(ctx, sql, args...)
+func (c *conn) Query(ctx context.Context, query string, args ...any) (adapter.Rows, error) {
+	rows, err := c.c.Query(ctx, query, args...)
 	return &aRows{rows}, err
 }
 
@@ -162,19 +162,19 @@ func (c *connPool) Begin(ctx context.Context) (adapter.Tx, error) {
 }
 
 // Exec implements adapter.ConnPool.Exec() using github.com/jackc/pgx/v5
-func (c *connPool) Exec(ctx context.Context, sql string, args ...any) (adapter.CommandTag, error) {
-	ct, err := c.pool.Exec(ctx, sql, args...)
+func (c *connPool) Exec(ctx context.Context, query string, args ...any) (adapter.CommandTag, error) {
+	ct, err := c.pool.Exec(ctx, query, args...)
 	return aCommandTag{ct}, err
 }
 
 // QueryRow implements adapter.ConnPool.QueryRow() using github.com/jackc/pgx/v5
-func (c *connPool) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
-	return &aRow{c.pool.QueryRow(ctx, sql, args...)}
+func (c *connPool) QueryRow(ctx context.Context, query string, args ...any) adapter.Row {
+	return &aRow{c.pool.QueryRow(ctx, query, args...)}
 }
 
 // Query implements adapter.ConnPool.Query() using github.com/jackc/pgx/v5
-func (c *connPool) Query(ctx context.Context, sql string, args ...any) (adapter.Rows, error) {
-	rows, err := c.pool.Query(ctx, sql, args...)
+func (c *connPool) Query(ctx context.Context, query string, args ...any) (adapter.Rows, error) {
+	rows, err := c.pool.Query(ctx, query, args...)
 	return &aRows{rows}, err
 }
 
