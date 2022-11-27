@@ -20,11 +20,11 @@ func OpenTestPoolMaxConnsLibPQ(t testing.TB, maxConnections int, gueSchema, seco
 		require.Fail(t, "Both schemas should be either set or unset")
 	}
 
-	applyMigrations(gueSchema).Do(func() {
-		doApplyMigrations(t, gueSchema)
+	applyMigrations("pgsql/" + gueSchema).Do(func() {
+		doApplyPgMigrations(t, gueSchema)
 	})
 
-	dsn := testConnDSN(t)
+	dsn := testPgConnDSN(t)
 	if gueSchema != "" && secondSchema != "" {
 		dsn += fmt.Sprintf("&search_path=%s,%s", secondSchema, gueSchema)
 	}
