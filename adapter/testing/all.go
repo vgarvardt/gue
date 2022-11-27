@@ -62,7 +62,7 @@ func doApplyMigrations(t testing.TB, schema string) {
 		assert.NoError(t, err)
 	}()
 
-	migrationSQL, err := os.ReadFile("./schema.sql")
+	migrationSQL, err := os.ReadFile("./migrations/schema.sql")
 	require.NoError(t, err)
 
 	if schema != "" {

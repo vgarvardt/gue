@@ -2,10 +2,13 @@ package gue
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
+	"io"
 	"time"
 
+	"github.com/oklog/ulid/v2"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/instrument"
@@ -33,6 +36,8 @@ type Client struct {
 	backoff Backoff
 	meter   metric.Meter
 
+	entropy io.Reader
+
 	mEnqueue syncint64.Counter
 	mLockJob syncint64.Counter
 }
@@ -45,6 +50,9 @@ func NewClient(pool adapter.ConnPool, options ...ClientOption) (*Client, error) 
 		id:      RandomStringID(),
 		backoff: DefaultExponentialBackoff,
 		meter:   metric.NewNoopMeterProvider().Meter("noop"),
+		entropy: &ulid.LockedMonotonicReader{
+			MonotonicReader: ulid.Monotonic(rand.Reader, 0),
+		},
 	}
 
 	for _, option := range options {
@@ -71,7 +79,7 @@ func (c *Client) EnqueueTx(ctx context.Context, j *Job, tx adapter.Tx) error {
 	return c.execEnqueue(ctx, j, tx)
 }
 
-func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) error {
+func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) (err error) {
 	if j.Type == "" {
 		return ErrMissingType
 	}
@@ -87,17 +95,20 @@ func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) e
 		j.Args = []byte{}
 	}
 
-	err := q.QueryRow(ctx, `INSERT INTO gue_jobs
-(queue, priority, run_at, job_type, args, created_at, updated_at)
+	if j.ID, err = ulid.New(ulid.Timestamp(now), c.entropy); err != nil {
+		return fmt.Errorf("could not generate new Job ULID ID: %w", err)
+	}
+	_, err = q.Exec(ctx, `INSERT INTO gue_jobs
+(job_id, queue, priority, run_at, job_type, args, created_at, updated_at)
 VALUES
-($1, $2, $3, $4, $5, $6, $6) RETURNING job_id
-`, j.Queue, j.Priority, j.RunAt, j.Type, j.Args, now).Scan(&j.ID)
+($1, $2, $3, $4, $5, $6, $7, $7)
+`, j.ID.String(), j.Queue, j.Priority, j.RunAt, j.Type, j.Args, now)
 
 	c.logger.Debug(
 		"Tried to enqueue a job",
 		adapter.Err(err),
 		adapter.F("queue", j.Queue),
-		adapter.F("id", j.ID),
+		adapter.F("id", j.ID.String()),
 	)
 
 	c.mEnqueue.Add(ctx, 1, attrJobType.String(j.Type), attrSuccess.Bool(err == nil))
@@ -138,12 +149,12 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`
 //
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
-func (c *Client) LockJobByID(ctx context.Context, id int64) (*Job, error) {
+func (c *Client) LockJobByID(ctx context.Context, id ulid.ULID) (*Job, error) {
 	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error
 FROM gue_jobs
 WHERE job_id = $1 FOR UPDATE SKIP LOCKED`
 
-	return c.execLockJob(ctx, false, sql, id)
+	return c.execLockJob(ctx, false, sql, id.String())
 }
 
 // LockNextScheduledJob attempts to retrieve the earliest scheduled Job from the database in the specified queue.
