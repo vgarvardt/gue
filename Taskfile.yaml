@@ -25,12 +25,15 @@ tasks:
   test-run:
     summary: Runs tests, must have dependencies running in the docker compose
     cmds:
-      - cmd: go test -timeout 2m -cover -coverprofile=coverage.txt -covermode=atomic ./...
+      - cmd: go test -p=1 -timeout=2m -cover -coverprofile=coverage.txt -covermode=atomic ./...
     vars:
       PG_HOST:
         sh: docker compose port postgres 5432
+      MY_HOST:
+        sh: docker compose port mysql 3306
     env:
       TEST_POSTGRES: 'postgres://test:test@{{.PG_HOST}}/test?sslmode=disable'
+      TEST_MYSQL: 'test:test@tcp({{.MY_HOST}})/test?charset=utf8&parseTime=true'
 
   spell-lint:
     summary: Check spelling

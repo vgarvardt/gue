@@ -7,7 +7,8 @@ import (
 	"sync"
 	"testing"
 
-	_ "github.com/lib/pq" // register pq sql driver
+	_ "github.com/go-sql-driver/mysql" // register mysql driver
+	_ "github.com/lib/pq"              // register pq sql driver
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -26,9 +27,10 @@ type OpenOpenTestPoolMaxConns func(t testing.TB, maxConnections int32) adapter.C
 
 // AllAdaptersOpenTestPool lists all available adapters with callbacks
 var AllAdaptersOpenTestPool = map[string]OpenTestPool{
-	"pgx/v4": OpenTestPoolPGXv4,
-	"pgx/v5": OpenTestPoolPGXv5,
-	"lib/pq": OpenTestPoolLibPQ,
+	//"pgx/v4": OpenTestPoolPGXv4,
+	//"pgx/v5": OpenTestPoolPGXv5,
+	//"lib/pq": OpenTestPoolLibPQ,
+	"mysql": OpenTestPoolMySQL,
 }
 
 func truncateAndClose(t testing.TB, pool adapter.ConnPool) {
@@ -46,15 +48,15 @@ func applyMigrations(schema string) *sync.Once {
 	return once.(*sync.Once)
 }
 
-func doApplyMigrations(t testing.TB, schema string) {
+func doApplyPgMigrations(t testing.TB, schema string) {
 	t.Helper()
 
-	dsn := testConnDSN(t)
+	dsn := testPgConnDSN(t)
 	if schema != "" {
 		dsn += "&search_path=" + schema
-		t.Logf("doApplyMigrations dsn: %s", dsn)
 	}
 
+	t.Logf("doApplyPgMigrations dsn: %s", dsn)
 	migrationsConn, err := sql.Open("postgres", dsn)
 	require.NoError(t, err)
 	defer func() {
@@ -62,7 +64,7 @@ func doApplyMigrations(t testing.TB, schema string) {
 		assert.NoError(t, err)
 	}()
 
-	migrationSQL, err := os.ReadFile("./migrations/schema.sql")
+	migrationSQL, err := os.ReadFile("./migrations/schema.pg.sql")
 	require.NoError(t, err)
 
 	if schema != "" {
@@ -74,7 +76,35 @@ func doApplyMigrations(t testing.TB, schema string) {
 	require.NoError(t, err)
 }
 
-func testConnDSN(t testing.TB) string {
+func doApplyMySQLMigrations(t testing.TB, schema string) {
+	t.Helper()
+
+	dsn := testMySQLConnDSN(t)
+	if schema != "" {
+		dsn += "&search_path=" + schema
+	}
+
+	t.Logf("doApplyMySQLMigrations dsn: %s", dsn)
+	migrationsConn, err := sql.Open("mysql", dsn)
+	require.NoError(t, err)
+	defer func() {
+		err := migrationsConn.Close()
+		assert.NoError(t, err)
+	}()
+
+	migrationSQL, err := os.ReadFile("./migrations/schema.mysql.sql")
+	require.NoError(t, err)
+
+	if schema != "" {
+		_, err := migrationsConn.Exec("CREATE SCHEMA IF NOT EXISTS " + schema)
+		require.NoError(t, err)
+	}
+
+	_, err = migrationsConn.Exec(string(migrationSQL))
+	require.NoError(t, err)
+}
+
+func testPgConnDSN(t testing.TB) string {
 	t.Helper()
 
 	testPgConnString, found := os.LookupEnv("TEST_POSTGRES")
@@ -83,4 +113,15 @@ func testConnDSN(t testing.TB) string {
 
 	return testPgConnString
 	// return `postgres://test:test@localhost:54823/test?sslmode=disable`
+}
+
+func testMySQLConnDSN(t testing.TB) string {
+	t.Helper()
+
+	//testMySQLConnString, found := os.LookupEnv("TEST_MYSQL")
+	//require.True(t, found, "TEST_MYSQL env var is not set")
+	//require.NotEmpty(t, testMySQLConnString, "TEST_MYSQL env var is empty")
+	//
+	//return strings.Replace(testMySQLConnString, "0.0.0.0", "127.0.0.1", 1)
+	return `test:test@tcp(127.0.0.1:65515)/test?charset=utf8&parseTime=true`
 }

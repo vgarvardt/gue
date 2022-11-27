@@ -148,8 +148,8 @@ func (c *Client) execEnqueueWithID(ctx context.Context, j *Job, q adapter.Querya
 	_, err = q.Exec(ctx, `INSERT INTO gue_jobs
 (job_id, queue, priority, run_at, job_type, args, created_at, updated_at)
 VALUES
-($1, $2, $3, $4, $5, $6, $7, $7)
-`, idAsString, j.Queue, j.Priority, j.RunAt, j.Type, j.Args, j.CreatedAt)
+(?, ?, ?, ?, ?, ?, ?, ?)
+`, idAsString, j.Queue, j.Priority, j.RunAt, j.Type, j.Args, j.CreatedAt, j.CreatedAt)
 
 	c.logger.Debug(
 		"Tried to enqueue a job",
@@ -188,7 +188,7 @@ func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) e
 func (c *Client) LockJob(ctx context.Context, queue string) (*Job, error) {
 	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error, created_at
 FROM gue_jobs
-WHERE queue = $1 AND run_at <= $2
+WHERE queue = ? AND run_at <= ?
 ORDER BY priority ASC
 LIMIT 1 FOR UPDATE SKIP LOCKED`
 
@@ -208,7 +208,7 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`
 func (c *Client) LockJobByID(ctx context.Context, id ulid.ULID) (*Job, error) {
 	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error, created_at
 FROM gue_jobs
-WHERE job_id = $1 FOR UPDATE SKIP LOCKED`
+WHERE job_id = ? FOR UPDATE SKIP LOCKED`
 
 	return c.execLockJob(ctx, false, sql, id.String())
 }
@@ -229,7 +229,7 @@ WHERE job_id = $1 FOR UPDATE SKIP LOCKED`
 func (c *Client) LockNextScheduledJob(ctx context.Context, queue string) (*Job, error) {
 	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error, created_at
 FROM gue_jobs
-WHERE queue = $1 AND run_at <= $2
+WHERE queue = ? AND run_at <= ?
 ORDER BY run_at, priority ASC
 LIMIT 1 FOR UPDATE SKIP LOCKED`
 
@@ -245,8 +245,12 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 
 	j := Job{tx: tx, backoff: c.backoff, logger: c.logger}
 
+	// TODO: find out better way of reading ULID in MySQL, currently it is being read as []byte and Scan
+	//  is trying to unmarshal from binary format, although it is actually a string representation
+	var jID []byte
+
 	err = tx.QueryRow(ctx, sql, args...).Scan(
-		&j.ID,
+		&jID,
 		&j.Queue,
 		&j.Priority,
 		&j.RunAt,
@@ -257,6 +261,10 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 		&j.CreatedAt,
 	)
 	if err == nil {
+		if err := (&j.ID).UnmarshalText(jID); err != nil {
+			return &j, fmt.Errorf("could not unmarshal Job ULID ID: %w", err)
+		}
+
 		c.mLockJob.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(true)))
 		return &j, nil
 	}

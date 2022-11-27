@@ -94,7 +94,7 @@ func (j *Job) Delete(ctx context.Context) error {
 		return nil
 	}
 
-	_, err := j.tx.Exec(ctx, `DELETE FROM gue_jobs WHERE job_id = $1`, j.ID.String())
+	_, err := j.tx.Exec(ctx, `DELETE FROM gue_jobs WHERE job_id = ?`, j.ID.String())
 	if err != nil {
 		return err
 	}
@@ -156,7 +156,7 @@ func (j *Job) Error(ctx context.Context, jErr error) (err error) {
 
 	_, err = j.tx.Exec(
 		ctx,
-		`UPDATE gue_jobs SET error_count = $1, run_at = $2, last_error = $3, updated_at = $4 WHERE job_id = $5`,
+		`UPDATE gue_jobs SET error_count = ?, run_at = ?, last_error = ?, updated_at = ? WHERE job_id = ?`,
 		errorCount, newRunAt, jErr.Error(), now, j.ID.String(),
 	)
 
