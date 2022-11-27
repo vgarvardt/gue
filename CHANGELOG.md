@@ -5,7 +5,7 @@
 ### Breaking
 
 - `gue_jobs.job_id` column type changed to `TEXT` and the `Job.ID` field type changed from `int64`
-  to [`ULID`](https://github.com/oklog/ulid) to generate ID on the client side but keep jobs sortable by the primary
+  to [`ULID`](https://github.com/oklog/ulid) to generate ID on the client-side but keep jobs sortable by the primary
   key. Library is not providing any migration routines, it is up to the users to apply a migration. Example can be
   found at [migrations/job_id_to_ulid.sql](./migrations/job_id_to_ulid.sql).
 - `gue_jobs.args` column type changed to `BYTEA` - this allows storing any bytes as job args, not only valid JSON;

@@ -779,6 +779,7 @@ func TestJobIDMigration(t *testing.T) {
 	ctx := context.Background()
 
 	// create a table with the serial ID
+	// editorconfig-checker-disable
 	_, err := connPool.Exec(ctx, `
 DROP TABLE IF EXISTS gue_jobs;
 CREATE TABLE gue_jobs
@@ -798,6 +799,7 @@ CREATE TABLE gue_jobs
 CREATE INDEX IF NOT EXISTS idx_gue_jobs_selector ON gue_jobs (queue, run_at, priority);
 `)
 	require.NoError(t, err)
+	// editorconfig-checker-enable
 
 	// insert several records to test if the data migration works fine
 	now := time.Now()
