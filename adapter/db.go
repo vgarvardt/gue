@@ -42,16 +42,16 @@ type Rows interface {
 // Queryable is the base interface for different types of db connections that should implement
 // basic querying operations.
 type Queryable interface {
-	// Exec executes sql. sql can be either a prepared statement name or an SQL string.
+	// Exec executes query. A query can be either a prepared statement name or an SQL string.
 	// args should be referenced positionally from the sql string as $1, $2, etc.
-	Exec(ctx context.Context, sql string, args ...any) (CommandTag, error)
-	// QueryRow executes sql with args. Any error that occurs while
+	Exec(ctx context.Context, query string, args ...any) (CommandTag, error)
+	// QueryRow executes query with args. Any error that occurs while
 	// querying is deferred until calling Scan on the returned Row. That Row will
 	// error with ErrNoRows if no rows are returned.
-	QueryRow(ctx context.Context, sql string, args ...any) Row
+	QueryRow(ctx context.Context, query string, args ...any) Row
 	// Query executes a query that returns rows, typically a SELECT.
 	// The args are for any placeholder parameters in the query.
-	Query(ctx context.Context, sql string, args ...any) (Rows, error)
+	Query(ctx context.Context, query string, args ...any) (Rows, error)
 }
 
 // Tx represents a database transaction.

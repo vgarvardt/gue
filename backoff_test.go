@@ -94,7 +94,7 @@ func testBackoff(t *testing.T, connPool adapter.ConnPool) {
 		assert.True(t, jLocked2.LastError.Valid)
 		assert.Equal(t, "return with the error", jLocked2.LastError.String)
 		assert.Greater(t, jLocked2.RunAt.Unix(), jLocked1.RunAt.Unix())
-		assert.Equal(t, jLocked1.RunAt.Add(time.Minute).Round(time.Second), jLocked2.RunAt.Round(time.Second))
+		assert.WithinDuration(t, jLocked1.RunAt.Add(time.Minute), jLocked2.RunAt, time.Second)
 
 		err = jLocked2.Done(ctx)
 		require.NoError(t, err)

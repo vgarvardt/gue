@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"sync"
 	"testing"
@@ -42,7 +41,7 @@ func testLockJob(t *testing.T, connPool adapter.ConnPool) {
 
 	j, err := c.LockJob(ctx, "")
 	require.NoError(t, err)
-
+	require.NotNil(t, j)
 	require.NotNil(t, j.tx)
 
 	t.Cleanup(func() {
@@ -584,7 +583,7 @@ func testJobErrorCustomBackoff(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, int32(1), j2.ErrorCount)
 	assert.Greater(t, j2.RunAt.Unix(), job.RunAt.Unix())
 	// a diff in a sec is possible when doing dates math, so allow it
-	assert.LessOrEqual(t, math.Abs(job.RunAt.Add(time.Hour).Sub(j2.RunAt).Seconds()), float64(1))
+	assert.WithinDuration(t, job.RunAt.Add(time.Hour), j2.RunAt, time.Second)
 }
 
 func TestJobPriority(t *testing.T) {

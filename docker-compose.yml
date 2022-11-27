@@ -15,6 +15,6 @@ services:
       - /var/lib/postgresql/data
     healthcheck:
       test: [ "CMD", "pg_isready" ]
-      interval: 10s
-      timeout: 5s
+      interval: 3s
+      timeout: 3s
       retries: 5

@@ -69,8 +69,8 @@ type Queryable struct {
 }
 
 // Exec mock implementation of adapter.Queryable.Exec()
-func (m *Queryable) Exec(ctx context.Context, sql string, args ...any) (adapter.CommandTag, error) {
-	mArgs := m.Called(ctx, sql, args)
+func (m *Queryable) Exec(ctx context.Context, query string, args ...any) (adapter.CommandTag, error) {
+	mArgs := m.Called(ctx, query, args)
 	arg0 := mArgs.Get(0)
 	if arg0 == nil {
 		return nil, mArgs.Error(1)
@@ -79,14 +79,14 @@ func (m *Queryable) Exec(ctx context.Context, sql string, args ...any) (adapter.
 }
 
 // QueryRow mock implementation of adapter.Queryable.QueryRow()
-func (m *Queryable) QueryRow(ctx context.Context, sql string, args ...any) adapter.Row {
-	mArgs := m.Called(ctx, sql, args)
+func (m *Queryable) QueryRow(ctx context.Context, query string, args ...any) adapter.Row {
+	mArgs := m.Called(ctx, query, args)
 	return mArgs.Get(0).(adapter.Row)
 }
 
 // Query mock implementation of adapter.Queryable.Query()
-func (m *Queryable) Query(ctx context.Context, sql string, args ...any) (adapter.Rows, error) {
-	mArgs := m.Called(ctx, sql, args)
+func (m *Queryable) Query(ctx context.Context, query string, args ...any) (adapter.Rows, error) {
+	mArgs := m.Called(ctx, query, args)
 	arg0 := mArgs.Get(0)
 	if arg0 == nil {
 		return nil, mArgs.Error(1)
