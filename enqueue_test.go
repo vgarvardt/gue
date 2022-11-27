@@ -111,7 +111,8 @@ func testEnqueueWithRunAt(t *testing.T, connPool adapter.ConnPool) {
 	})
 
 	// truncate to the microsecond as postgres driver does
-	assert.WithinDuration(t, want, j.RunAt, time.Microsecond)
+	// UPD: truncate to the second as MySQL rounds ms: "22:59:36.553528" -> "21:59:37"
+	assert.WithinDuration(t, want, j.RunAt, time.Second)
 }
 
 func TestEnqueueWithArgs(t *testing.T) {

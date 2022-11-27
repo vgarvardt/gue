@@ -15,11 +15,11 @@ import (
 func OpenTestPoolMaxConnsPGXv4(t testing.TB, maxConnections int32) adapter.ConnPool {
 	t.Helper()
 
-	applyMigrations("").Do(func() {
-		doApplyMigrations(t, "")
+	applyMigrations("pgsql/").Do(func() {
+		doApplyPgMigrations(t, "")
 	})
 
-	connPoolConfig, err := pgxpool.ParseConfig(testConnDSN(t))
+	connPoolConfig, err := pgxpool.ParseConfig(testPgConnDSN(t))
 	require.NoError(t, err)
 
 	connPoolConfig.MaxConns = maxConnections

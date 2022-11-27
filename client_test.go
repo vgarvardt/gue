@@ -715,13 +715,20 @@ func testAdapterQuery(t *testing.T, connPool adapter.ConnPool) {
 func testQueryableQuery(ctx context.Context, t *testing.T, q adapter.Queryable, queue string, j1, j2, j3 *Job) {
 	t.Helper()
 
-	rows, err := q.Query(ctx, `SELECT job_id, job_type FROM gue_jobs WHERE queue = $1 ORDER BY job_id ASC`, queue)
+	rows, err := q.Query(ctx, `SELECT job_id, job_type FROM gue_jobs WHERE queue = ? ORDER BY job_id ASC`, queue)
 	require.NoError(t, err)
 
 	var jobs []*Job
 	for rows.Next() {
+		// TODO: find out better way of reading ULID in MySQL, currently it is being read as []byte and Scan
+		// is trying to unmarshal from binary format, although it is actually a string representation
+		var jID []byte
+
 		j := new(Job)
-		err := rows.Scan(&j.ID, &j.Type)
+		err := rows.Scan(&jID, &j.Type)
+		require.NoError(t, err)
+
+		err = (&j.ID).UnmarshalText(jID)
 		require.NoError(t, err)
 
 		jobs = append(jobs, j)

@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/jmoiron/sqlx"
+
 	"github.com/vgarvardt/gue/v5/adapter"
 )
 
@@ -70,18 +72,18 @@ func NewTx(tx *sql.Tx) adapter.Tx {
 
 // Exec implements adapter.Tx.Exec() using github.com/lib/pq
 func (tx *aTx) Exec(ctx context.Context, query string, args ...any) (adapter.CommandTag, error) {
-	ct, err := tx.tx.ExecContext(ctx, query, args...)
+	ct, err := tx.tx.ExecContext(ctx, sqlx.Rebind(sqlx.DOLLAR, query), args...)
 	return aCommandTag{ct}, err
 }
 
 // QueryRow implements adapter.Tx.QueryRow() using github.com/lib/pq
 func (tx *aTx) QueryRow(ctx context.Context, query string, args ...any) adapter.Row {
-	return &aRow{tx.tx.QueryRowContext(ctx, query, args...)}
+	return &aRow{tx.tx.QueryRowContext(ctx, sqlx.Rebind(sqlx.DOLLAR, query), args...)}
 }
 
 // Query implements adapter.Tx.Query() using github.com/lib/pq
 func (tx *aTx) Query(ctx context.Context, query string, args ...any) (adapter.Rows, error) {
-	rows, err := tx.tx.QueryContext(ctx, query, args...)
+	rows, err := tx.tx.QueryContext(ctx, sqlx.Rebind(sqlx.DOLLAR, query), args...)
 	return &aRows{rows}, err
 }
 
@@ -122,18 +124,18 @@ func (c *conn) Begin(ctx context.Context) (adapter.Tx, error) {
 
 // Exec implements adapter.Conn.Exec() using github.com/lib/pq
 func (c *conn) Exec(ctx context.Context, query string, args ...any) (adapter.CommandTag, error) {
-	r, err := c.c.ExecContext(ctx, query, args...)
+	r, err := c.c.ExecContext(ctx, sqlx.Rebind(sqlx.DOLLAR, query), args...)
 	return aCommandTag{r}, err
 }
 
 // QueryRow implements adapter.Conn.QueryRow() github.com/lib/pq
 func (c *conn) QueryRow(ctx context.Context, query string, args ...any) adapter.Row {
-	return &aRow{c.c.QueryRowContext(ctx, query, args...)}
+	return &aRow{c.c.QueryRowContext(ctx, sqlx.Rebind(sqlx.DOLLAR, query), args...)}
 }
 
 // Query implements adapter.Conn.Query() github.com/lib/pq
 func (c *conn) Query(ctx context.Context, query string, args ...any) (adapter.Rows, error) {
-	rows, err := c.c.QueryContext(ctx, query, args...)
+	rows, err := c.c.QueryContext(ctx, sqlx.Rebind(sqlx.DOLLAR, query), args...)
 	return &aRows{rows}, err
 }
 
@@ -159,18 +161,18 @@ func (c *connPool) Ping(ctx context.Context) error {
 
 // Exec implements adapter.ConnPool.Exec() using github.com/lib/pq
 func (c *connPool) Exec(ctx context.Context, query string, args ...any) (adapter.CommandTag, error) {
-	ct, err := c.pool.ExecContext(ctx, query, args...)
+	ct, err := c.pool.ExecContext(ctx, sqlx.Rebind(sqlx.DOLLAR, query), args...)
 	return aCommandTag{ct}, err
 }
 
 // QueryRow implements adapter.ConnPool.QueryRow() using github.com/lib/pq
 func (c *connPool) QueryRow(ctx context.Context, query string, args ...any) adapter.Row {
-	return &aRow{c.pool.QueryRowContext(ctx, query, args...)}
+	return &aRow{c.pool.QueryRowContext(ctx, sqlx.Rebind(sqlx.DOLLAR, query), args...)}
 }
 
 // Query implements adapter.ConnPool.Query() using github.com/lib/pq
 func (c *connPool) Query(ctx context.Context, query string, args ...any) (adapter.Rows, error) {
-	rows, err := c.pool.QueryContext(ctx, query, args...)
+	rows, err := c.pool.QueryContext(ctx, sqlx.Rebind(sqlx.DOLLAR, query), args...)
 	return &aRows{rows}, err
 }
 

@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/vgarvardt/gue/v5/adapter"
 )
@@ -67,18 +68,18 @@ func NewTx(tx pgx.Tx) adapter.Tx {
 
 // Exec implements adapter.Tx.Exec() using github.com/jackc/pgx/v5
 func (tx *aTx) Exec(ctx context.Context, query string, args ...any) (adapter.CommandTag, error) {
-	ct, err := tx.tx.Exec(ctx, query, args...)
+	ct, err := tx.tx.Exec(ctx, sqlx.Rebind(sqlx.DOLLAR, query), args...)
 	return aCommandTag{ct}, err
 }
 
 // QueryRow implements adapter.Tx.QueryRow() using github.com/jackc/pgx/v5
 func (tx *aTx) QueryRow(ctx context.Context, query string, args ...any) adapter.Row {
-	return &aRow{tx.tx.QueryRow(ctx, query, args...)}
+	return &aRow{tx.tx.QueryRow(ctx, sqlx.Rebind(sqlx.DOLLAR, query), args...)}
 }
 
 // Query implements adapter.Tx.Query() using github.com/jackc/pgx/v5
 func (tx *aTx) Query(ctx context.Context, query string, args ...any) (adapter.Rows, error) {
-	rows, err := tx.tx.Query(ctx, query, args...)
+	rows, err := tx.tx.Query(ctx, sqlx.Rebind(sqlx.DOLLAR, query), args...)
 	return &aRows{rows}, err
 }
 
@@ -119,18 +120,18 @@ func (c *conn) Begin(ctx context.Context) (adapter.Tx, error) {
 
 // Exec implements adapter.Conn.Exec() using github.com/jackc/pgx/v5
 func (c *conn) Exec(ctx context.Context, query string, args ...any) (adapter.CommandTag, error) {
-	r, err := c.c.Exec(ctx, query, args...)
+	r, err := c.c.Exec(ctx, sqlx.Rebind(sqlx.DOLLAR, query), args...)
 	return aCommandTag{r}, err
 }
 
 // QueryRow implements adapter.Conn.QueryRow() github.com/jackc/pgx/v5
 func (c *conn) QueryRow(ctx context.Context, query string, args ...any) adapter.Row {
-	return &aRow{c.c.QueryRow(ctx, query, args...)}
+	return &aRow{c.c.QueryRow(ctx, sqlx.Rebind(sqlx.DOLLAR, query), args...)}
 }
 
 // Query implements adapter.Conn.Query() github.com/jackc/pgx/v5
 func (c *conn) Query(ctx context.Context, query string, args ...any) (adapter.Rows, error) {
-	rows, err := c.c.Query(ctx, query, args...)
+	rows, err := c.c.Query(ctx, sqlx.Rebind(sqlx.DOLLAR, query), args...)
 	return &aRows{rows}, err
 }
 
@@ -163,18 +164,18 @@ func (c *connPool) Begin(ctx context.Context) (adapter.Tx, error) {
 
 // Exec implements adapter.ConnPool.Exec() using github.com/jackc/pgx/v5
 func (c *connPool) Exec(ctx context.Context, query string, args ...any) (adapter.CommandTag, error) {
-	ct, err := c.pool.Exec(ctx, query, args...)
+	ct, err := c.pool.Exec(ctx, sqlx.Rebind(sqlx.DOLLAR, query), args...)
 	return aCommandTag{ct}, err
 }
 
 // QueryRow implements adapter.ConnPool.QueryRow() using github.com/jackc/pgx/v5
 func (c *connPool) QueryRow(ctx context.Context, query string, args ...any) adapter.Row {
-	return &aRow{c.pool.QueryRow(ctx, query, args...)}
+	return &aRow{c.pool.QueryRow(ctx, sqlx.Rebind(sqlx.DOLLAR, query), args...)}
 }
 
 // Query implements adapter.ConnPool.Query() using github.com/jackc/pgx/v5
 func (c *connPool) Query(ctx context.Context, query string, args ...any) (adapter.Rows, error) {
-	rows, err := c.pool.Query(ctx, query, args...)
+	rows, err := c.pool.Query(ctx, sqlx.Rebind(sqlx.DOLLAR, query), args...)
 	return &aRows{rows}, err
 }
 

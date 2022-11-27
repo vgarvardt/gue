@@ -101,8 +101,8 @@ func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) (
 	_, err = q.Exec(ctx, `INSERT INTO gue_jobs
 (job_id, queue, priority, run_at, job_type, args, created_at, updated_at)
 VALUES
-($1, $2, $3, $4, $5, $6, $7, $7)
-`, j.ID.String(), j.Queue, j.Priority, j.RunAt, j.Type, j.Args, now)
+(?, ?, ?, ?, ?, ?, ?, ?)
+`, j.ID.String(), j.Queue, j.Priority, j.RunAt, j.Type, j.Args, now, now)
 
 	c.logger.Debug(
 		"Tried to enqueue a job",
@@ -189,8 +189,12 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 
 	j := Job{tx: tx, backoff: c.backoff, logger: c.logger}
 
+	// TODO: find out better way of reading ULID in MySQL, currently it is being read as []byte and Scan
+	// is trying to unmarshal from binary format, although it is actually a string representation
+	var jID []byte
+
 	err = tx.QueryRow(ctx, sql, args...).Scan(
-		&j.ID,
+		&jID,
 		&j.Queue,
 		&j.Priority,
 		&j.RunAt,
@@ -200,6 +204,10 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 		&j.LastError,
 	)
 	if err == nil {
+		if err := (&j.ID).UnmarshalText(jID); err != nil {
+			return &j, fmt.Errorf("could not unmarshal Job ULID ID: %w", err)
+		}
+
 		c.mLockJob.Add(ctx, 1, attrJobType.String(j.Type), attrSuccess.Bool(true))
 		return &j, nil
 	}
