@@ -20,7 +20,7 @@ The name Gue is yet another silly word transformation: Queue -> Que, Go + Que ->
 go get -u github.com/vgarvardt/gue/v5
 ```
 
-Additionally, you need to apply [DB migration](./schema.sql).
+Additionally, you need to apply [DB migration](migrations/schema.sql).
 
 ## Usage Example
 

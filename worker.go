@@ -202,7 +202,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 	))
 	defer span.End()
 
-	ll := w.logger.With(adapter.F("job-id", j.ID), adapter.F("job-type", j.Type))
+	ll := w.logger.With(adapter.F("job-id", j.ID.String()), adapter.F("job-type", j.Type))
 
 	defer func() {
 		if err := j.Done(ctx); err != nil {

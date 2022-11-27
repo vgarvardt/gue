@@ -35,7 +35,6 @@ func testBackoff(t *testing.T, connPool adapter.ConnPool) {
 		j := Job{RunAt: now, Type: "foo"}
 		err = c.Enqueue(ctx, &j)
 		require.NoError(t, err)
-		require.NotEmpty(t, j.ID)
 
 		jLocked1, err := c.LockJobByID(ctx, j.ID)
 		require.NoError(t, err)
@@ -62,7 +61,6 @@ func testBackoff(t *testing.T, connPool adapter.ConnPool) {
 		j := Job{RunAt: now, Type: "bar"}
 		err = c.Enqueue(ctx, &j)
 		require.NoError(t, err)
-		require.NotEmpty(t, j.ID)
 
 		jLocked1, err := c.LockJobByID(ctx, j.ID)
 		require.NoError(t, err)
@@ -82,7 +80,6 @@ func testBackoff(t *testing.T, connPool adapter.ConnPool) {
 		j := Job{RunAt: now, Type: "foo"}
 		err = c.Enqueue(ctx, &j)
 		require.NoError(t, err)
-		require.NotEmpty(t, j.ID)
 
 		jLocked1, err := c.LockJobByID(ctx, j.ID)
 		require.NoError(t, err)

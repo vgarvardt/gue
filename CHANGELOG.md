@@ -4,8 +4,12 @@
 
 ### Breaking
 
+- `gue_jobs.job_id` column type changed to `TEXT` and the `Job.ID` field type changed from `int64`
+  to [`ULID`](https://github.com/oklog/ulid) to generate ID on the client side but keep jobs sortable by the primary
+  key. Library is not providing any migration routines, it is up to the users to apply a migration. Example can be
+  found at [migrations/job_id_to_ulid.sql](./migrations/job_id_to_ulid.sql).
 - `gue_jobs.args` column type changed to `BYTEA` - this allows storing any bytes as job args, not only valid JSON;
-  library is not providing any migration routines, it is up to the users to apply a migration that should look something
+  library is not providing any migration routines, it is up to the users to apply a migration that may look something
   like `ALTER TABLE gue_jobs ALTER COLUMN args TYPE bytea USING (args::text)::bytea` to change the column type and
   convert existing JSON records to the binary byte array representation
 - `Job.Error()` accepts `error` instance instead of error string

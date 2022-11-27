@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/oklog/ulid/v2"
+
 	"github.com/vgarvardt/gue/v5/adapter"
 )
 
@@ -25,7 +27,7 @@ const (
 // Job is a single unit of work for Gue to perform.
 type Job struct {
 	// ID is the unique database ID of the Job. It is ignored on job creation.
-	ID int64
+	ID ulid.ULID
 
 	// Queue is the name of the queue. It defaults to the empty queue "".
 	Queue string
@@ -86,7 +88,7 @@ func (j *Job) Delete(ctx context.Context) error {
 		return nil
 	}
 
-	_, err := j.tx.Exec(ctx, `DELETE FROM gue_jobs WHERE job_id = $1`, j.ID)
+	_, err := j.tx.Exec(ctx, `DELETE FROM gue_jobs WHERE job_id = $1`, j.ID.String())
 	if err != nil {
 		return err
 	}
@@ -149,7 +151,7 @@ func (j *Job) Error(ctx context.Context, jErr error) (err error) {
 	_, err = j.tx.Exec(
 		ctx,
 		`UPDATE gue_jobs SET error_count = $1, run_at = $2, last_error = $3, updated_at = $4 WHERE job_id = $5`,
-		errorCount, newRunAt, jErr.Error(), now, j.ID,
+		errorCount, newRunAt, jErr.Error(), now, j.ID.String(),
 	)
 
 	return err
