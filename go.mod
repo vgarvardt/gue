@@ -5,7 +5,7 @@ go 1.18
 require (
 	github.com/jackc/pgconn v1.13.0
 	github.com/jackc/pgx/v4 v4.17.2
-	github.com/jackc/pgx/v5 v5.1.1
+	github.com/jackc/pgx/v5 v5.2.0
 	github.com/lib/pq v1.10.7
 	github.com/oklog/ulid/v2 v2.1.0
 	github.com/stretchr/testify v1.8.1
