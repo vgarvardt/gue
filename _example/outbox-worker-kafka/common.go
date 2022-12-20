@@ -13,9 +13,9 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/vgarvardt/gue/v4"
-	"github.com/vgarvardt/gue/v4/adapter"
-	"github.com/vgarvardt/gue/v4/adapter/pgxv5"
+	"github.com/vgarvardt/gue/v5"
+	"github.com/vgarvardt/gue/v5/adapter"
+	"github.com/vgarvardt/gue/v5/adapter/pgxv5"
 )
 
 //func init() {
@@ -89,7 +89,7 @@ func applyGueMigration(ctx context.Context, connPool *pgxpool.Pool) error {
 		return fmt.Errorf("could not get current working directory: %w", err)
 	}
 
-	schemaPath := path.Join(cwd, "..", "..", "schema.sql")
+	schemaPath := path.Join(cwd, "..", "..", "migrations", "schema.sql")
 	queries, err := os.ReadFile(schemaPath)
 	if err != nil {
 		return fmt.Errorf("could not read schema file contents: %w", err)
