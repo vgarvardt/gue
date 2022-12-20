@@ -9,8 +9,8 @@ import (
 
 	"github.com/Shopify/sarama"
 	"github.com/spf13/cobra"
-	"github.com/vgarvardt/gue/v4"
-	"github.com/vgarvardt/gue/v4/adapter"
+	"github.com/vgarvardt/gue/v5"
+	"github.com/vgarvardt/gue/v5/adapter"
 )
 
 func newWorkerCommand() *cobra.Command {
