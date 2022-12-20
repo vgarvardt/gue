@@ -35,11 +35,11 @@ import (
 	"os"
 	"time"
 
-  "github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/vgarvardt/gue/v5"
-  "github.com/vgarvardt/gue/v5/adapter/pgxv5"
+	"github.com/vgarvardt/gue/v5/adapter/pgxv5"
 )
 
 const (
@@ -148,6 +148,7 @@ func main() {
 		log.Fatal(err)
 	}
 }
+
 ```
 
 ## PostgreSQL drivers
@@ -155,44 +156,9 @@ func main() {
 Package supports several PostgreSQL drivers using adapter interface internally. Currently, adapters for the following
 drivers have been implemented:
 
-- [github.com/jackc/pgx/v4](https://github.com/jackc/pgx)
 - [github.com/jackc/pgx/v5](https://github.com/jackc/pgx)
+- [github.com/jackc/pgx/v4](https://github.com/jackc/pgx)
 - [github.com/lib/pq](https://github.com/lib/pq)
-
-### `pgx/v4`
-
-```go
-package main
-
-import (
-	"context"
-	"log"
-	"os"
-
-	"github.com/jackc/pgx/v4/pgxpool"
-
-	"github.com/vgarvardt/gue/v5"
-	"github.com/vgarvardt/gue/v5/adapter/pgxv4"
-)
-
-func main() {
-	pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer pgxPool.Close()
-
-	poolAdapter := pgxv4.NewConnPool(pgxPool)
-
-	gc, err := gue.NewClient(poolAdapter)
-	...
-}
-```
 
 ### `pgx/v5`
 
@@ -200,31 +166,66 @@ func main() {
 package main
 
 import (
-	"log"
-	"os"
+  "log"
+  "os"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+  "github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/vgarvardt/gue/v5"
-	"github.com/vgarvardt/gue/v5/adapter/pgxv5"
+  "github.com/vgarvardt/gue/v5"
+  "github.com/vgarvardt/gue/v5/adapter/pgxv5"
 )
 
 func main() {
-	pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
-	if err != nil {
-		log.Fatal(err)
-	}
+  pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
+  if err != nil {
+    log.Fatal(err)
+  }
 
-	pgxPool, err := pgxpool.NewConfig(context.Background(), pgxCfg)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer pgxPool.Close()
+  pgxPool, err := pgxpool.NewConfig(context.Background(), pgxCfg)
+  if err != nil {
+    log.Fatal(err)
+  }
+  defer pgxPool.Close()
 
-	poolAdapter := pgxv5.NewConnPool(pgxPool)
+  poolAdapter := pgxv5.NewConnPool(pgxPool)
 
-	gc, err := gue.NewClient(poolAdapter)
-	...
+  gc, err := gue.NewClient(poolAdapter)
+  ...
+}
+```
+
+### `pgx/v4`
+
+```go
+package main
+
+import (
+  "context"
+  "log"
+  "os"
+
+  "github.com/jackc/pgx/v4/pgxpool"
+
+  "github.com/vgarvardt/gue/v5"
+  "github.com/vgarvardt/gue/v5/adapter/pgxv4"
+)
+
+func main() {
+  pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  pgxPool, err := pgxpool.ConnectConfig(context.Background(), pgxCfg)
+  if err != nil {
+    log.Fatal(err)
+  }
+  defer pgxPool.Close()
+
+  poolAdapter := pgxv4.NewConnPool(pgxPool)
+
+  gc, err := gue.NewClient(poolAdapter)
+  ...
 }
 ```
 
@@ -234,27 +235,27 @@ func main() {
 package main
 
 import (
-	"database/sql"
-	"log"
-	"os"
+  "database/sql"
+  "log"
+  "os"
 
-	_ "github.com/lib/pq" // register postgres driver
+  _ "github.com/lib/pq" // register postgres driver
 
-	"github.com/vgarvardt/gue/v5"
-	"github.com/vgarvardt/gue/v5/adapter/libpq"
+  "github.com/vgarvardt/gue/v5"
+  "github.com/vgarvardt/gue/v5/adapter/libpq"
 )
 
 func main() {
-	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
+  db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+  if err != nil {
+    log.Fatal(err)
+  }
+  defer db.Close()
 
-	poolAdapter := libpq.NewConnPool(db)
+  poolAdapter := libpq.NewConnPool(db)
 
-	gc, err := gue.NewClient(poolAdapter)
-	...
+  gc, err := gue.NewClient(poolAdapter)
+  ...
 }
 ```
 
