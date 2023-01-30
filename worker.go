@@ -12,7 +12,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/instrument"
-	"go.opentelemetry.io/otel/metric/instrument/syncint64"
 	"go.opentelemetry.io/otel/metric/unit"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/multierr"
@@ -86,8 +85,8 @@ type Worker struct {
 	hooksUnknownJobType []HookFunc
 	hooksJobDone        []HookFunc
 
-	mWorked   syncint64.Counter
-	mDuration syncint64.Histogram
+	mWorked   instrument.Int64Counter
+	mDuration instrument.Int64Histogram
 
 	panicStackBufSize int
 }
@@ -271,7 +270,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 }
 
 func (w *Worker) initMetrics() (err error) {
-	if w.mWorked, err = w.meter.SyncInt64().Counter(
+	if w.mWorked, err = w.meter.Int64Counter(
 		"gue_worker_jobs_worked",
 		instrument.WithDescription("Number of jobs processed"),
 		instrument.WithUnit(unit.Dimensionless),
@@ -279,7 +278,7 @@ func (w *Worker) initMetrics() (err error) {
 		return fmt.Errorf("could not register mWorked metric: %w", err)
 	}
 
-	if w.mDuration, err = w.meter.SyncInt64().Histogram(
+	if w.mDuration, err = w.meter.Int64Histogram(
 		"gue_worker_jobs_duration",
 		instrument.WithDescription("Duration of the single locked job to be processed with all the hooks"),
 		instrument.WithUnit(unit.Milliseconds),
