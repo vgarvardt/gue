@@ -269,3 +269,5 @@ drivers have been implemented:
   with `adapter.NewStdLogger(...)`.
 - Uber `zap` - adapter that uses [`go.uber.org/zap`](https://pkg.go.dev/go.uber.org/zap) logger for logs output.
   Instantiate it with `adapter/zap.New(...)`.
+- Uber `zerolog` - adapter that uses [`github.com/rs/zerolog`](https://pkg.go.dev/github.com/rs/zerolog) logger for logs
+  output. Instantiate it with `adapter/zerolog.New(...)`.
