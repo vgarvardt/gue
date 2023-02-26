@@ -65,6 +65,17 @@ func NewTx(tx pgx.Tx) adapter.Tx {
 	return &aTx{tx: tx}
 }
 
+// UnwrapTx tries to unwrap driver-specific transaction instance from the interface.
+// Returns unwrap success as the second parameter.
+func UnwrapTx(tx adapter.Tx) (pgx.Tx, bool) {
+	driverTx, ok := tx.(*aTx)
+	if !ok {
+		return nil, false
+	}
+
+	return driverTx.tx, ok
+}
+
 // Exec implements adapter.Tx.Exec() using github.com/jackc/pgx/v4
 func (tx *aTx) Exec(ctx context.Context, query string, args ...any) (adapter.CommandTag, error) {
 	ct, err := tx.tx.Exec(ctx, query, args...)
