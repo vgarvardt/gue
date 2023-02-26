@@ -6,6 +6,8 @@ import (
 	"github.com/vgarvardt/gue/v5/adapter"
 )
 
+var _ adapter.Logger = &zap{}
+
 type zap struct {
 	l *uberZap.Logger
 }
