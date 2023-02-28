@@ -11,9 +11,9 @@ require (
 	github.com/rs/zerolog v1.29.0
 	github.com/stretchr/testify v1.8.2
 	github.com/vgarvardt/backoff v1.0.0
-	go.opentelemetry.io/otel v1.13.0
-	go.opentelemetry.io/otel/metric v0.36.0
-	go.opentelemetry.io/otel/trace v1.13.0
+	go.opentelemetry.io/otel v1.14.0
+	go.opentelemetry.io/otel/metric v0.37.0
+	go.opentelemetry.io/otel/trace v1.14.0
 	go.uber.org/multierr v1.9.0
 	go.uber.org/zap v1.24.0
 	golang.org/x/sync v0.1.0
