@@ -5,7 +5,7 @@ go 1.19
 require (
 	github.com/jackc/pgconn v1.14.0
 	github.com/jackc/pgx/v4 v4.18.0
-	github.com/jackc/pgx/v5 v5.3.0
+	github.com/jackc/pgx/v5 v5.3.1
 	github.com/lib/pq v1.10.7
 	github.com/oklog/ulid/v2 v2.1.0
 	github.com/rs/zerolog v1.29.0
