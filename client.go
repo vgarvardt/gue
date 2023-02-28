@@ -12,7 +12,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/instrument"
-	"go.opentelemetry.io/otel/metric/unit"
 
 	"github.com/vgarvardt/gue/v5/adapter"
 )
@@ -215,7 +214,7 @@ func (c *Client) initMetrics() (err error) {
 	if c.mEnqueue, err = c.meter.Int64Counter(
 		"gue_client_enqueue",
 		instrument.WithDescription("Number of jobs being enqueued"),
-		instrument.WithUnit(unit.Dimensionless),
+		instrument.WithUnit("1"),
 	); err != nil {
 		return fmt.Errorf("could not register mEnqueue metric: %w", err)
 	}
@@ -223,7 +222,7 @@ func (c *Client) initMetrics() (err error) {
 	if c.mLockJob, err = c.meter.Int64Counter(
 		"gue_client_lock_job",
 		instrument.WithDescription("Number of jobs being locked (consumed)"),
-		instrument.WithUnit(unit.Dimensionless),
+		instrument.WithUnit("1"),
 	); err != nil {
 		return fmt.Errorf("could not register mLockJob metric: %w", err)
 	}

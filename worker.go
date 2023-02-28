@@ -12,7 +12,6 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/instrument"
-	"go.opentelemetry.io/otel/metric/unit"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/multierr"
 	"golang.org/x/sync/errgroup"
@@ -273,7 +272,7 @@ func (w *Worker) initMetrics() (err error) {
 	if w.mWorked, err = w.meter.Int64Counter(
 		"gue_worker_jobs_worked",
 		instrument.WithDescription("Number of jobs processed"),
-		instrument.WithUnit(unit.Dimensionless),
+		instrument.WithUnit("1"),
 	); err != nil {
 		return fmt.Errorf("could not register mWorked metric: %w", err)
 	}
@@ -281,7 +280,7 @@ func (w *Worker) initMetrics() (err error) {
 	if w.mDuration, err = w.meter.Int64Histogram(
 		"gue_worker_jobs_duration",
 		instrument.WithDescription("Duration of the single locked job to be processed with all the hooks"),
-		instrument.WithUnit(unit.Milliseconds),
+		instrument.WithUnit("ms"),
 	); err != nil {
 		return fmt.Errorf("could not register mDuration metric: %w", err)
 	}
