@@ -77,6 +77,41 @@ func (c *Client) EnqueueTx(ctx context.Context, j *Job, tx adapter.Tx) error {
 	return c.execEnqueue(ctx, j, tx)
 }
 
+// EnqueueBatch adds a batch of jobs. Operation is atomic, so either all jobs are added, or none.
+func (c *Client) EnqueueBatch(ctx context.Context, jobs []*Job) error {
+	tx, err := c.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("could not begin transaction")
+	}
+
+	for i, j := range jobs {
+		if err := c.execEnqueue(ctx, j, tx); err != nil {
+			if rbErr := tx.Rollback(ctx); rbErr != nil {
+				c.logger.Error("Could not properly rollback transaction", adapter.Err(err))
+			}
+			return fmt.Errorf("could not enqueue job from the batch [idx %d]: %w", i, err)
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
+// EnqueueBatchTx adds a batch of jobs within the scope of the transaction.
+// This allows you to guarantee that an enqueued batch will either be committed or
+// rolled back atomically with other changes in the course of this transaction.
+//
+// It is the caller's responsibility to Commit or Rollback the transaction after
+// this function is called.
+func (c *Client) EnqueueBatchTx(ctx context.Context, jobs []*Job, tx adapter.Tx) error {
+	for i, j := range jobs {
+		if err := c.execEnqueue(ctx, j, tx); err != nil {
+			return fmt.Errorf("could not enqueue job from the batch [idx %d]: %w", i, err)
+		}
+	}
+
+	return nil
+}
+
 func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) (err error) {
 	if j.Type == "" {
 		return ErrMissingType

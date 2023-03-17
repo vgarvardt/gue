@@ -683,13 +683,7 @@ func testAdapterQuery(t *testing.T, connPool adapter.ConnPool) {
 	j2 := Job{Queue: queue, RunAt: now, Type: "test2"}
 	j3 := Job{Queue: queue, RunAt: now, Type: "test3"}
 
-	err = c.Enqueue(ctx, &j1)
-	require.NoError(t, err)
-
-	err = c.Enqueue(ctx, &j2)
-	require.NoError(t, err)
-
-	err = c.Enqueue(ctx, &j3)
+	err = c.EnqueueBatch(ctx, []*Job{&j1, &j2, &j3})
 	require.NoError(t, err)
 
 	// test pool
