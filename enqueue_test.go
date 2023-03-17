@@ -224,3 +224,33 @@ func testEnqueueTx(t *testing.T, connPool adapter.ConnPool) {
 	j = findOneJob(t, connPool)
 	require.Nil(t, j)
 }
+
+func TestClient_EnqueueBatchTx(t *testing.T) {
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testEnqueueBatchTx(t, openFunc(t))
+		})
+	}
+}
+
+func testEnqueueBatchTx(t *testing.T, connPool adapter.ConnPool) {
+	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	tx, err := connPool.Begin(ctx)
+	require.NoError(t, err)
+
+	err = c.EnqueueBatchTx(ctx, []*Job{{Type: "MyJob1"}, {Type: "MyJob2"}}, tx)
+	require.NoError(t, err)
+
+	j := findOneJob(t, tx)
+	require.NotNil(t, j)
+
+	err = tx.Rollback(ctx)
+	require.NoError(t, err)
+
+	j = findOneJob(t, connPool)
+	require.Nil(t, j)
+}
