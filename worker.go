@@ -200,7 +200,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 	))
 	defer span.End()
 
-	ll := w.logger.With(adapter.F("job-id", j.ID.String()), adapter.F("job-type", j.Type))
+	ll := w.logger.With(adapter.F("job-id", fmt.Sprintf("%d", j.ID)), adapter.F("job-type", j.Type))
 
 	defer func() {
 		if err := j.Done(ctx); err != nil {
@@ -257,7 +257,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 		hook(ctx, j, nil)
 	}
 
-	err = j.Delete(ctx)
+	err = j.Fail(ctx)
 	if err != nil {
 		span.RecordError(fmt.Errorf("failed to delete finished job: %w", err))
 		ll.Error("Got an error on deleting a job", adapter.Err(err))

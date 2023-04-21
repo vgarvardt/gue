@@ -3,11 +3,8 @@ package gue
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"sync"
 	"time"
-
-	"github.com/oklog/ulid/v2"
 
 	"github.com/vgarvardt/gue/v5/adapter"
 )
@@ -27,7 +24,7 @@ const (
 // Job is a single unit of work for Gue to perform.
 type Job struct {
 	// ID is the unique database ID of the Job. It is ignored on job creation.
-	ID ulid.ULID
+	ID int64
 
 	// Queue is the name of the queue. It defaults to the empty queue "".
 	Queue string
@@ -60,40 +57,32 @@ type Job struct {
 	// being updated when the current Job run errored. This field supposed to be used mostly for the debug reasons.
 	LastError sql.NullString
 
-	mu      sync.Mutex
-	deleted bool
-	tx      adapter.Tx
-	backoff Backoff
-	logger  adapter.Logger
+	mu        sync.Mutex
+	processed bool
+	db        adapter.ConnPool
+	backoff   Backoff
+	logger    adapter.Logger
 }
 
-// Tx returns DB transaction that this job is locked to. You may use
-// it as you please until you call Done(). At that point, this transaction
-// will be committed. This function will return nil if the Job's
-// transaction was closed with Done().
-func (j *Job) Tx() adapter.Tx {
-	return j.tx
-}
-
-// Delete marks this job as complete by deleting it from the database.
+// Fail marks this job as failed
 //
 // You must also later call Done() to return this job's database connection to
 // the pool. If you got the job from the worker - it will take care of cleaning up the job and resources,
 // no need to do this manually in a WorkFunc.
-func (j *Job) Delete(ctx context.Context) error {
+func (j *Job) Fail(ctx context.Context) error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	if j.deleted {
+	if j.processed {
 		return nil
 	}
 
-	_, err := j.tx.Exec(ctx, `DELETE FROM gue_jobs WHERE job_id = $1`, j.ID.String())
+	_, err := j.db.Exec(ctx, `UPDATE _jobs SET status='failed' WHERE id = $1`, j.ID)
 	if err != nil {
 		return err
 	}
 
-	j.deleted = true
+	j.processed = true
 	return nil
 }
 
@@ -103,16 +92,15 @@ func (j *Job) Done(ctx context.Context) error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	if j.tx == nil {
-		// already marked as done
+	if j.db == nil {
 		return nil
 	}
 
-	if err := j.tx.Commit(ctx); err != nil {
+	if _, err := j.db.Exec(ctx, `UPDATE _jobs SET status='finished' WHERE id = $1`, j.ID); err != nil {
 		return err
 	}
 
-	j.tx = nil
+	j.db = nil
 
 	return nil
 }
@@ -126,16 +114,8 @@ func (j *Job) Done(ctx context.Context) error {
 // If you got the job from the worker - it will take care of cleaning up the job and resources,
 // no need to do this manually in a WorkFunc.
 func (j *Job) Error(ctx context.Context, jErr error) (err error) {
-	defer func() {
-		doneErr := j.Done(ctx)
-		if doneErr != nil {
-			err = fmt.Errorf("failed to mark job as done (original error: %v): %w", err, doneErr)
-		}
-	}()
-
 	errorCount := j.ErrorCount + 1
-	now := time.Now().UTC()
-	newRunAt := j.calculateErrorRunAt(jErr, now, errorCount)
+	newRunAt := j.calculateErrorRunAt(jErr, time.Now().UTC(), errorCount)
 	if newRunAt.IsZero() {
 		j.logger.Info(
 			"Got empty new run at for the errored job, discarding it",
@@ -144,14 +124,14 @@ func (j *Job) Error(ctx context.Context, jErr error) (err error) {
 			adapter.F("job-errors", errorCount),
 			adapter.Err(jErr),
 		)
-		err = j.Delete(ctx)
+		err = j.Fail(ctx)
 		return
 	}
 
-	_, err = j.tx.Exec(
+	_, err = j.db.Exec(
 		ctx,
-		`UPDATE gue_jobs SET error_count = $1, run_at = $2, last_error = $3, updated_at = $4 WHERE job_id = $5`,
-		errorCount, newRunAt, jErr.Error(), now, j.ID.String(),
+		`UPDATE _jobs SET error_count = $1, run_at = $2, last_error = $3, updated_at = now(), status = 'pending' WHERE id = $4`,
+		errorCount, newRunAt, jErr.Error(), j.ID,
 	)
 
 	return err

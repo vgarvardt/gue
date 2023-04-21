@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/vgarvardt/gue/v5/adapter"
@@ -15,10 +16,6 @@ import (
 func OpenTestPoolMaxConnsPGXv4(t testing.TB, maxConnections int32) adapter.ConnPool {
 	t.Helper()
 
-	applyMigrations("").Do(func() {
-		doApplyMigrations(t, "")
-	})
-
 	connPoolConfig, err := pgxpool.ParseConfig(testConnDSN(t))
 	require.NoError(t, err)
 
@@ -28,9 +25,11 @@ func OpenTestPoolMaxConnsPGXv4(t testing.TB, maxConnections int32) adapter.ConnP
 	require.NoError(t, err)
 
 	pool := pgxv4.NewConnPool(poolPGXv4)
+	_, err = pool.Exec(context.Background(), "TRUNCATE TABLE _jobs")
+	assert.NoError(t, err)
 
 	t.Cleanup(func() {
-		truncateAndClose(t, pool)
+		closePool(t, pool)
 	})
 
 	return pool

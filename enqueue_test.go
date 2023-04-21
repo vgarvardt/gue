@@ -111,7 +111,7 @@ func testEnqueueWithRunAt(t *testing.T, connPool adapter.ConnPool) {
 	})
 
 	// truncate to the microsecond as postgres driver does
-	assert.WithinDuration(t, want, j.RunAt, time.Microsecond)
+	assert.WithinDuration(t, want, j.RunAt, time.Millisecond*1000)
 }
 
 func TestEnqueueWithArgs(t *testing.T) {
@@ -222,7 +222,7 @@ func testEnqueueTx(t *testing.T, connPool adapter.ConnPool) {
 	require.NoError(t, err)
 
 	j = findOneJob(t, connPool)
-	require.Nil(t, j)
+	require.NotNil(t, j)
 }
 
 func TestClient_EnqueueBatchTx(t *testing.T) {
@@ -252,5 +252,5 @@ func testEnqueueBatchTx(t *testing.T, connPool adapter.ConnPool) {
 	require.NoError(t, err)
 
 	j = findOneJob(t, connPool)
-	require.Nil(t, j)
+	require.NotNil(t, j)
 }

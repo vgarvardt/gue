@@ -69,7 +69,7 @@ func testErrRescheduleJobAt(t *testing.T, connPool adapter.ConnPool) {
 	t.Helper()
 
 	ctx := context.Background()
-	now := time.Now()
+	now := time.Now().UTC()
 	rescheduleAt := now.Add(3 * time.Hour)
 
 	c, err := NewClient(connPool)

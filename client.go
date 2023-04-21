@@ -2,18 +2,14 @@ package gue
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 	"fmt"
-	"io"
 	"time"
 
-	"github.com/oklog/ulid/v2"
+	"github.com/vgarvardt/gue/v5/adapter"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/instrument"
-
-	"github.com/vgarvardt/gue/v5/adapter"
 )
 
 // ErrMissingType is returned when you attempt to enqueue a job with no Type
@@ -34,8 +30,6 @@ type Client struct {
 	backoff Backoff
 	meter   metric.Meter
 
-	entropy io.Reader
-
 	mEnqueue instrument.Int64Counter
 	mLockJob instrument.Int64Counter
 }
@@ -48,9 +42,6 @@ func NewClient(pool adapter.ConnPool, options ...ClientOption) (*Client, error) 
 		id:      RandomStringID(),
 		backoff: DefaultExponentialBackoff,
 		meter:   metric.NewNoopMeterProvider().Meter("noop"),
-		entropy: &ulid.LockedMonotonicReader{
-			MonotonicReader: ulid.Monotonic(rand.Reader, 0),
-		},
 	}
 
 	for _, option := range options {
@@ -117,31 +108,37 @@ func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) (
 		return ErrMissingType
 	}
 
-	now := time.Now().UTC()
-
-	runAt := j.RunAt
-	if runAt.IsZero() {
-		j.RunAt = now
+	if j.RunAt.IsZero() {
+		j.RunAt = time.Now().UTC().Add(-time.Second)
+	} else {
+		j.RunAt = j.RunAt.UTC()
 	}
 
 	if j.Args == nil {
 		j.Args = []byte{}
 	}
 
-	if j.ID, err = ulid.New(ulid.Timestamp(now), c.entropy); err != nil {
-		return fmt.Errorf("could not generate new Job ULID ID: %w", err)
+	var query = q
+	if query != nil {
+		query = c.pool
 	}
-	_, err = q.Exec(ctx, `INSERT INTO gue_jobs
-(job_id, queue, priority, run_at, job_type, args, created_at, updated_at)
-VALUES
-($1, $2, $3, $4, $5, $6, $7, $7)
-`, j.ID.String(), j.Queue, j.Priority, j.RunAt, j.Type, j.Args, now)
+
+	err = query.QueryRow(
+		ctx,
+		`INSERT INTO _jobs (queue, priority, run_at, job_type, args) VALUES ($1, $2, $3, $4, $5) returning id`,
+		j.Queue,
+		j.Priority,
+		j.RunAt,
+		j.Type,
+		j.Args,
+	).Scan(&j.ID)
+
+	j.db = c.pool
 
 	c.logger.Debug(
 		"Tried to enqueue a job",
 		adapter.Err(err),
 		adapter.F("queue", j.Queue),
-		adapter.F("id", j.ID.String()),
 	)
 
 	c.mEnqueue.Add(ctx, 1, attrJobType.String(j.Type), attrSuccess.Bool(err == nil))
@@ -163,9 +160,9 @@ VALUES
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockJob(ctx context.Context, queue string) (*Job, error) {
-	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error
-FROM gue_jobs
-WHERE queue = $1 AND run_at <= $2
+	sql := `SELECT id, queue, priority, run_at, job_type, args, error_count, last_error
+FROM _jobs
+WHERE queue = $1 AND run_at <= $2 AND status = 'pending'
 ORDER BY priority ASC
 LIMIT 1 FOR UPDATE SKIP LOCKED`
 
@@ -182,12 +179,11 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`
 //
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
-func (c *Client) LockJobByID(ctx context.Context, id ulid.ULID) (*Job, error) {
-	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error
-FROM gue_jobs
-WHERE job_id = $1 FOR UPDATE SKIP LOCKED`
+func (c *Client) LockJobByID(ctx context.Context, id int64) (*Job, error) {
+	sql := `SELECT id, queue, priority, run_at, job_type, args, error_count, last_error
+FROM _jobs WHERE id = $1 AND status = 'pending' FOR UPDATE SKIP LOCKED`
 
-	return c.execLockJob(ctx, false, sql, id.String())
+	return c.execLockJob(ctx, false, sql, id)
 }
 
 // LockNextScheduledJob attempts to retrieve the earliest scheduled Job from the database in the specified queue.
@@ -204,41 +200,58 @@ WHERE job_id = $1 FOR UPDATE SKIP LOCKED`
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockNextScheduledJob(ctx context.Context, queue string) (*Job, error) {
-	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error
-FROM gue_jobs
-WHERE queue = $1 AND run_at <= $2
+	sql := `SELECT id, queue, priority, run_at, job_type, args, error_count, last_error
+FROM _jobs
+WHERE queue = $1 AND run_at <= $2 AND status = 'pending'
 ORDER BY run_at, priority ASC
 LIMIT 1 FOR UPDATE SKIP LOCKED`
 
 	return c.execLockJob(ctx, true, sql, queue, time.Now().UTC())
 }
 
-func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql string, args ...any) (*Job, error) {
-	tx, err := c.pool.Begin(ctx)
-	if err != nil {
+func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql string, args ...any) (j *Job, err error) {
+	var tx adapter.Tx
+	if tx, err = c.pool.Begin(ctx); err != nil {
 		c.mLockJob.Add(ctx, 1, attrJobType.String(""), attrSuccess.Bool(false))
 		return nil, err
 	}
 
-	j := Job{tx: tx, backoff: c.backoff, logger: c.logger}
+	j = &Job{backoff: c.backoff, logger: c.logger, db: c.pool}
 
-	err = tx.QueryRow(ctx, sql, args...).Scan(
-		&j.ID,
-		&j.Queue,
-		&j.Priority,
-		&j.RunAt,
-		&j.Type,
-		&j.Args,
-		&j.ErrorCount,
-		&j.LastError,
-	)
+	err = func() error {
+		err = tx.QueryRow(ctx, sql, args...).Scan(
+			&j.ID,
+			&j.Queue,
+			&j.Priority,
+			&j.RunAt,
+			&j.Type,
+			&j.Args,
+			&j.ErrorCount,
+			&j.LastError,
+		)
+
+		if err != nil {
+			return fmt.Errorf("error get job from _job: %w", err)
+		}
+
+		if _, err = tx.Exec(ctx, "UPDATE _jobs SET status='processing', updated_at=now() WHERE id=$1", j.ID); err != nil {
+			return fmt.Errorf("error set status processing for job %d: %w", j.ID, err)
+		}
+
+		return nil
+	}()
+
 	if err == nil {
+		if err = tx.Commit(ctx); err != nil {
+			return nil, fmt.Errorf("error commit transaction: %w", err)
+		}
+
 		c.mLockJob.Add(ctx, 1, attrJobType.String(j.Type), attrSuccess.Bool(true))
-		return &j, nil
+		return j, nil
 	}
 
 	rbErr := tx.Rollback(ctx)
-	if handleErrNoRows && err == adapter.ErrNoRows {
+	if handleErrNoRows && errors.Is(err, adapter.ErrNoRows) {
 		return nil, rbErr
 	}
 

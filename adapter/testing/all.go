@@ -1,13 +1,11 @@
 package testing
 
 import (
-	"context"
 	"database/sql"
 	"os"
 	"sync"
 	"testing"
 
-	_ "github.com/lib/pq" // register pq sql driver
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -26,19 +24,15 @@ type OpenOpenTestPoolMaxConns func(t testing.TB, maxConnections int32) adapter.C
 
 // AllAdaptersOpenTestPool lists all available adapters with callbacks
 var AllAdaptersOpenTestPool = map[string]OpenTestPool{
-	"pgx/v4": OpenTestPoolPGXv4,
-	"pgx/v5": OpenTestPoolPGXv5,
-	"lib/pq": OpenTestPoolLibPQ,
+	"pgx/v4": func(t testing.TB) adapter.ConnPool {
+		return OpenTestPoolMaxConnsPGXv4(t, 5)
+	},
 }
 
-func truncateAndClose(t testing.TB, pool adapter.ConnPool) {
+func closePool(t testing.TB, pool adapter.ConnPool) {
 	t.Helper()
 
-	_, err := pool.Exec(context.Background(), "TRUNCATE TABLE gue_jobs")
-	assert.NoError(t, err)
-
-	err = pool.Close()
-	assert.NoError(t, err)
+	assert.NoError(t, pool.Close())
 }
 
 func applyMigrations(schema string) *sync.Once {

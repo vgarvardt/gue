@@ -8,19 +8,15 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	adapterTesting "github.com/vgarvardt/gue/v5/adapter/testing"
 	"go.uber.org/zap/zaptest"
 
 	"github.com/vgarvardt/gue/v5/adapter"
-	adapterTesting "github.com/vgarvardt/gue/v5/adapter/testing"
 	adapterZap "github.com/vgarvardt/gue/v5/adapter/zap"
 )
 
 func TestBackoff(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
-		t.Run(name, func(t *testing.T) {
-			testBackoff(t, openFunc(t))
-		})
-	}
+	testBackoff(t, adapterTesting.OpenTestPoolMaxConnsPGXv4(t, 5))
 }
 
 func testBackoff(t *testing.T, connPool adapter.ConnPool) {
