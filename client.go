@@ -181,7 +181,7 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockJobByID(ctx context.Context, id int64) (*Job, error) {
 	sql := `SELECT id, queue, priority, run_at, job_type, args, error_count, last_error
-FROM _jobs WHERE id = $1 AND status = 'pending' FOR UPDATE SKIP LOCKED`
+FROM _jobs WHERE id = $1 AND status='pending' FOR UPDATE SKIP LOCKED`
 
 	return c.execLockJob(ctx, false, sql, id)
 }

@@ -203,11 +203,6 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 	ll := w.logger.With(adapter.F("job-id", fmt.Sprintf("%d", j.ID)), adapter.F("job-type", j.Type))
 
 	defer func() {
-		if err := j.Done(ctx); err != nil {
-			span.RecordError(fmt.Errorf("failed to mark job as done: %w", err))
-			ll.Error("Failed to mark job as done", adapter.Err(err))
-		}
-
 		w.mDuration.Record(ctx, time.Since(processingStartedAt).Milliseconds(), attrJobType.String(j.Type))
 	}()
 	defer w.recoverPanic(ctx, ll, j)
@@ -257,10 +252,15 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 		hook(ctx, j, nil)
 	}
 
-	err = j.Fail(ctx)
-	if err != nil {
-		span.RecordError(fmt.Errorf("failed to delete finished job: %w", err))
-		ll.Error("Got an error on deleting a job", adapter.Err(err))
+	//err = j.Fail(ctx)
+	//if err != nil {
+	//	span.RecordError(fmt.Errorf("failed to delete finished job: %w", err))
+	//	ll.Error("Got an error on deleting a job", adapter.Err(err))
+	//}
+
+	if err := j.Done(ctx); err != nil {
+		span.RecordError(fmt.Errorf("failed to mark job as done: %w", err))
+		ll.Error("Failed to mark job as done", adapter.Err(err))
 	}
 
 	w.mWorked.Add(ctx, 1, attrJobType.String(j.Type), attrSuccess.Bool(err == nil))

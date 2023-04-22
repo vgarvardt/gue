@@ -548,8 +548,10 @@ func testWorkerWorkOneErrorHookTx(t *testing.T, connPool adapter.ConnPool) {
 		assert.Equal(t, jobErr, err)
 
 		// ensure that transaction is still active
-		var count = 1
-		assert.Greater(t, count, int64(0))
+		var count int
+		txErr := j.db.QueryRow(ctx, `SELECT COUNT(1) FROM _jobs`).Scan(&count)
+		assert.NoError(t, txErr)
+		assert.Greater(t, count, 0)
 	}
 
 	w, err := NewWorker(
@@ -636,11 +638,14 @@ func TestNewWorkerPool_GracefulShutdown(t *testing.T) {
 	jobCancelled, jobFinished := 0, 0
 	wm := WorkMap{
 		"MyJob": func(ctx context.Context, j *Job) error {
+			t.Log("start job")
 			select {
 			case <-ctx.Done():
 				jobCancelled++
+				t.Log("job cancelled")
 			case <-time.After(5 * time.Second):
 				jobFinished++
+				t.Log("job done")
 			}
 
 			return nil
@@ -673,12 +678,14 @@ func TestNewWorkerPool_GracefulShutdown(t *testing.T) {
 	ctxGraceful, cancelGraceful := context.WithTimeout(context.Background(), time.Second)
 	defer cancelGraceful()
 
-	err = c.Enqueue(ctxGraceful, &Job{Type: "MyJob"})
-	require.NoError(t, err)
+	for i := 0; i < numWorkers; i++ {
+		err = c.Enqueue(ctxGraceful, &Job{Type: "MyJob"})
+		require.NoError(t, err)
+	}
 
 	wGraceful, err := NewWorkerPool(c, wm, numWorkers, WithPoolGracefulShutdown(nil))
 	require.NoError(t, err)
-
+	t.Log("multiple jobs")
 	go func() {
 		err := wGraceful.Run(ctxGraceful)
 		assert.NoError(t, err)
