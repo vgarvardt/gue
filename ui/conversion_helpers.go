@@ -240,58 +240,33 @@ func formatTimeInRFC3339(t time.Time) string {
 //	}
 //}
 
-type baseTask struct {
-	ID          string    `json:"id"`
-	Type        string    `json:"type"`
-	Payload     string    `json:"payload"`
-	Queue       string    `json:"queue"`
-	MaxRetry    int       `json:"max_retry"`
-	Retried     int       `json:"retried"`
-	LastError   string    `json:"error_message"`
-	Result      string    `json:"result"`
-	CompletedAt time.Time `json:"completed_at"`
-	TTL         int64     `json:"ttl_seconds"`
-}
-
 type activeTask struct {
-	*baseTask
-
-	// Started time indicates when a worker started working on ths task.
-	//
-	// Value is either time formatted in RFC3339 format, or "-" which indicates
-	// a worker started working on the task only a few moments ago, and started time
-	// data is not available.
-	Started string `json:"start_time"`
-
-	// Deadline indicates the time by which the worker needs to finish its task.
-	//
-	// Value is either time formatted in RFC3339 format, or "-" which indicates that
-	// the data is not available yet.
-	Deadline string `json:"deadline"`
-
-	// IsOrphaned indicates whether the task is left in active state with no worker processing it.
-	IsOrphaned bool `json:"is_orphaned"`
-
-	NextProcessAt time.Time `json:"next_process_at"`
+	ID         string    `json:"id"`
+	Priority   int16     `json:"priority"`
+	RunAt      time.Time `json:"run_at"`
+	JobType    string    `json:"type"`
+	Args       []byte    `json:"payload"`
+	ErrorCount int32     `json:"error_count"`
+	LastError  string    `json:"error_message"`
+	Queue      string    `json:"queue"`
+	Status     string    `json:"status"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 func toActiveTask(ti database.Job, pf PayloadFormatter) *activeTask {
-	base := &baseTask{
-		ID:          fmt.Sprintf("%d", ti.ID),
-		Type:        "",
-		Payload:     pf.FormatPayload("", ti.Args),
-		Queue:       ti.Queue,
-		MaxRetry:    0,
-		Retried:     int(ti.ErrorCount),
-		LastError:   ti.LastError.String,
-		CompletedAt: ti.UpdatedAt,
-	}
 	return &activeTask{
-		baseTask:      base,
-		IsOrphaned:    true,
-		Deadline:      time.Time{}.String(),
-		Started:       ti.RunAt.String(),
-		NextProcessAt: ti.RunAt,
+		ID:         fmt.Sprintf("%d", ti.ID),
+		Priority:   ti.Priority,
+		RunAt:      ti.RunAt,
+		JobType:    ti.JobType,
+		Args:       ti.Args,
+		ErrorCount: ti.ErrorCount,
+		LastError:  ti.LastError.String,
+		Queue:      ti.Queue,
+		Status:     string(ti.Status),
+		CreatedAt:  ti.CreatedAt,
+		UpdatedAt:  ti.UpdatedAt,
 	}
 }
 

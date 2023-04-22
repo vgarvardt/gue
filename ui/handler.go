@@ -88,7 +88,7 @@ func (h *HTTPHandler) RootPath() string {
 	return h.rootPath
 }
 
-//go:embed build/*
+//go:embed react/build/*
 var staticContents embed.FS
 
 func muxRouter(opts Options, inspector *database.Queries) *mux.Router {
@@ -216,7 +216,7 @@ func muxRouter(opts Options, inspector *database.Queries) *mux.Router {
 	router.NotFoundHandler = &uiAssetsHandler{
 		rootPath:       opts.RootPath,
 		contents:       staticContents,
-		staticDirPath:  "build",
+		staticDirPath:  "react/build",
 		indexFileName:  "index.html",
 		prometheusAddr: opts.PrometheusAddress,
 		readOnly:       opts.ReadOnly,
