@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/AlexanderGrom/qb"
 	"github.com/vgarvardt/gue/v5/adapter"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -159,14 +160,24 @@ func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) (
 //
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
-func (c *Client) LockJob(ctx context.Context, queue string) (*Job, error) {
-	sql := `SELECT id, queue, priority, run_at, job_type, args, error_count, last_error
-FROM _jobs
-WHERE queue = $1 AND run_at <= $2 AND status = 'pending'
-ORDER BY priority ASC
-LIMIT 1 FOR UPDATE SKIP LOCKED`
+func (c *Client) LockJob(ctx context.Context, queue ...string) (*Job, error) {
+	var (
+		sql = `SELECT id, queue, priority, run_at, job_type, args, error_count, last_error
+				FROM _jobs
+				WHERE %s
+				ORDER BY priority ASC LIMIT 1 FOR UPDATE SKIP LOCKED
+			`
+		w = new(qb.WhereBuilder).
+			Where("run_at", "<=", time.Now().UTC()).
+			Where("status", "=", "pending")
+	)
 
-	return c.execLockJob(ctx, true, sql, queue, time.Now().UTC())
+	if len(queue) > 0 {
+		w.WhereIn("queue", ToInterfaceSlice(queue)...)
+	}
+	var q = qb.Query(sql, w)
+
+	return c.execLockJob(ctx, true, q.String(), q.Params()...)
 }
 
 // LockJobByID attempts to retrieve a specific Job from the database.
@@ -180,10 +191,18 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockJobByID(ctx context.Context, id int64) (*Job, error) {
-	sql := `SELECT id, queue, priority, run_at, job_type, args, error_count, last_error
-FROM _jobs WHERE id = $1 AND status='pending' FOR UPDATE SKIP LOCKED`
-
-	return c.execLockJob(ctx, false, sql, id)
+	var (
+		sql = `SELECT id, queue, priority, run_at, job_type, args, error_count, last_error
+				FROM _jobs
+				WHERE %s
+				FOR UPDATE SKIP LOCKED
+			`
+		w = new(qb.WhereBuilder).
+			Where("id", "=", id).
+			Where("status", "=", "pending")
+		q = qb.Query(sql, w)
+	)
+	return c.execLockJob(ctx, false, q.String(), q.Params()...)
 }
 
 // LockNextScheduledJob attempts to retrieve the earliest scheduled Job from the database in the specified queue.
@@ -199,14 +218,40 @@ FROM _jobs WHERE id = $1 AND status='pending' FOR UPDATE SKIP LOCKED`
 //
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
-func (c *Client) LockNextScheduledJob(ctx context.Context, queue string) (*Job, error) {
-	sql := `SELECT id, queue, priority, run_at, job_type, args, error_count, last_error
-FROM _jobs
-WHERE queue = $1 AND run_at <= $2 AND status = 'pending'
-ORDER BY run_at, priority ASC
-LIMIT 1 FOR UPDATE SKIP LOCKED`
+func (c *Client) LockNextScheduledJob(ctx context.Context, queue ...string) (*Job, error) {
+	var (
+		sql = `SELECT id, queue, priority, run_at, job_type, args, error_count, last_error
+				FROM _jobs
+				WHERE %s
+				ORDER BY run_at, priority ASC LIMIT 1 FOR UPDATE SKIP LOCKED
+			`
+		w = new(qb.WhereBuilder).
+			Where("run_at", "<=", time.Now().UTC()).
+			Where("status", "=", "pending")
+	)
 
-	return c.execLockJob(ctx, true, sql, queue, time.Now().UTC())
+	if len(queue) > 0 {
+		w.WhereIn("queue", ToInterfaceSlice(queue)...)
+	}
+	var q = qb.Query(sql, w)
+
+	return c.execLockJob(ctx, true, q.String(), q.Params()...)
+}
+
+func (c *Client) CleanUp(ctx context.Context, runAfter time.Duration, queue ...string) (err error) {
+	var (
+		sql = `UPDATE _jobs SET status = 'pending' WHERE %s`
+		w   = new(qb.WhereBuilder).
+			Where("status", "=", "pending").
+			WhereIn("queue", ToInterfaceSlice(queue)...).
+			Where("run_at", "<=", fmt.Sprintf("now() - INTERVAL '%d minutes", int(runAfter.Minutes())))
+		q = qb.Query(sql, w)
+	)
+
+	if _, err = c.pool.Exec(ctx, q.String(), q.Params()...); err != nil {
+		return fmt.Errorf("error cleanup job table: %w", err)
+	}
+	return nil
 }
 
 func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql string, args ...any) (j *Job, err error) {
@@ -276,4 +321,12 @@ func (c *Client) initMetrics() (err error) {
 	}
 
 	return nil
+}
+
+func ToInterfaceSlice[T any](slice []T) []interface{} {
+	var o = make([]interface{}, len(slice))
+	for i := range slice {
+		o[i] = slice[i]
+	}
+	return o
 }

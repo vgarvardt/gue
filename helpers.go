@@ -5,13 +5,18 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 )
 
+var rnd = rand.New(rand.NewSource(time.Now().Unix()))
+
 // RandomStringID returns random alphanumeric string that can be used as ID.
 func RandomStringID() string {
-	hash := sha256.Sum256([]byte(time.Now().Format(time.RFC3339Nano)))
+	var data = make([]byte, 32)
+	rnd.Read(data)
+	hash := sha256.Sum256(data)
 	return hex.EncodeToString(hash[:])[:6]
 }
 

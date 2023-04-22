@@ -25,9 +25,16 @@ func WithWorkerPollInterval(d time.Duration) WorkerOption {
 }
 
 // WithWorkerQueue overrides default worker queue name with the given value.
-func WithWorkerQueue(queue string) WorkerOption {
+func WithWorkerQueue(queue ...string) WorkerOption {
 	return func(w *Worker) {
 		w.queue = queue
+	}
+}
+
+func WithQueueRestore(restoreAfter, interval time.Duration) WorkerOption {
+	return func(w *Worker) {
+		w.queueRestoreAfter = restoreAfter
+		w.queueRestoreInterval = interval
 	}
 }
 
@@ -128,7 +135,7 @@ func WithPoolPollInterval(d time.Duration) WorkerPoolOption {
 }
 
 // WithPoolQueue overrides default worker queue name with the given value.
-func WithPoolQueue(queue string) WorkerPoolOption {
+func WithPoolQueue(queue ...string) WorkerPoolOption {
 	return func(w *WorkerPool) {
 		w.queue = queue
 	}
@@ -205,5 +212,12 @@ func WithPoolGracefulShutdown(handlerCtx func() context.Context) WorkerPoolOptio
 func WithPoolPanicStackBufSize(size int) WorkerPoolOption {
 	return func(w *WorkerPool) {
 		w.panicStackBufSize = size
+	}
+}
+
+func WithPoolQueueRestore(restoreAfter, interval time.Duration) WorkerPoolOption {
+	return func(w *WorkerPool) {
+		w.queueRestoreAfter = restoreAfter
+		w.queueRestoreInterval = interval
 	}
 }

@@ -58,14 +58,14 @@ type HookFunc func(ctx context.Context, j *Job, err error)
 type WorkMap map[string]WorkFunc
 
 // pollFunc is a function that queries the DB for the next job to work on
-type pollFunc func(context.Context, string) (*Job, error)
+type pollFunc func(context.Context, ...string) (*Job, error)
 
 // Worker is a single worker that pulls jobs off the specified queue. If no Job
 // is found, the Worker will sleep for interval seconds.
 type Worker struct {
 	wm           WorkMap
 	interval     time.Duration
-	queue        string
+	queue        []string
 	c            *Client
 	id           string
 	logger       adapter.Logger
@@ -73,6 +73,9 @@ type Worker struct {
 	running      bool
 	pollStrategy PollStrategy
 	pollFunc     pollFunc
+
+	queueRestoreAfter    time.Duration
+	queueRestoreInterval time.Duration
 
 	graceful    bool
 	gracefulCtx func() context.Context
@@ -101,7 +104,6 @@ type Worker struct {
 func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) (*Worker, error) {
 	w := Worker{
 		interval:     defaultPollInterval,
-		queue:        defaultQueueName,
 		c:            c,
 		id:           RandomStringID(),
 		wm:           wm,
@@ -180,7 +182,7 @@ func (w *Worker) runLoop(ctx context.Context) error {
 
 // WorkOne tries to consume single message from the queue.
 func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
-	j, err := w.pollFunc(ctx, w.queue)
+	j, err := w.pollFunc(ctx, w.queue...)
 
 	if err != nil {
 		w.mWorked.Add(ctx, 1, attrJobType.String(""), attrSuccess.Bool(false))
@@ -325,7 +327,7 @@ func (w *Worker) recoverPanic(ctx context.Context, logger adapter.Logger, j *Job
 type WorkerPool struct {
 	wm           WorkMap
 	interval     time.Duration
-	queue        string
+	queue        []string
 	c            *Client
 	workers      []*Worker
 	id           string
@@ -333,6 +335,9 @@ type WorkerPool struct {
 	mu           sync.Mutex
 	running      bool
 	pollStrategy PollStrategy
+
+	queueRestoreAfter    time.Duration
+	queueRestoreInterval time.Duration
 
 	graceful    bool
 	gracefulCtx func() context.Context
@@ -356,7 +361,6 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 	w := WorkerPool{
 		wm:           wm,
 		interval:     defaultPollInterval,
-		queue:        defaultQueueName,
 		c:            c,
 		id:           RandomStringID(),
 		workers:      make([]*Worker, poolSize),
@@ -380,7 +384,7 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 			w.c,
 			w.wm,
 			WithWorkerPollInterval(w.interval),
-			WithWorkerQueue(w.queue),
+			WithWorkerQueue(w.queue...),
 			WithWorkerID(fmt.Sprintf("%s/worker-%d", w.id, i)),
 			WithWorkerLogger(w.logger),
 			WithWorkerPollStrategy(w.pollStrategy),
@@ -427,6 +431,27 @@ func (w *WorkerPool) runGroup(ctx context.Context) error {
 		grp.Go(func() error {
 			return worker.Run(setWorkerIdx(ctx, idx))
 		})
+	}
+
+	if w.queueRestoreAfter > 0 {
+		grp.Go(func() error {
+			w.logger.Info("start cleanup")
+			for {
+				select {
+				case <-ctx.Done():
+					return nil
+				case <-time.After(w.queueRestoreInterval):
+				}
+
+				var childCtx, cancelFunc = context.WithTimeout(ctx, time.Second*30)
+				if err := w.c.CleanUp(childCtx, w.queueRestoreAfter, w.queue...); err != nil {
+					w.logger.Error("error cleanup queue: " + err.Error())
+				}
+
+				cancelFunc()
+			}
+		})
+
 	}
 
 	return grp.Wait()

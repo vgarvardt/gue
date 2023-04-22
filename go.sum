@@ -1,3 +1,5 @@
+github.com/AlexanderGrom/qb v2.0.2+incompatible h1:sBN5PDs72Q5/4kG4N7RNr35p3XPeM1M9Gy3u86Tmutc=
+github.com/AlexanderGrom/qb v2.0.2+incompatible/go.mod h1:t2f26ho4NpkC7PZtLYSwfx+ZOAGzrNcBHB4yXixjbu4=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/Masterminds/semver/v3 v3.1.1/go.mod h1:VPu/7SZ7ePZ3QOrcuXROw5FAcLl4a0cBrbBpGY/8hQs=
 github.com/benbjohnson/clock v1.1.0 h1:Q92kusRqC1XV2MjkWETPvjJVqKetz1OzxZB7mHJLju8=

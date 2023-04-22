@@ -55,12 +55,12 @@ func TestWithWorkerPollInterval(t *testing.T) {
 func TestWithWorkerQueue(t *testing.T) {
 	workerWithDefaultQueue, err := NewWorker(nil, dummyWM)
 	require.NoError(t, err)
-	assert.Equal(t, defaultQueueName, workerWithDefaultQueue.queue)
+	assert.Equal(t, []string(nil), workerWithDefaultQueue.queue)
 
 	customQueue := "fooBarBaz"
 	workerWithCustomQueue, err := NewWorker(nil, dummyWM, WithWorkerQueue(customQueue))
 	require.NoError(t, err)
-	assert.Equal(t, customQueue, workerWithCustomQueue.queue)
+	assert.Equal(t, []string{customQueue}, workerWithCustomQueue.queue)
 }
 
 func TestWithWorkerID(t *testing.T) {
@@ -143,12 +143,12 @@ func TestWithPoolPollInterval(t *testing.T) {
 func TestWithPoolQueue(t *testing.T) {
 	workerPoolWithDefaultQueue, err := NewWorkerPool(nil, dummyWM, 2)
 	require.NoError(t, err)
-	assert.Equal(t, defaultQueueName, workerPoolWithDefaultQueue.queue)
+	assert.Equal(t, []string(nil), workerPoolWithDefaultQueue.queue)
 
 	customQueue := "fooBarBaz"
-	workerPoolWithCustomQueue, err := NewWorkerPool(nil, dummyWM, 2, WithPoolQueue(customQueue))
+	workerPoolWithCustomQueue, err := NewWorkerPool(nil, dummyWM, 2, WithPoolQueue(customQueue, "bazbaz"))
 	require.NoError(t, err)
-	assert.Equal(t, customQueue, workerPoolWithCustomQueue.queue)
+	assert.Equal(t, []string{customQueue, "bazbaz"}, workerPoolWithCustomQueue.queue)
 }
 
 func TestWithPoolID(t *testing.T) {
