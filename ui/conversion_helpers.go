@@ -7,7 +7,6 @@ import (
 	"unicode/utf8"
 
 	"github.com/2tvenom/gue/ui/database"
-	"github.com/hibiken/asynq"
 )
 
 // ****************************************************************************
@@ -118,28 +117,28 @@ type queueStateSnapshot struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-func toQueueStateSnapshot(info *asynq.QueueInfo) *queueStateSnapshot {
-	return &queueStateSnapshot{
-		Queue:           info.Queue,
-		MemoryUsage:     info.MemoryUsage,
-		Size:            info.Size,
-		Groups:          info.Groups,
-		LatencyMillisec: info.Latency.Milliseconds(),
-		DisplayLatency:  info.Latency.Round(10 * time.Millisecond).String(),
-		Active:          info.Active,
-		Pending:         info.Pending,
-		Aggregating:     info.Aggregating,
-		Scheduled:       info.Scheduled,
-		Retry:           info.Retry,
-		Archived:        info.Archived,
-		Completed:       info.Completed,
-		Processed:       info.Processed,
-		Succeeded:       info.Processed - info.Failed,
-		Failed:          info.Failed,
-		Paused:          info.Paused,
-		Timestamp:       info.Timestamp,
-	}
-}
+//func toQueueStateSnapshot(info *asynq.QueueInfo) *queueStateSnapshot {
+//	return &queueStateSnapshot{
+//		Queue:           info.Queue,
+//		MemoryUsage:     info.MemoryUsage,
+//		Size:            info.Size,
+//		Groups:          info.Groups,
+//		LatencyMillisec: info.Latency.Milliseconds(),
+//		DisplayLatency:  info.Latency.Round(10 * time.Millisecond).String(),
+//		Active:          info.Active,
+//		Pending:         info.Pending,
+//		Aggregating:     info.Aggregating,
+//		Scheduled:       info.Scheduled,
+//		Retry:           info.Retry,
+//		Archived:        info.Archived,
+//		Completed:       info.Completed,
+//		Processed:       info.Processed,
+//		Succeeded:       info.Processed - info.Failed,
+//		Failed:          info.Failed,
+//		Paused:          info.Paused,
+//		Timestamp:       info.Timestamp,
+//	}
+//}
 
 type dailyStats struct {
 	Queue     string `json:"queue"`
@@ -149,23 +148,23 @@ type dailyStats struct {
 	Date      string `json:"date"`
 }
 
-func toDailyStats(s *asynq.DailyStats) *dailyStats {
-	return &dailyStats{
-		Queue:     s.Queue,
-		Processed: s.Processed,
-		Succeeded: s.Processed - s.Failed,
-		Failed:    s.Failed,
-		Date:      s.Date.Format("2006-01-02"),
-	}
-}
+//func toDailyStats(s *asynq.DailyStats) *dailyStats {
+//	return &dailyStats{
+//		Queue:     s.Queue,
+//		Processed: s.Processed,
+//		Succeeded: s.Processed - s.Failed,
+//		Failed:    s.Failed,
+//		Date:      s.Date.Format("2006-01-02"),
+//	}
+//}
 
-func toDailyStatsList(in []*asynq.DailyStats) []*dailyStats {
-	out := make([]*dailyStats, len(in))
-	for i, s := range in {
-		out[i] = toDailyStats(s)
-	}
-	return out
-}
+//func toDailyStatsList(in []*asynq.DailyStats) []*dailyStats {
+//	out := make([]*dailyStats, len(in))
+//	for i, s := range in {
+//		out[i] = toDailyStats(s)
+//	}
+//	return out
+//}
 
 type taskInfo struct {
 	// ID is the identifier of the task.
@@ -204,13 +203,13 @@ type taskInfo struct {
 	TTL int64 `json:"ttl_seconds"`
 }
 
-// taskTTL calculates TTL for the given task.
-func taskTTL(task *asynq.TaskInfo) time.Duration {
-	if task.State != asynq.TaskStateCompleted {
-		return 0 // N/A
-	}
-	return task.CompletedAt.Add(task.Retention).Sub(time.Now())
-}
+//// taskTTL calculates TTL for the given task.
+//func taskTTL(task *asynq.TaskInfo) time.Duration {
+//	if task.State != asynq.TaskStateCompleted {
+//		return 0 // N/A
+//	}
+//	return task.CompletedAt.Add(task.Retention).Sub(time.Now())
+//}
 
 // formatTimeInRFC3339 formats t in RFC3339 if the value is non-zero.
 // If t is zero time (i.e. time.Time{}), returns empty string
@@ -221,25 +220,25 @@ func formatTimeInRFC3339(t time.Time) string {
 	return t.Format(time.RFC3339)
 }
 
-func toTaskInfo(info *asynq.TaskInfo, pf PayloadFormatter, rf ResultFormatter) *taskInfo {
-	return &taskInfo{
-		ID:            info.ID,
-		Queue:         info.Queue,
-		Type:          info.Type,
-		Payload:       pf.FormatPayload(info.Type, info.Payload),
-		State:         info.State.String(),
-		MaxRetry:      info.MaxRetry,
-		Retried:       info.Retried,
-		LastErr:       info.LastErr,
-		LastFailedAt:  formatTimeInRFC3339(info.LastFailedAt),
-		Timeout:       int(info.Timeout.Seconds()),
-		Deadline:      formatTimeInRFC3339(info.Deadline),
-		NextProcessAt: formatTimeInRFC3339(info.NextProcessAt),
-		CompletedAt:   formatTimeInRFC3339(info.CompletedAt),
-		Result:        rf.FormatResult("", info.Result),
-		TTL:           int64(taskTTL(info).Seconds()),
-	}
-}
+//func toTaskInfo(info *asynq.TaskInfo, pf PayloadFormatter, rf ResultFormatter) *taskInfo {
+//	return &taskInfo{
+//		ID:            info.ID,
+//		Queue:         info.Queue,
+//		Type:          info.Type,
+//		Payload:       pf.FormatPayload(info.Type, info.Payload),
+//		State:         info.State.String(),
+//		MaxRetry:      info.MaxRetry,
+//		Retried:       info.Retried,
+//		LastErr:       info.LastErr,
+//		LastFailedAt:  formatTimeInRFC3339(info.LastFailedAt),
+//		Timeout:       int(info.Timeout.Seconds()),
+//		Deadline:      formatTimeInRFC3339(info.Deadline),
+//		NextProcessAt: formatTimeInRFC3339(info.NextProcessAt),
+//		CompletedAt:   formatTimeInRFC3339(info.CompletedAt),
+//		Result:        rf.FormatResult("", info.Result),
+//		TTL:           int64(taskTTL(info).Seconds()),
+//	}
+//}
 
 type baseTask struct {
 	ID          string    `json:"id"`
