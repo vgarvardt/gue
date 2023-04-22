@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS _jobs
   job_type    varchar(32)                NOT NULL,
   args        BYTEA                      NOT NULL,
   error_count INTEGER                    NOT NULL DEFAULT 0,
-  last_error  TIMESTAMP(0),
+  last_error  TEXT,
   queue       varchar(255)               NOT NULL,
   status      job_status                 NOT NULL DEFAULT 'pending',
   created_at  TIMESTAMP(0) DEFAULT now() NOT NULL,

@@ -1,6 +1,6 @@
 # gue
 
-[![GoDev](https://img.shields.io/static/v1?label=godev&message=reference&color=00add8)](https://pkg.go.dev/github.com/vgarvardt/gue/v5)
+[![GoDev](https://img.shields.io/static/v1?label=godev&message=reference&color=00add8)](https://pkg.go.dev/github.com/2tvenom/gue)
 [![Coverage Status](https://codecov.io/gh/vgarvardt/gue/branch/master/graph/badge.svg)](https://codecov.io/gh/vgarvardt/gue)
 [![ReportCard](https://goreportcard.com/badge/github.com/vgarvardt/gue)](https://goreportcard.com/report/github.com/vgarvardt/gue)
 [![License](https://img.shields.io/npm/l/express.svg)](http://opensource.org/licenses/MIT)
@@ -17,7 +17,7 @@ The name Gue is yet another silly word transformation: Queue -> Que, Go + Que ->
 ## Install
 
 ```shell
-go get -u github.com/vgarvardt/gue/v5
+go get -u github.com/2tvenom/gue
 ```
 
 Additionally, you need to apply [DB migration](migrations/schema.sql).
@@ -38,8 +38,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/vgarvardt/gue/v5"
-	"github.com/vgarvardt/gue/v5/adapter/pgxv5"
+	"github.com/2tvenom/gue"
+	"github.com/2tvenom/gue/adapter/pgxv5"
 )
 
 const (
@@ -171,8 +171,8 @@ import (
 
   "github.com/jackc/pgx/v5/pgxpool"
 
-  "github.com/vgarvardt/gue/v5"
-  "github.com/vgarvardt/gue/v5/adapter/pgxv5"
+  "github.com/2tvenom/gue"
+  "github.com/2tvenom/gue/adapter/pgxv5"
 )
 
 func main() {
@@ -206,8 +206,8 @@ import (
 
   "github.com/jackc/pgx/v4/pgxpool"
 
-  "github.com/vgarvardt/gue/v5"
-  "github.com/vgarvardt/gue/v5/adapter/pgxv4"
+  "github.com/2tvenom/gue"
+  "github.com/2tvenom/gue/adapter/pgxv4"
 )
 
 func main() {
@@ -241,8 +241,8 @@ import (
 
   _ "github.com/lib/pq" // register postgres driver
 
-  "github.com/vgarvardt/gue/v5"
-  "github.com/vgarvardt/gue/v5/adapter/libpq"
+  "github.com/2tvenom/gue"
+  "github.com/2tvenom/gue/adapter/libpq"
 )
 
 func main() {

@@ -11,7 +11,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/vgarvardt/gue/v5/adapter"
+	"github.com/2tvenom/gue/adapter"
 )
 
 type mockLogger struct {

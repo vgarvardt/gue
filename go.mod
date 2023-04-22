@@ -1,4 +1,4 @@
-module github.com/vgarvardt/gue/v5
+module github.com/2tvenom/gue
 
 go 1.19
 

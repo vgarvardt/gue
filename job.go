@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vgarvardt/gue/v5/adapter"
+	"github.com/2tvenom/gue/adapter"
 )
 
 // JobPriority is the wrapper type for Job.Priority
@@ -96,7 +96,7 @@ func (j *Job) Done(ctx context.Context) error {
 		return nil
 	}
 
-	if _, err := j.db.Exec(ctx, `UPDATE _jobs SET status='finished' WHERE id = $1`, j.ID); err != nil {
+	if _, err := j.db.Exec(ctx, `UPDATE _jobs SET status='finished', updated_at=now() WHERE id = $1`, j.ID); err != nil {
 		return err
 	}
 

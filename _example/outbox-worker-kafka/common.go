@@ -11,11 +11,10 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/2tvenom/gue"
+	"github.com/2tvenom/gue/adapter"
 	"github.com/Shopify/sarama"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/vgarvardt/gue/v5"
-	"github.com/vgarvardt/gue/v5/adapter"
-	"github.com/vgarvardt/gue/v5/adapter/pgxv5"
 )
 
 //func init() {

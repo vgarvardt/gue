@@ -16,7 +16,7 @@ import (
 	"go.uber.org/multierr"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/vgarvardt/gue/v5/adapter"
+	"github.com/2tvenom/gue/adapter"
 )
 
 // PollStrategy determines how the DB is queried for the next job to work on

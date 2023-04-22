@@ -3,7 +3,7 @@ package zap
 import (
 	uberZap "go.uber.org/zap"
 
-	"github.com/vgarvardt/gue/v5/adapter"
+	"github.com/2tvenom/gue/adapter"
 )
 
 var _ adapter.Logger = &zap{}

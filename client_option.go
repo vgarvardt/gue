@@ -3,7 +3,7 @@ package gue
 import (
 	"go.opentelemetry.io/otel/metric"
 
-	"github.com/vgarvardt/gue/v5/adapter"
+	"github.com/2tvenom/gue/adapter"
 )
 
 // ClientOption defines a type that allows to set client properties during the build-time.

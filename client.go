@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/2tvenom/gue/adapter"
 	"github.com/AlexanderGrom/qb"
-	"github.com/vgarvardt/gue/v5/adapter"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/instrument"

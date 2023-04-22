@@ -6,13 +6,13 @@ import (
 	"testing"
 	"time"
 
+	adapterTesting "github.com/2tvenom/gue/adapter/testing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	adapterTesting "github.com/vgarvardt/gue/v5/adapter/testing"
 	"go.uber.org/zap/zaptest"
 
-	"github.com/vgarvardt/gue/v5/adapter"
-	adapterZap "github.com/vgarvardt/gue/v5/adapter/zap"
+	"github.com/2tvenom/gue/adapter"
+	adapterZap "github.com/2tvenom/gue/adapter/zap"
 )
 
 func TestBackoff(t *testing.T) {

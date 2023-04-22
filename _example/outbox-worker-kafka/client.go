@@ -11,7 +11,6 @@ import (
 	"github.com/Shopify/sarama"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
-	"github.com/vgarvardt/gue/v5"
 )
 
 func newClientCommand() *cobra.Command {
