@@ -350,7 +350,7 @@ export const useRowStyles = makeStyles((theme) => ({
     marginRight: 3,
   },
   idCell: {
-    width: "200px",
+    width: "40px",
   },
   copyButton: {
     display: "none",
