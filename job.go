@@ -3,65 +3,19 @@ package gue
 import (
 	"context"
 	"database/sql"
-	"sync"
+	"sync/atomic"
 	"time"
 
-	"github.com/2tvenom/gue/adapter"
-)
-
-// JobPriority is the wrapper type for Job.Priority
-type JobPriority int16
-
-// Some shortcut values for JobPriority that can be any, but chances are high that one of these will be the most used.
-const (
-	JobPriorityHighest JobPriority = -32768
-	JobPriorityHigh    JobPriority = -16384
-	JobPriorityDefault JobPriority = 0
-	JobPriorityLow     JobPriority = 16384
-	JobPriorityLowest  JobPriority = 32767
+	"github.com/2tvenom/gue/database"
 )
 
 // Job is a single unit of work for Gue to perform.
 type Job struct {
-	// ID is the unique database ID of the Job. It is ignored on job creation.
-	ID int64
+	database.Job
 
-	// Queue is the name of the queue. It defaults to the empty queue "".
-	Queue string
-
-	// Priority is the priority of the Job. The default priority is 0, and a
-	// lower number means a higher priority.
-	//
-	// The highest priority is JobPriorityHighest, the lowest one is JobPriorityLowest
-	Priority JobPriority
-
-	// RunAt is the time that this job should be executed. It defaults to now(),
-	// meaning the job will execute immediately. Set it to a value in the future
-	// to delay a job's execution.
-	RunAt time.Time
-
-	// Type maps job to a worker func.
-	Type string
-
-	// Args for the job.
-	Args []byte
-
-	// ErrorCount is the number of times this job has attempted to run, but failed with an error.
-	// It is ignored on job creation.
-	// This field is initialised only when the Job is being retrieved from the DB and is not
-	// being updated when the current Job handler errored.
-	ErrorCount int32
-
-	// LastError is the error message or stack trace from the last time the job failed. It is ignored on job creation.
-	// This field is initialised only when the Job is being retrieved from the DB and is not
-	// being updated when the current Job run errored. This field supposed to be used mostly for the debug reasons.
-	LastError sql.NullString
-
-	mu        sync.Mutex
-	processed bool
-	db        adapter.ConnPool
+	processed int32
+	db        *database.Queries
 	backoff   Backoff
-	logger    adapter.Logger
 }
 
 // Fail marks this job as failed
@@ -69,40 +23,14 @@ type Job struct {
 // You must also later call Done() to return this job's database connection to
 // the pool. If you got the job from the worker - it will take care of cleaning up the job and resources,
 // no need to do this manually in a WorkFunc.
-func (j *Job) Fail(ctx context.Context) error {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-
-	if j.processed {
-		return nil
-	}
-
-	_, err := j.db.Exec(ctx, `UPDATE _jobs SET status='failed' WHERE id = $1`, j.ID)
-	if err != nil {
-		return err
-	}
-
-	j.processed = true
-	return nil
+func (j *Job) Fail(ctx context.Context) (err error) {
+	return j.setProcessed(ctx, database.JobStatusFailed)
 }
 
 // Done commits transaction that marks job as done. If you got the job from the worker - it will take care of
 // cleaning up the job and resources, no need to do this manually in a WorkFunc.
 func (j *Job) Done(ctx context.Context) error {
-	j.mu.Lock()
-	defer j.mu.Unlock()
-
-	if j.db == nil {
-		return nil
-	}
-
-	if _, err := j.db.Exec(ctx, `UPDATE _jobs SET status='finished', updated_at=now() WHERE id = $1`, j.ID); err != nil {
-		return err
-	}
-
-	j.db = nil
-
-	return nil
+	return j.setProcessed(ctx, database.JobStatusFinished)
 }
 
 // Error marks the job as failed and schedules it to be reworked. An error
@@ -114,39 +42,47 @@ func (j *Job) Done(ctx context.Context) error {
 // If you got the job from the worker - it will take care of cleaning up the job and resources,
 // no need to do this manually in a WorkFunc.
 func (j *Job) Error(ctx context.Context, jErr error) (err error) {
-	errorCount := j.ErrorCount + 1
-	newRunAt := j.calculateErrorRunAt(jErr, time.Now().UTC(), errorCount)
+	var (
+		errorCount = j.ErrorCount + 1
+		newRunAt   = j.calculateErrorRunAt(jErr, errorCount)
+	)
 	if newRunAt.IsZero() {
-		j.logger.Info(
-			"Got empty new run at for the errored job, discarding it",
-			adapter.F("job-type", j.Type),
-			adapter.F("job-queue", j.Queue),
-			adapter.F("job-errors", errorCount),
-			adapter.Err(jErr),
-		)
-		err = j.Fail(ctx)
-		return
+		return j.Fail(ctx)
 	}
 
-	_, err = j.db.Exec(
-		ctx,
-		`UPDATE _jobs SET error_count = $1, run_at = $2, last_error = $3, updated_at = now(), status = 'pending' WHERE id = $4`,
-		errorCount, newRunAt, jErr.Error(), j.ID,
-	)
-
-	return err
+	return j.db.UpdateStatusError(ctx, database.UpdateStatusErrorParams{
+		ID:         j.ID,
+		ErrorCount: errorCount,
+		RunAt:      newRunAt,
+		LastError:  sql.NullString{String: jErr.Error(), Valid: true},
+	})
 }
 
-func (j *Job) calculateErrorRunAt(err error, now time.Time, errorCount int32) time.Time {
-	errReschedule, ok := err.(ErrJobReschedule)
-	if ok {
+func (j *Job) setProcessed(ctx context.Context, status database.JobStatus) (err error) {
+	if atomic.LoadInt32(&j.processed) == 1 {
+		return nil
+	}
+
+	if err = j.db.UpdateStatus(ctx, database.UpdateStatusParams{
+		ID:     j.ID,
+		Status: status,
+	}); err != nil {
+		return err
+	}
+
+	atomic.AddInt32(&j.processed, 1)
+	return nil
+}
+
+func (j *Job) calculateErrorRunAt(err error, errorCount int32) time.Time {
+	if errReschedule, ok := err.(ErrJobReschedule); ok {
 		return errReschedule.rescheduleJobAt()
 	}
 
-	backoff := j.backoff(int(errorCount))
+	var backoff = j.backoff(int(errorCount))
 	if backoff < 0 {
 		return time.Time{}
 	}
 
-	return now.Add(backoff)
+	return time.Now().UTC().Add(backoff)
 }

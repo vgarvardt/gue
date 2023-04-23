@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS _jobs
   priority    SMALLINT                   NOT NULL,
   run_at      TIMESTAMP(0) DEFAULT now() NOT NULL,
   job_type    varchar(32)                NOT NULL,
-  args        BYTEA                      NOT NULL,
+  payload     BYTEA                      NOT NULL,
+  metadata    BYTEA,
   error_count INTEGER                    NOT NULL DEFAULT 0,
   last_error  TEXT,
   queue       varchar(255)               NOT NULL,
@@ -17,5 +18,5 @@ CREATE TABLE IF NOT EXISTS _jobs
   updated_at  TIMESTAMP(0) DEFAULT now() NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_gue_jobs_selector ON _jobs (queue, run_at, priority);
+CREATE INDEX IF NOT EXISTS idx_gue_jobs_selector ON _jobs (queue, status, run_at, priority);
 

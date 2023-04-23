@@ -11,6 +11,7 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/global"
 	"go.opentelemetry.io/otel/metric/instrument"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/multierr"
@@ -18,6 +19,22 @@ import (
 
 	"github.com/2tvenom/gue/adapter"
 )
+
+var (
+	Meter        = global.MeterProvider().Meter("guex")
+	EnqueueMeter instrument.Int64Counter
+)
+
+func init() {
+	var err error
+	EnqueueMeter, err = Meter.Int64Counter("enqueue",
+		instrument.WithUnit("1"),
+		instrument.WithDescription("tasks insertion metric"),
+	)
+	if err != nil {
+		panic("error create metric")
+	}
+}
 
 // PollStrategy determines how the DB is queried for the next job to work on
 type PollStrategy string

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/2tvenom/gue/ui/database"
+	database2 "github.com/2tvenom/gue/database"
 	"github.com/gorilla/mux"
 	"golang.org/x/exp/maps"
 )
@@ -15,10 +15,10 @@ import (
 //   - http.Handler(s) for queue related endpoints
 // ****************************************************************************
 
-func newListQueuesHandlerFunc(inspector *database.Queries) http.HandlerFunc {
+func newListQueuesHandlerFunc(inspector *database2.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var (
-			totalInfo []database.GetTotalInfoRow
+			totalInfo []database2.GetTotalInfoRow
 			err       error
 		)
 		if totalInfo, err = inspector.GetTotalInfo(r.Context()); err != nil {
@@ -26,7 +26,7 @@ func newListQueuesHandlerFunc(inspector *database.Queries) http.HandlerFunc {
 			return
 		}
 
-		var totalInfoErr []database.GetTotalInfoWithErrorsRow
+		var totalInfoErr []database2.GetTotalInfoWithErrorsRow
 		if totalInfoErr, err = inspector.GetTotalInfoWithErrors(r.Context()); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -43,16 +43,16 @@ func newListQueuesHandlerFunc(inspector *database.Queries) http.HandlerFunc {
 			}
 
 			switch i.Status {
-			case database.JobStatusPending:
+			case database2.JobStatusPending:
 				snapshots[i.Queue].Pending = int(i.Cnt)
 				//snapshots[i.Queue].Scheduled = int(i.Cnt)
-			case database.JobStatusProcessing:
+			case database2.JobStatusProcessing:
 				snapshots[i.Queue].Active = int(i.Cnt)
-			case database.JobStatusFinished:
+			case database2.JobStatusFinished:
 				snapshots[i.Queue].Completed = int(i.Cnt)
 				snapshots[i.Queue].Processed += int(i.Cnt)
 				snapshots[i.Queue].Succeeded = int(i.Cnt)
-			case database.JobStatusFailed:
+			case database2.JobStatusFailed:
 				snapshots[i.Queue].Failed = int(i.Cnt)
 				snapshots[i.Queue].Retry = int(i.Cnt)
 				snapshots[i.Queue].Processed += int(i.Cnt)
@@ -76,14 +76,14 @@ func newListQueuesHandlerFunc(inspector *database.Queries) http.HandlerFunc {
 	}
 }
 
-func newGetQueueHandlerFunc(inspector *database.Queries) http.HandlerFunc {
+func newGetQueueHandlerFunc(inspector *database2.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		qname := vars["qname"]
 
 		var (
 			err   error
-			total []database.GetTotalInfoByNameRow
+			total []database2.GetTotalInfoByNameRow
 		)
 
 		if total, err = inspector.GetTotalInfoByName(r.Context(), qname); err != nil {
@@ -98,16 +98,16 @@ func newGetQueueHandlerFunc(inspector *database.Queries) http.HandlerFunc {
 
 		for _, i := range total {
 			switch i.Status {
-			case database.JobStatusPending:
+			case database2.JobStatusPending:
 				snap.Pending = int(i.Cnt)
 				snap.Scheduled = int(i.Cnt)
-			case database.JobStatusProcessing:
+			case database2.JobStatusProcessing:
 				snap.Active = int(i.Cnt)
-			case database.JobStatusFinished:
+			case database2.JobStatusFinished:
 				snap.Completed = int(i.Cnt)
 				snap.Processed += int(i.Cnt)
 				snap.Succeeded = int(i.Cnt)
-			case database.JobStatusFailed:
+			case database2.JobStatusFailed:
 				snap.Failed = int(i.Cnt)
 				snap.Processed += int(i.Cnt)
 			}
@@ -116,7 +116,7 @@ func newGetQueueHandlerFunc(inspector *database.Queries) http.HandlerFunc {
 
 		payload["current"] = snap
 
-		var history []database.GetTotalInfoByNameHistoryRow
+		var history []database2.GetTotalInfoByNameHistoryRow
 		if history, err = inspector.GetTotalInfoByNameHistory(r.Context(), qname); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -132,9 +132,9 @@ func newGetQueueHandlerFunc(inspector *database.Queries) http.HandlerFunc {
 			}
 
 			switch s.Status {
-			case database.JobStatusFinished:
+			case database2.JobStatusFinished:
 				h[d].Processed += int(s.Cnt)
-			case database.JobStatusFailed:
+			case database2.JobStatusFailed:
 				h[d].Failed = int(s.Cnt)
 			}
 		}
@@ -143,14 +143,14 @@ func newGetQueueHandlerFunc(inspector *database.Queries) http.HandlerFunc {
 	}
 }
 
-func newListQueueStatsHandlerFunc(inspector *database.Queries) http.HandlerFunc {
+func newListQueueStatsHandlerFunc(inspector *database2.Queries) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		type listQueueStatsResponse struct {
 			Stats map[string][]*dailyStats `json:"stats"`
 		}
 
 		var (
-			history []database.GetTotalInfoHistoryRow
+			history []database2.GetTotalInfoHistoryRow
 			err     error
 		)
 		if history, err = inspector.GetTotalInfoHistory(r.Context()); err != nil {
@@ -175,9 +175,9 @@ func newListQueueStatsHandlerFunc(inspector *database.Queries) http.HandlerFunc 
 			}
 
 			switch s.Status {
-			case database.JobStatusFinished:
+			case database2.JobStatusFinished:
 				h[s.Queue][d].Processed += int(s.Cnt)
-			case database.JobStatusFailed:
+			case database2.JobStatusFailed:
 				h[s.Queue][d].Failed = int(s.Cnt)
 			}
 		}

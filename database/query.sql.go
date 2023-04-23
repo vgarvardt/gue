@@ -7,11 +7,57 @@ package database
 
 import (
 	"context"
+	"database/sql"
 	"time"
 )
 
+const cleanUpStuck = `-- name: CleanUpStuck :exec
+UPDATE _jobs
+SET status = 'pending'
+WHERE status = 'pending'
+  AND queue = ANY ($1::varchar[])
+  AND run_at <= now() - INTERVAL '' || $2 || ' minutes'
+`
+
+type CleanUpStuckParams struct {
+	Column1 []string
+	Column2 sql.NullString
+}
+
+func (q *Queries) CleanUpStuck(ctx context.Context, arg CleanUpStuckParams) error {
+	_, err := q.db.Exec(ctx, cleanUpStuck, arg.Column1, arg.Column2)
+	return err
+}
+
+const enqueue = `-- name: Enqueue :exec
+INSERT INTO _jobs (queue, job_type, priority, run_at, payload, metadata)
+VALUES ($1, $2, $3, $4, $5, $6)
+returning id
+`
+
+type EnqueueParams struct {
+	Queue    string
+	JobType  string
+	Priority int16
+	RunAt    time.Time
+	Payload  []byte
+	Metadata []byte
+}
+
+func (q *Queries) Enqueue(ctx context.Context, arg EnqueueParams) error {
+	_, err := q.db.Exec(ctx, enqueue,
+		arg.Queue,
+		arg.JobType,
+		arg.Priority,
+		arg.RunAt,
+		arg.Payload,
+		arg.Metadata,
+	)
+	return err
+}
+
 const getJob = `-- name: GetJob :one
-SELECT id, priority, run_at, job_type, args, error_count, last_error, queue, status, created_at, updated_at
+SELECT id, priority, run_at, job_type, payload, metadata, error_count, last_error, queue, status, created_at, updated_at
 FROM _jobs
 WHERE id = $1
 LIMIT 1
@@ -25,7 +71,8 @@ func (q *Queries) GetJob(ctx context.Context, id int64) (Job, error) {
 		&i.Priority,
 		&i.RunAt,
 		&i.JobType,
-		&i.Args,
+		&i.Payload,
+		&i.Metadata,
 		&i.ErrorCount,
 		&i.LastError,
 		&i.Queue,
@@ -37,8 +84,10 @@ func (q *Queries) GetJob(ctx context.Context, id int64) (Job, error) {
 }
 
 const getTasksByStatusAndQueueName = `-- name: GetTasksByStatusAndQueueName :many
-SELECT id, priority, run_at, job_type, args, error_count, last_error, queue, status, created_at, updated_at
-FROM _jobs WHERE queue = $1 AND status = ANY($2::varchar[]::job_status[])
+SELECT id, priority, run_at, job_type, payload, metadata, error_count, last_error, queue, status, created_at, updated_at
+FROM _jobs
+WHERE queue = $1
+  AND status = ANY ($2::varchar[]::job_status[])
 LIMIT $3 OFFSET $4
 `
 
@@ -68,7 +117,8 @@ func (q *Queries) GetTasksByStatusAndQueueName(ctx context.Context, arg GetTasks
 			&i.Priority,
 			&i.RunAt,
 			&i.JobType,
-			&i.Args,
+			&i.Payload,
+			&i.Metadata,
 			&i.ErrorCount,
 			&i.LastError,
 			&i.Queue,
@@ -273,4 +323,60 @@ func (q *Queries) GetTotalInfoWithErrors(ctx context.Context) ([]GetTotalInfoWit
 		return nil, err
 	}
 	return items, nil
+}
+
+const jobToProcessing = `-- name: JobToProcessing :exec
+UPDATE _jobs
+SET status     = 'processing',
+    updated_at = now(),
+    run_at     = now()
+WHERE id = ANY ($1::bigserial[])
+`
+
+func (q *Queries) JobToProcessing(ctx context.Context, dollar_1 []int64) error {
+	_, err := q.db.Exec(ctx, jobToProcessing, dollar_1)
+	return err
+}
+
+const updateStatus = `-- name: UpdateStatus :exec
+UPDATE _jobs
+SET status = $2
+WHERE id = $1
+`
+
+type UpdateStatusParams struct {
+	ID     int64
+	Status JobStatus
+}
+
+func (q *Queries) UpdateStatus(ctx context.Context, arg UpdateStatusParams) error {
+	_, err := q.db.Exec(ctx, updateStatus, arg.ID, arg.Status)
+	return err
+}
+
+const updateStatusError = `-- name: UpdateStatusError :exec
+UPDATE _jobs
+SET error_count = $1,
+    run_at      = $2,
+    last_error  = $3,
+    updated_at  = now(),
+    status      = 'pending'
+WHERE id = $4
+`
+
+type UpdateStatusErrorParams struct {
+	ErrorCount int32
+	RunAt      time.Time
+	LastError  sql.NullString
+	ID         int64
+}
+
+func (q *Queries) UpdateStatusError(ctx context.Context, arg UpdateStatusErrorParams) error {
+	_, err := q.db.Exec(ctx, updateStatusError,
+		arg.ErrorCount,
+		arg.RunAt,
+		arg.LastError,
+		arg.ID,
+	)
+	return err
 }

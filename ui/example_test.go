@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/2tvenom/gue/database"
 	"github.com/2tvenom/gue/ui"
-	"github.com/2tvenom/gue/ui/database"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 

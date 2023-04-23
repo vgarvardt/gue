@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"unsafe"
 
-	"github.com/2tvenom/gue/ui/database"
+	database2 "github.com/2tvenom/gue/database"
 	"github.com/gorilla/mux"
 )
 
@@ -20,7 +20,7 @@ type listTasksResponse struct {
 	Stats *queueStateSnapshot `json:"stats"`
 }
 
-func newListTasksHandlerFunc(inspector *database.Queries, pf PayloadFormatter, status ...database.JobStatus) http.HandlerFunc {
+func newListTasksHandlerFunc(inspector *database2.Queries, pf PayloadFormatter, status ...database2.JobStatus) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		qname := vars["qname"]
@@ -28,7 +28,7 @@ func newListTasksHandlerFunc(inspector *database.Queries, pf PayloadFormatter, s
 
 		var (
 			err   error
-			total []database.GetTotalInfoByNameRow
+			total []database2.GetTotalInfoByNameRow
 		)
 
 		if total, err = inspector.GetTotalInfoByName(r.Context(), qname); err != nil {
@@ -42,16 +42,16 @@ func newListTasksHandlerFunc(inspector *database.Queries, pf PayloadFormatter, s
 
 		for _, i := range total {
 			switch i.Status {
-			case database.JobStatusPending:
+			case database2.JobStatusPending:
 				snap.Pending = int(i.Cnt)
 				//snap.Scheduled = int(i.Cnt)
-			case database.JobStatusProcessing:
+			case database2.JobStatusProcessing:
 				snap.Active = int(i.Cnt)
-			case database.JobStatusFinished:
+			case database2.JobStatusFinished:
 				snap.Completed += int(i.Cnt)
 				snap.Processed += int(i.Cnt)
 				//snap.Succeeded = int(i.Cnt)
-			case database.JobStatusFailed:
+			case database2.JobStatusFailed:
 				snap.Failed = int(i.Cnt)
 				snap.Retry = int(i.Cnt)
 				snap.Processed += int(i.Cnt)
@@ -62,7 +62,7 @@ func newListTasksHandlerFunc(inspector *database.Queries, pf PayloadFormatter, s
 
 		tasks, err := inspector.GetTasksByStatusAndQueueName(
 			r.Context(),
-			database.GetTasksByStatusAndQueueNameParams{
+			database2.GetTasksByStatusAndQueueNameParams{
 				Queue:   qname,
 				Column2: *(*[]string)(unsafe.Pointer(&status)),
 				Limit:   int32(pageSize),

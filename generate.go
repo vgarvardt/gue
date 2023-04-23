@@ -1,2 +1,2 @@
 //go:generate sqlc generate
-package asynqmon
+package gue

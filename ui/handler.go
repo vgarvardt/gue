@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/2tvenom/gue/ui/database"
+	database2 "github.com/2tvenom/gue/database"
 	"github.com/gorilla/mux"
 )
 
@@ -21,7 +21,7 @@ type Options struct {
 	// RedisConnOpt specifies the connection to a redis-server or redis-cluster.
 	//
 	// This field is required.
-	ConnOpt *database.Queries
+	ConnOpt *database2.Queries
 
 	// PayloadFormatter is used to convert payload bytes to string shown in the UI.
 	//
@@ -91,7 +91,7 @@ func (h *HTTPHandler) RootPath() string {
 //go:embed react/build/*
 var staticContents embed.FS
 
-func muxRouter(opts Options, inspector *database.Queries) *mux.Router {
+func muxRouter(opts Options, inspector *database2.Queries) *mux.Router {
 	router := mux.NewRouter().PathPrefix(opts.RootPath).Subrouter()
 
 	var payloadFmt PayloadFormatter = DefaultPayloadFormatter
@@ -120,7 +120,7 @@ func muxRouter(opts Options, inspector *database.Queries) *mux.Router {
 	api.HandleFunc("/queues/{qname}/active_tasks", newListTasksHandlerFunc(
 		inspector,
 		payloadFmt,
-		database.JobStatusProcessing,
+		database2.JobStatusProcessing,
 	)).Methods("GET")
 	//api.HandleFunc("/queues/{qname}/active_tasks/{task_id}:cancel", newCancelActiveTaskHandlerFunc(inspector)).Methods("POST")
 	//api.HandleFunc("/queues/{qname}/active_tasks:cancel_all", newCancelAllActiveTasksHandlerFunc(inspector)).Methods("POST")
@@ -129,7 +129,7 @@ func muxRouter(opts Options, inspector *database.Queries) *mux.Router {
 	api.HandleFunc("/queues/{qname}/pending_tasks", newListTasksHandlerFunc(
 		inspector,
 		payloadFmt,
-		database.JobStatusPending,
+		database2.JobStatusPending,
 	)).Methods("GET")
 	//api.HandleFunc("/queues/{qname}/pending_tasks/{task_id}", newDeleteTaskHandlerFunc(inspector)).Methods("DELETE")
 	//api.HandleFunc("/queues/{qname}/pending_tasks:delete_all", newDeleteAllPendingTasksHandlerFunc(inspector)).Methods("DELETE")
@@ -152,7 +152,7 @@ func muxRouter(opts Options, inspector *database.Queries) *mux.Router {
 	api.HandleFunc("/queues/{qname}/fail_tasks", newListTasksHandlerFunc(
 		inspector,
 		payloadFmt,
-		database.JobStatusFailed,
+		database2.JobStatusFailed,
 	)).Methods("GET")
 	//api.HandleFunc("/queues/{qname}/retry_tasks/{task_id}", newDeleteTaskHandlerFunc(inspector)).Methods("DELETE")
 	//api.HandleFunc("/queues/{qname}/retry_tasks:delete_all", newDeleteAllRetryTasksHandlerFunc(inspector)).Methods("DELETE")
@@ -175,7 +175,7 @@ func muxRouter(opts Options, inspector *database.Queries) *mux.Router {
 	api.HandleFunc("/queues/{qname}/completed_tasks", newListTasksHandlerFunc(
 		inspector,
 		payloadFmt,
-		database.JobStatusFailed, database.JobStatusFinished,
+		database2.JobStatusFailed, database2.JobStatusFinished,
 	)).Methods("GET")
 	//api.HandleFunc("/queues/{qname}/completed_tasks/{task_id}", newDeleteTaskHandlerFunc(inspector)).Methods("DELETE")
 	//api.HandleFunc("/queues/{qname}/completed_tasks:delete_all", newDeleteAllCompletedTasksHandlerFunc(inspector)).Methods("DELETE")

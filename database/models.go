@@ -60,7 +60,8 @@ type Job struct {
 	Priority   int16
 	RunAt      time.Time
 	JobType    string
-	Args       []byte
+	Payload    []byte
+	Metadata   []byte
 	ErrorCount int32
 	LastError  sql.NullString
 	Queue      string

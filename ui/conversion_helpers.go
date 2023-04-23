@@ -6,7 +6,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/2tvenom/gue/ui/database"
+	"github.com/2tvenom/gue/database"
 )
 
 // ****************************************************************************
