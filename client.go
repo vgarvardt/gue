@@ -7,10 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/2tvenom/gue/database"
+	"github.com/2tvenom/guex/database"
 	"github.com/jackc/pgx/v4"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/metric"
 )
 
 // ErrMissingType is returned when you attempt to enqueue a job with no Type
@@ -19,7 +18,7 @@ var ErrMissingType = errors.New("job type must be specified")
 
 type QueueLimit struct {
 	Queue string
-	Limit int64
+	Limit int32
 }
 
 // Client is a Gue client that can add jobs to the queue and remove jobs from
@@ -28,14 +27,12 @@ type Client struct {
 	pool    *database.Queries
 	id      string
 	backoff Backoff
-	meter   metric.Meter
 }
 
 // NewClient creates a new Client that uses the pgx pool.
 func NewClient(pool *database.Queries, options ...ClientOption) (c *Client, err error) {
 	c = &Client{
 		pool:    pool,
-		id:      RandomStringID(),
 		backoff: DefaultExponentialBackoff,
 	}
 
@@ -136,19 +133,23 @@ func (c *Client) execEnqueue(ctx context.Context, j *Job, q *database.Queries) (
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockNextScheduledJob(ctx context.Context, limits []QueueLimit) (jobs []*Job, err error) {
-	if len(limits) == 0 {
-		return nil, nil
-	}
 	var (
 		vals string
 		args []interface{}
 	)
 	for i, l := range limits {
+		if l.Limit <= 0 {
+			continue
+		}
 		if vals != "" {
 			vals += ","
 		}
 		vals += fmt.Sprintf("($%d, $%d)", (i*2)+1, (i*2)+2)
 		args = append(args, l.Queue, l.Limit)
+	}
+
+	if len(args) == 0 {
+		return nil, nil
 	}
 
 	var (
@@ -221,9 +222,14 @@ func (c *Client) LockNextScheduledJob(ctx context.Context, limits []QueueLimit) 
 	return jobs, nil
 }
 
-func (c *Client) CleanUp(ctx context.Context, runAfter time.Duration, queue ...string) (err error) {
-	return c.pool.CleanUpStuck(ctx, database.CleanUpStuckParams{
-		Column1: queue,
+func (c *Client) RestoreStuck(ctx context.Context, runAfter time.Duration, queue ...QueueLimit) (err error) {
+	var queues = make([]string, len(queue))
+	for i, q := range queue {
+		queues[i] = q.Queue
+	}
+
+	return c.pool.RestoreStuck(ctx, database.RestoreStuckParams{
+		Column1: queues,
 		Column2: sql.NullString{String: fmt.Sprintf("%d", int(runAfter.Minutes())), Valid: true},
 	})
 }

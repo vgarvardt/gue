@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	gue "github.com/2tvenom/guex"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/terminal"
 	"github.com/Shopify/sarama"
@@ -75,7 +76,7 @@ func newClientCommand() *cobra.Command {
 							return fmt.Errorf("could not marshal message to json: %w", err)
 						}
 
-						if err := gc.Enqueue(ctx, &gue.Job{
+						if err := gc.Enqueue(ctx, &guex.Job{
 							Queue: outboxQueue,
 							Type:  outboxJobType,
 							Args:  args,

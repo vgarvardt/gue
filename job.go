@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/2tvenom/gue/database"
+	"github.com/2tvenom/guex/database"
 )
 
 // Job is a single unit of work for Gue to perform.

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	database2 "github.com/2tvenom/gue/database"
+	database2 "github.com/2tvenom/guex/database"
 	"github.com/gorilla/mux"
 	"golang.org/x/exp/maps"
 )

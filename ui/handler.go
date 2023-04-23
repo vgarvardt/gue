@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	database2 "github.com/2tvenom/gue/database"
+	database2 "github.com/2tvenom/guex/database"
 	"github.com/gorilla/mux"
 )
 

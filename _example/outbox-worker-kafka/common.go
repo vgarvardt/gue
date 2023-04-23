@@ -11,15 +11,11 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/2tvenom/gue"
-	"github.com/2tvenom/gue/adapter"
+	gue "github.com/2tvenom/guex"
+	"github.com/2tvenom/guex/database"
 	"github.com/Shopify/sarama"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
-
-//func init() {
-//	sarama.Logger = log.New(os.Stdout, "[Sarama] ", log.LstdFlags)
-//}
 
 const (
 	kafkaTopic    = "test-topic"
@@ -60,7 +56,7 @@ func newGueClient(ctx context.Context) (*gue.Client, error) {
 		return nil, fmt.Errorf("could not parse DB DSN to connection config: %w", err)
 	}
 
-	connPool, err := pgxpool.NewWithConfig(ctx, connPoolConfig)
+	connPool, err := pgxpool.ConnectConfig(context.Background(), connPoolConfig)
 	if err != nil {
 		return nil, fmt.Errorf("could not connection pool: %w", err)
 	}
@@ -69,12 +65,7 @@ func newGueClient(ctx context.Context) (*gue.Client, error) {
 		return nil, err
 	}
 
-	guePool := pgxv5.NewConnPool(connPool)
-	gc, err := gue.NewClient(
-		guePool,
-		gue.WithClientID("outbox-worker-client-"+gue.RandomStringID()),
-		gue.WithClientLogger(adapter.NewStdLogger()),
-	)
+	gc, err := gue.NewClient(database.New(connPool))
 	if err != nil {
 		return nil, fmt.Errorf("could not instantiate gue client: %w", err)
 	}

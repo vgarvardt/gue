@@ -1,30 +1,37 @@
-module github.com/2tvenom/gue/example/outbox-worker-kafka
+module github.com/2tvenom/guex/example/outbox-worker-kafka
 
 go 1.19
 
 require (
-	github.com/2tvenom/gue v1.0.0
+	github.com/2tvenom/guex v1.0.0
 	github.com/AlecAivazis/survey/v2 v2.3.6
 	github.com/Shopify/sarama v1.37.2
 	github.com/google/uuid v1.3.0
-	github.com/jackc/pgx/v5 v5.2.0
+	github.com/jackc/pgx/v4 v4.18.1
 	github.com/spf13/cobra v1.6.0
+	go.uber.org/zap v1.24.0
 )
 
 require (
-	github.com/AlexanderGrom/qb v2.0.2+incompatible // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/eapache/go-resiliency v1.3.0 // indirect
 	github.com/eapache/go-xerial-snappy v0.0.0-20180814174437-776d5712da21 // indirect
 	github.com/eapache/queue v1.1.0 // indirect
+	github.com/go-logr/logr v1.2.3 // indirect
+	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/hashicorp/errwrap v1.0.0 // indirect
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/hashicorp/go-uuid v1.0.3 // indirect
 	github.com/inconshreveable/mousetrap v1.0.1 // indirect
+	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
+	github.com/jackc/pgconn v1.14.0 // indirect
+	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
+	github.com/jackc/pgproto3/v2 v2.3.2 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
-	github.com/jackc/puddle/v2 v2.1.2 // indirect
+	github.com/jackc/pgtype v1.14.0 // indirect
+	github.com/jackc/puddle v1.3.0 // indirect
 	github.com/jcmturner/aescts/v2 v2.0.0 // indirect
 	github.com/jcmturner/dnsutils/v2 v2.0.0 // indirect
 	github.com/jcmturner/gofork v1.7.6 // indirect
@@ -52,4 +59,4 @@ require (
 	golang.org/x/text v0.7.0 // indirect
 )
 
-replace github.com/2tvenom/gue v1.0.0 => ../../
+replace github.com/2tvenom/guex v1.0.0 => ../../

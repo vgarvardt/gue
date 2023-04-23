@@ -4,15 +4,16 @@ import (
 	"context"
 	"log"
 	"net/http"
+	"os"
 	"testing"
 
-	"github.com/2tvenom/gue/database"
-	"github.com/2tvenom/gue/ui"
+	"github.com/2tvenom/guex/database"
+	asynqmon "github.com/2tvenom/guex/ui"
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 func Test_HTTPHandler(t *testing.T) {
-	connPoolConfig, err := pgxpool.ParseConfig("postgres://processing:Ua2AtuBBZKBcTEg@127.0.0.1:6432/test?sslmode=disable&prefer_simple_protocol=true")
+	connPoolConfig, err := pgxpool.ParseConfig(os.Getenv("DB_DSN"))
 	if err != nil {
 		log.Fatal(err)
 	}

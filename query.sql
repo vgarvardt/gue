@@ -19,7 +19,7 @@ SET error_count = $1,
     status      = 'pending'
 WHERE id = $4;
 
--- name: CleanUpStuck :exec
+-- name: RestoreStuck :exec
 UPDATE _jobs
 SET status = 'pending'
 WHERE status = 'pending'

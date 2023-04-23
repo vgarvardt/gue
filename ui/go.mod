@@ -1,9 +1,9 @@
-module github.com/2tvenom/gue/ui
+module github.com/2tvenom/guex/ui
 
 go 1.19
 
 require (
-	github.com/2tvenom/gue v1.0.0
+	github.com/2tvenom/guex v1.0.0
 	github.com/gorilla/mux v1.8.0
 	github.com/jackc/pgx/v4 v4.18.1
 	golang.org/x/exp v0.0.0-20230420155640-133eef4313cb
@@ -22,4 +22,4 @@ require (
 	golang.org/x/text v0.7.0 // indirect
 )
 
-replace github.com/2tvenom/gue v1.0.0 => ../
+replace github.com/2tvenom/guex v1.0.0 => ../

@@ -7,20 +7,20 @@ import (
 	"log"
 	"time"
 
-	"github.com/2tvenom/gue/adapter"
 	"github.com/Shopify/sarama"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 func newWorkerCommand() *cobra.Command {
 	var (
-		gc       *gue.Client
+		gc       *guex.Client
 		producer sarama.SyncProducer
 	)
 
 	return &cobra.Command{
 		Use:   "worker",
-		Short: "Outbox Worker, reads gue messages enqueued by the client and publishes them to Kafka",
+		Short: "Outbox Worker, reads guex messages enqueued by the client and publishes them to Kafka",
 		PreRunE: func(cmd *cobra.Command, args []string) (err error) {
 			gc, err = newGueClient(cmd.Context())
 			if err != nil {
@@ -42,20 +42,23 @@ func newWorkerCommand() *cobra.Command {
 			return producer.Close()
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			wm := gue.WorkMap{
+			wm := guex.WorkMap{
 				outboxJobType: outboxMessageHandler(producer),
 			}
 
-			worker, err := gue.NewWorker(
-				gc, wm,
-				gue.WithWorkerQueue(outboxQueue),
-				gue.WithWorkerLogger(adapter.NewStdLogger()),
-				gue.WithWorkerPollInterval(500*time.Millisecond),
-				gue.WithWorkerPollStrategy(gue.RunAtPollStrategy),
-				gue.WithWorkerID("outbox-worker-"+gue.RandomStringID()),
+			worker, err := guex.NewWorkerPool(
+				gc,
+				guex.WithWorkerPoolQueue(guex.QueueLimit{
+					Queue: outboxQueue,
+					Limit: 10,
+				}),
+				guex.WithWorkerPanicWorkerMap(wm),
+				guex.WithLogger(zap.NewNop()),
+				guex.WithPoolInterval(500*time.Millisecond),
+				guex.WithPoolID("outbox-worker-"+guex.RandomStringID()),
 			)
 			if err != nil {
-				return fmt.Errorf("could not build gue worker: %w", err)
+				return fmt.Errorf("could not build guex worker: %w", err)
 			}
 
 			cancelCtx, cancel := context.WithCancel(cmd.Context())
@@ -77,10 +80,10 @@ func newWorkerCommand() *cobra.Command {
 	}
 }
 
-func outboxMessageHandler(producer sarama.SyncProducer) gue.WorkFunc {
-	return func(ctx context.Context, j *gue.Job) error {
+func outboxMessageHandler(producer sarama.SyncProducer) guex.WorkFunc {
+	return func(ctx context.Context, j *guex.Job) error {
 		var m outboxMessage
-		if err := json.Unmarshal(j.Args, &m); err != nil {
+		if err := json.Unmarshal(j.Payload, &m); err != nil {
 			return fmt.Errorf("could not unmarshal kafka oubox message: %w", err)
 		}
 

@@ -6,7 +6,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/2tvenom/gue/database"
+	"github.com/2tvenom/guex/database"
 )
 
 // ****************************************************************************
@@ -260,7 +260,7 @@ func toActiveTask(ti database.Job, pf PayloadFormatter) *activeTask {
 		Priority:   ti.Priority,
 		RunAt:      ti.RunAt,
 		JobType:    ti.JobType,
-		Args:       ti.Args,
+		Args:       ti.Payload,
 		ErrorCount: ti.ErrorCount,
 		LastError:  ti.LastError.String,
 		Queue:      ti.Queue,

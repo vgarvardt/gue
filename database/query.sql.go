@@ -11,24 +11,6 @@ import (
 	"time"
 )
 
-const cleanUpStuck = `-- name: CleanUpStuck :exec
-UPDATE _jobs
-SET status = 'pending'
-WHERE status = 'pending'
-  AND queue = ANY ($1::varchar[])
-  AND run_at <= now() - INTERVAL '' || $2 || ' minutes'
-`
-
-type CleanUpStuckParams struct {
-	Column1 []string
-	Column2 sql.NullString
-}
-
-func (q *Queries) CleanUpStuck(ctx context.Context, arg CleanUpStuckParams) error {
-	_, err := q.db.Exec(ctx, cleanUpStuck, arg.Column1, arg.Column2)
-	return err
-}
-
 const enqueue = `-- name: Enqueue :exec
 INSERT INTO _jobs (queue, job_type, priority, run_at, payload, metadata)
 VALUES ($1, $2, $3, $4, $5, $6)
@@ -335,6 +317,24 @@ WHERE id = ANY ($1::bigserial[])
 
 func (q *Queries) JobToProcessing(ctx context.Context, dollar_1 []int64) error {
 	_, err := q.db.Exec(ctx, jobToProcessing, dollar_1)
+	return err
+}
+
+const restoreStuck = `-- name: RestoreStuck :exec
+UPDATE _jobs
+SET status = 'pending'
+WHERE status = 'pending'
+  AND queue = ANY ($1::varchar[])
+  AND run_at <= now() - INTERVAL '' || $2 || ' minutes'
+`
+
+type RestoreStuckParams struct {
+	Column1 []string
+	Column2 sql.NullString
+}
+
+func (q *Queries) RestoreStuck(ctx context.Context, arg RestoreStuckParams) error {
+	_, err := q.db.Exec(ctx, restoreStuck, arg.Column1, arg.Column2)
 	return err
 }
 
