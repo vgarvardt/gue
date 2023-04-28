@@ -269,5 +269,9 @@ drivers have been implemented:
   with `adapter.NewStdLogger(...)`.
 - Uber `zap` - adapter that uses [`go.uber.org/zap`](https://pkg.go.dev/go.uber.org/zap) logger for logs output.
   Instantiate it with `adapter/zap.New(...)`.
-- Uber `zerolog` - adapter that uses [`github.com/rs/zerolog`](https://pkg.go.dev/github.com/rs/zerolog) logger for logs
-  output. Instantiate it with `adapter/zerolog.New(...)`.
+- Olivier Poitrey's `zerolog` - adapter that uses [`github.com/rs/zerolog`](https://pkg.go.dev/github.com/rs/zerolog)
+  logger for logs output. Instantiate it with `adapter/zerolog.New(...)`.
+- (Future) Stdlib `slog` - adapter that uses [`golang.org/x/exp/slog`](https://pkg.go.dev/golang.org/x/exp/slog)
+  logger for logs output. Instantiate it with `adapter/slog.New(...)`. Adapter is expected to be
+  [included into stdlib](https://github.com/golang/go/issues/56345), once it is there - dependency will be changed from
+  `golang.org/x/exp/slog` to `log/slog` or whenever it will land.
