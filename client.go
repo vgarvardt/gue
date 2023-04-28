@@ -11,7 +11,7 @@ import (
 	"github.com/oklog/ulid/v2"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/metric/instrument"
+	"go.opentelemetry.io/otel/metric/noop"
 
 	"github.com/vgarvardt/gue/v5/adapter"
 )
@@ -36,8 +36,8 @@ type Client struct {
 
 	entropy io.Reader
 
-	mEnqueue instrument.Int64Counter
-	mLockJob instrument.Int64Counter
+	mEnqueue metric.Int64Counter
+	mLockJob metric.Int64Counter
 }
 
 // NewClient creates a new Client that uses the pgx pool.
@@ -47,7 +47,7 @@ func NewClient(pool adapter.ConnPool, options ...ClientOption) (*Client, error) 
 		logger:  adapter.NoOpLogger{},
 		id:      RandomStringID(),
 		backoff: DefaultExponentialBackoff,
-		meter:   metric.NewNoopMeterProvider().Meter("noop"),
+		meter:   noop.NewMeterProvider().Meter("noop"),
 		entropy: &ulid.LockedMonotonicReader{
 			MonotonicReader: ulid.Monotonic(rand.Reader, 0),
 		},
@@ -144,7 +144,7 @@ VALUES
 		adapter.F("id", j.ID.String()),
 	)
 
-	c.mEnqueue.Add(ctx, 1, attrJobType.String(j.Type), attrSuccess.Bool(err == nil))
+	c.mEnqueue.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(err == nil)))
 
 	return err
 }
@@ -216,7 +216,7 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`
 func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql string, args ...any) (*Job, error) {
 	tx, err := c.pool.Begin(ctx)
 	if err != nil {
-		c.mLockJob.Add(ctx, 1, attrJobType.String(""), attrSuccess.Bool(false))
+		c.mLockJob.Add(ctx, 1, metric.WithAttributes(attrJobType.String(""), attrSuccess.Bool(false)))
 		return nil, err
 	}
 
@@ -233,7 +233,7 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 		&j.LastError,
 	)
 	if err == nil {
-		c.mLockJob.Add(ctx, 1, attrJobType.String(j.Type), attrSuccess.Bool(true))
+		c.mLockJob.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(true)))
 		return &j, nil
 	}
 
@@ -248,16 +248,16 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 func (c *Client) initMetrics() (err error) {
 	if c.mEnqueue, err = c.meter.Int64Counter(
 		"gue_client_enqueue",
-		instrument.WithDescription("Number of jobs being enqueued"),
-		instrument.WithUnit("1"),
+		metric.WithDescription("Number of jobs being enqueued"),
+		metric.WithUnit("1"),
 	); err != nil {
 		return fmt.Errorf("could not register mEnqueue metric: %w", err)
 	}
 
 	if c.mLockJob, err = c.meter.Int64Counter(
 		"gue_client_lock_job",
-		instrument.WithDescription("Number of jobs being locked (consumed)"),
-		instrument.WithUnit("1"),
+		metric.WithDescription("Number of jobs being locked (consumed)"),
+		metric.WithUnit("1"),
 	); err != nil {
 		return fmt.Errorf("could not register mLockJob metric: %w", err)
 	}
