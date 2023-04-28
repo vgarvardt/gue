@@ -38,3 +38,12 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
           fail_ci_if_error: false
+
+  summary:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: [ test ]
+    timeout-minutes: 1
+    steps:
+      - name: Dummy task
+        run: echo 'Dummy summary task to have one PR status for all tested versions'
