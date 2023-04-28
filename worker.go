@@ -11,7 +11,7 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/metric/instrument"
+	"go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/multierr"
 	"golang.org/x/sync/errgroup"
@@ -84,8 +84,8 @@ type Worker struct {
 	hooksUnknownJobType []HookFunc
 	hooksJobDone        []HookFunc
 
-	mWorked   instrument.Int64Counter
-	mDuration instrument.Int64Histogram
+	mWorked   metric.Int64Counter
+	mDuration metric.Int64Histogram
 
 	panicStackBufSize int
 }
@@ -108,7 +108,7 @@ func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) (*Worker, error) 
 		logger:       adapter.NoOpLogger{},
 		pollStrategy: PriorityPollStrategy,
 		tracer:       trace.NewNoopTracerProvider().Tracer("noop"),
-		meter:        metric.NewNoopMeterProvider().Meter("noop"),
+		meter:        noop.NewMeterProvider().Meter("noop"),
 
 		panicStackBufSize: defaultPanicStackBufSize,
 	}
@@ -183,7 +183,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 	j, err := w.pollFunc(ctx, w.queue)
 
 	if err != nil {
-		w.mWorked.Add(ctx, 1, attrJobType.String(""), attrSuccess.Bool(false))
+		w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(""), attrSuccess.Bool(false)))
 		w.logger.Error("Worker failed to lock a job", adapter.Err(err))
 		for _, hook := range w.hooksJobLocked {
 			hook(ctx, nil, err)
@@ -208,7 +208,11 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 			ll.Error("Failed to mark job as done", adapter.Err(err))
 		}
 
-		w.mDuration.Record(ctx, time.Since(processingStartedAt).Milliseconds(), attrJobType.String(j.Type))
+		w.mDuration.Record(
+			ctx,
+			time.Since(processingStartedAt).Milliseconds(),
+			metric.WithAttributes(attrJobType.String(j.Type)),
+		)
 	}()
 	defer w.recoverPanic(ctx, ll, j)
 
@@ -220,7 +224,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 
 	wf, ok := w.wm[j.Type]
 	if !ok {
-		w.mWorked.Add(ctx, 1, attrJobType.String(j.Type), attrSuccess.Bool(false))
+		w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(false)))
 
 		span.RecordError(errors.New("job with unknown type"))
 		ll.Error("Got a job with unknown type")
@@ -239,7 +243,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 	}
 
 	if err = wf(ctx, j); err != nil {
-		w.mWorked.Add(ctx, 1, attrJobType.String(j.Type), attrSuccess.Bool(false))
+		w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(false)))
 
 		for _, hook := range w.hooksJobDone {
 			hook(ctx, j, err)
@@ -263,7 +267,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 		ll.Error("Got an error on deleting a job", adapter.Err(err))
 	}
 
-	w.mWorked.Add(ctx, 1, attrJobType.String(j.Type), attrSuccess.Bool(err == nil))
+	w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(err == nil)))
 	ll.Debug("Job finished")
 	return
 }
@@ -271,16 +275,16 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 func (w *Worker) initMetrics() (err error) {
 	if w.mWorked, err = w.meter.Int64Counter(
 		"gue_worker_jobs_worked",
-		instrument.WithDescription("Number of jobs processed"),
-		instrument.WithUnit("1"),
+		metric.WithDescription("Number of jobs processed"),
+		metric.WithUnit("1"),
 	); err != nil {
 		return fmt.Errorf("could not register mWorked metric: %w", err)
 	}
 
 	if w.mDuration, err = w.meter.Int64Histogram(
 		"gue_worker_jobs_duration",
-		instrument.WithDescription("Duration of the single locked job to be processed with all the hooks"),
-		instrument.WithUnit("ms"),
+		metric.WithDescription("Duration of the single locked job to be processed with all the hooks"),
+		metric.WithUnit("ms"),
 	); err != nil {
 		return fmt.Errorf("could not register mDuration metric: %w", err)
 	}
@@ -309,7 +313,7 @@ func (w *Worker) recoverPanic(ctx context.Context, logger adapter.Logger, j *Job
 			logger.Error("Could not build panicked job stacktrace", adapter.Err(err), adapter.F("runtime-stack", string(stackBuf[:n])))
 		}
 
-		w.mWorked.Add(ctx, 1, attrJobType.String(j.Type), attrSuccess.Bool(false))
+		w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(false)))
 		span.RecordError(errors.New("job panicked"), trace.WithAttributes(attribute.String("stacktrace", stacktrace)))
 		logger.Error("Job panicked", adapter.F("stacktrace", stacktrace))
 
@@ -363,7 +367,7 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 		logger:       adapter.NoOpLogger{},
 		pollStrategy: PriorityPollStrategy,
 		tracer:       trace.NewNoopTracerProvider().Tracer("noop"),
-		meter:        metric.NewNoopMeterProvider().Meter("noop"),
+		meter:        noop.NewMeterProvider().Meter("noop"),
 
 		panicStackBufSize: defaultPanicStackBufSize,
 	}
