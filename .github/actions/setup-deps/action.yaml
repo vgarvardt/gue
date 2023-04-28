@@ -2,6 +2,9 @@
 name: setup-deps
 description: Install all the dependencies required for workflows
 inputs:
+  go-version:
+    required: true
+    description: The Go version to download (if necessary) and use. Supports semver spec and ranges.
   token:
     required: true
     description: GitHub token, most likely "secrets.GITHUB_TOKEN"
@@ -9,9 +12,9 @@ runs:
   using: composite
   steps:
     - name: Set up Go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
-        go-version-file: ./go.mod
+        go-version: ${{ inputs.token }}
 
     - name: Install Task
       uses: arduino/setup-task@v1
