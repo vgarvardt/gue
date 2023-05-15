@@ -119,6 +119,15 @@ func WithWorkerGracefulShutdown(handlerCtx func() context.Context) WorkerOption 
 	}
 }
 
+// WithWorkerSpanWorkOneNoJob enables tracing span generation for every try to get one.
+// When set to true - generates a span for every DB poll, even when no job was acquired. This may
+// generate a lot of empty spans, but may help with some debugging, so use carefully.
+func WithWorkerSpanWorkOneNoJob(spanWorkOneNoJob bool) WorkerOption {
+	return func(w *Worker) {
+		w.spanWorkOneNoJob = spanWorkOneNoJob
+	}
+}
+
 // WithPoolPollInterval overrides default poll interval with the given value.
 // Poll interval is the "sleep" duration if there were no jobs found in the DB.
 func WithPoolPollInterval(d time.Duration) WorkerPoolOption {
@@ -205,5 +214,14 @@ func WithPoolGracefulShutdown(handlerCtx func() context.Context) WorkerPoolOptio
 func WithPoolPanicStackBufSize(size int) WorkerPoolOption {
 	return func(w *WorkerPool) {
 		w.panicStackBufSize = size
+	}
+}
+
+// WithPoolSpanWorkOneNoJob enables tracing span generation for every try to get one.
+// When set to true - generates a span for every DB poll, even when no job was acquired. This may
+// generate a lot of empty spans, but may help with some debugging, so use carefully.
+func WithPoolSpanWorkOneNoJob(spanWorkOneNoJob bool) WorkerPoolOption {
+	return func(w *WorkerPool) {
+		w.spanWorkOneNoJob = spanWorkOneNoJob
 	}
 }

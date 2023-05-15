@@ -88,6 +88,7 @@ type Worker struct {
 	mDuration metric.Int64Histogram
 
 	panicStackBufSize int
+	spanWorkOneNoJob  bool
 }
 
 // NewWorker returns a Worker that fetches Jobs from the Client and executes
@@ -180,11 +181,18 @@ func (w *Worker) runLoop(ctx context.Context) error {
 
 // WorkOne tries to consume single message from the queue.
 func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
-	j, err := w.pollFunc(ctx, w.queue)
+	ctx, span := w.tracer.Start(ctx, "Worker.WorkOne")
+	// worker option is set to generate spans even when no job is found - let it be
+	if w.spanWorkOneNoJob {
+		defer span.End()
+	}
 
+	j, err := w.pollFunc(ctx, w.queue)
 	if err != nil {
+		span.RecordError(fmt.Errorf("woker failed to lock a job: %w", err))
 		w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(""), attrSuccess.Bool(false)))
 		w.logger.Error("Worker failed to lock a job", adapter.Err(err))
+
 		for _, hook := range w.hooksJobLocked {
 			hook(ctx, nil, err)
 		}
@@ -194,11 +202,17 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 		return // no job was available
 	}
 
+	// at this point we have a job, so we need to ensure that span will be generated
+	if !w.spanWorkOneNoJob {
+		defer span.End()
+	}
+
 	processingStartedAt := time.Now()
-	ctx, span := w.tracer.Start(ctx, "Worker.WorkOne", trace.WithAttributes(
+	span.SetAttributes(
+		attribute.String("job-id", j.ID.String()),
+		attribute.String("job-queue", j.Queue),
 		attribute.String("job-type", j.Type),
-	))
-	defer span.End()
+	)
 
 	ll := w.logger.With(adapter.F("job-id", j.ID.String()), adapter.F("job-type", j.Type))
 
@@ -226,7 +240,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 	if !ok {
 		w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(false)))
 
-		span.RecordError(errors.New("job with unknown type"))
+		span.RecordError(fmt.Errorf("job with unknown type: %q", j.Type))
 		ll.Error("Got a job with unknown type")
 
 		errUnknownType := fmt.Errorf("worker[id=%s] unknown job type: %q", w.id, j.Type)
@@ -349,6 +363,7 @@ type WorkerPool struct {
 	hooksJobDone        []HookFunc
 
 	panicStackBufSize int
+	spanWorkOneNoJob  bool
 }
 
 // NewWorkerPool creates a new WorkerPool with count workers using the Client c.
@@ -394,6 +409,7 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 			WithWorkerHooksUnknownJobType(w.hooksUnknownJobType...),
 			WithWorkerHooksJobDone(w.hooksJobDone...),
 			WithWorkerPanicStackBufSize(w.panicStackBufSize),
+			WithWorkerSpanWorkOneNoJob(w.spanWorkOneNoJob),
 		)
 
 		if err != nil {
