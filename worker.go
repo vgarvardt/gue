@@ -180,7 +180,9 @@ func (w *Worker) runLoop(ctx context.Context) error {
 
 // WorkOne tries to consume single message from the queue.
 func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
+	ctx, span := w.tracer.Start(ctx, "Worker.WorkOne")
 	j, err := w.pollFunc(ctx, w.queue)
+	defer span.End()
 
 	if err != nil {
 		w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(""), attrSuccess.Bool(false)))
@@ -195,10 +197,9 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 	}
 
 	processingStartedAt := time.Now()
-	ctx, span := w.tracer.Start(ctx, "Worker.WorkOne", trace.WithAttributes(
+	span.SetAttributes(
 		attribute.String("job-type", j.Type),
-	))
-	defer span.End()
+	)
 
 	ll := w.logger.With(adapter.F("job-id", j.ID.String()), adapter.F("job-type", j.Type))
 
