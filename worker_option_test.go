@@ -276,6 +276,16 @@ func TestWithWorkerHooksJobDone(t *testing.T) {
 	require.Equal(t, 3, hook.counter)
 }
 
+func TestWithWorkerSpanWorkOneNoJob(t *testing.T) {
+	workerWOutSpanWorkOneNoJob, err := NewWorker(nil, dummyWM)
+	require.NoError(t, err)
+	assert.False(t, workerWOutSpanWorkOneNoJob.spanWorkOneNoJob)
+
+	workerWithSpanWorkOneNoJob, err := NewWorker(nil, dummyWM, WithWorkerSpanWorkOneNoJob(true))
+	require.NoError(t, err)
+	assert.True(t, workerWithSpanWorkOneNoJob.spanWorkOneNoJob)
+}
+
 func TestWithPoolHooksJobLocked(t *testing.T) {
 	ctx := context.Background()
 	hook := new(dummyHook)
@@ -390,5 +400,19 @@ func TestWithPoolPanicStackBufSize(t *testing.T) {
 	assert.Equal(t, 12345, poolWithCustomSize.panicStackBufSize)
 	for _, w := range poolWithCustomSize.workers {
 		assert.Equal(t, 12345, w.panicStackBufSize)
+	}
+}
+
+func TestWithPoolSpanWorkOneNoJob(t *testing.T) {
+	poolWOutSpanWorkOneNoJob, err := NewWorkerPool(nil, dummyWM, 2)
+	require.NoError(t, err)
+	for _, w := range poolWOutSpanWorkOneNoJob.workers {
+		assert.False(t, w.spanWorkOneNoJob)
+	}
+
+	poolWithSpanWorkOneNoJob, err := NewWorkerPool(nil, dummyWM, 2, WithPoolSpanWorkOneNoJob(true))
+	require.NoError(t, err)
+	for _, w := range poolWithSpanWorkOneNoJob.workers {
+		assert.True(t, w.spanWorkOneNoJob)
 	}
 }
