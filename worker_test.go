@@ -600,6 +600,10 @@ func TestNewWorker_GracefulShutdown(t *testing.T) {
 	require.NoError(t, err)
 
 	chDone := make(chan bool)
+	t.Cleanup(func() {
+		close(chDone)
+	})
+
 	go func() {
 		err := wNonGraceful.Run(ctxNonGraceful)
 		assert.NoError(t, err)
@@ -626,6 +630,45 @@ func TestNewWorker_GracefulShutdown(t *testing.T) {
 
 	<-chDone
 	require.False(t, jobCancelled)
+}
+
+func TestNewWorker_JobTTL(t *testing.T) {
+	connPool := adapterTesting.OpenTestPoolLibPQ(t)
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	var jobCancelled bool
+	wm := WorkMap{
+		"MyJob": func(ctx context.Context, j *Job) error {
+			select {
+			case <-ctx.Done():
+				jobCancelled = true
+			case <-time.After(5 * time.Second):
+				jobCancelled = false
+			}
+
+			return nil
+		},
+	}
+
+	wNoJobTTL, err := NewWorker(c, wm)
+	require.NoError(t, err)
+	wWithJobTTL, err := NewWorker(c, wm, WithWorkerJobTTL(2*time.Second))
+	require.NoError(t, err)
+
+	err = c.Enqueue(context.Background(), &Job{Type: "MyJob"})
+	require.NoError(t, err)
+	err = c.Enqueue(context.Background(), &Job{Type: "MyJob"})
+	require.NoError(t, err)
+
+	didWork := wNoJobTTL.WorkOne(context.Background())
+	require.True(t, didWork)
+	require.False(t, jobCancelled)
+
+	didWork = wWithJobTTL.WorkOne(context.Background())
+	require.True(t, didWork)
+	require.True(t, jobCancelled)
 }
 
 func TestNewWorkerPool_GracefulShutdown(t *testing.T) {

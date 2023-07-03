@@ -73,6 +73,7 @@ type Worker struct {
 	running      bool
 	pollStrategy PollStrategy
 	pollFunc     pollFunc
+	jobTTL       time.Duration
 
 	graceful    bool
 	gracefulCtx func() context.Context
@@ -256,7 +257,14 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 		return
 	}
 
-	if err = wf(ctx, j); err != nil {
+	handlerCtx := ctx
+	cancel := context.CancelFunc(func() {})
+	if w.jobTTL > 0 {
+		handlerCtx, cancel = context.WithTimeout(ctx, w.jobTTL)
+	}
+	defer cancel()
+
+	if err = wf(handlerCtx, j); err != nil {
 		w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(false)))
 
 		for _, hook := range w.hooksJobDone {
@@ -351,6 +359,7 @@ type WorkerPool struct {
 	mu           sync.Mutex
 	running      bool
 	pollStrategy PollStrategy
+	jobTTL       time.Duration
 
 	graceful    bool
 	gracefulCtx func() context.Context
@@ -410,6 +419,7 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 			WithWorkerHooksJobDone(w.hooksJobDone...),
 			WithWorkerPanicStackBufSize(w.panicStackBufSize),
 			WithWorkerSpanWorkOneNoJob(w.spanWorkOneNoJob),
+			WithWorkerJobTTL(w.jobTTL),
 		)
 
 		if err != nil {
