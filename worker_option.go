@@ -128,6 +128,14 @@ func WithWorkerSpanWorkOneNoJob(spanWorkOneNoJob bool) WorkerOption {
 	}
 }
 
+// WithWorkerJobTTL sets max time a job can run. Implementation-wise the job runs with the timeout context,
+// so it is up to the job implementation to handle context cancellation properly.
+func WithWorkerJobTTL(d time.Duration) WorkerOption {
+	return func(w *Worker) {
+		w.jobTTL = d
+	}
+}
+
 // WithPoolPollInterval overrides default poll interval with the given value.
 // Poll interval is the "sleep" duration if there were no jobs found in the DB.
 func WithPoolPollInterval(d time.Duration) WorkerPoolOption {
@@ -223,5 +231,13 @@ func WithPoolPanicStackBufSize(size int) WorkerPoolOption {
 func WithPoolSpanWorkOneNoJob(spanWorkOneNoJob bool) WorkerPoolOption {
 	return func(w *WorkerPool) {
 		w.spanWorkOneNoJob = spanWorkOneNoJob
+	}
+}
+
+// WithPoolJobTTL sets max time a job can run. Implementation-wise the job runs with the timeout context,
+// so it is up to the job implementation to handle context cancellation properly.
+func WithPoolJobTTL(d time.Duration) WorkerPoolOption {
+	return func(w *WorkerPool) {
+		w.jobTTL = d
 	}
 }

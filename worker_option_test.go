@@ -286,6 +286,16 @@ func TestWithWorkerSpanWorkOneNoJob(t *testing.T) {
 	assert.True(t, workerWithSpanWorkOneNoJob.spanWorkOneNoJob)
 }
 
+func TestWithWorkerJobTTL(t *testing.T) {
+	workerWOutJobTTL, err := NewWorker(nil, dummyWM)
+	require.NoError(t, err)
+	assert.Equal(t, time.Duration(0), workerWOutJobTTL.jobTTL)
+
+	workerWithJobTTL, err := NewWorker(nil, dummyWM, WithWorkerJobTTL(5*time.Minute))
+	require.NoError(t, err)
+	assert.Equal(t, 5*time.Minute, workerWithJobTTL.jobTTL)
+}
+
 func TestWithPoolHooksJobLocked(t *testing.T) {
 	ctx := context.Background()
 	hook := new(dummyHook)
@@ -414,5 +424,21 @@ func TestWithPoolSpanWorkOneNoJob(t *testing.T) {
 	require.NoError(t, err)
 	for _, w := range poolWithSpanWorkOneNoJob.workers {
 		assert.True(t, w.spanWorkOneNoJob)
+	}
+}
+
+func TestWithPoolJobTTL(t *testing.T) {
+	poolWOutJobTTL, err := NewWorkerPool(nil, dummyWM, 2)
+	require.NoError(t, err)
+	assert.Equal(t, time.Duration(0), poolWOutJobTTL.jobTTL)
+	for _, w := range poolWOutJobTTL.workers {
+		assert.Equal(t, time.Duration(0), w.jobTTL)
+	}
+
+	poolWithJobTTL, err := NewWorkerPool(nil, dummyWM, 2, WithPoolJobTTL(10*time.Minute))
+	require.NoError(t, err)
+	assert.Equal(t, 10*time.Minute, poolWithJobTTL.jobTTL)
+	for _, w := range poolWithJobTTL.workers {
+		assert.Equal(t, 10*time.Minute, w.jobTTL)
 	}
 }
