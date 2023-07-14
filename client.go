@@ -67,6 +67,11 @@ func (c *Client) Enqueue(ctx context.Context, j *Job) error {
 	return c.execEnqueue(ctx, j, c.pool)
 }
 
+// EnqueueWithID adds a job to the queue with a specific id
+func (c *Client) EnqueueWithID(ctx context.Context, j *Job, ulid ulid.ULID) error {
+	return c.execEnqueueWithID(ctx, j, c.pool, ulid)
+}
+
 // EnqueueTx adds a job to the queue within the scope of the transaction.
 // This allows you to guarantee that an enqueued job will either be committed or
 // rolled back atomically with other changes in the course of this transaction.
@@ -112,7 +117,7 @@ func (c *Client) EnqueueBatchTx(ctx context.Context, jobs []*Job, tx adapter.Tx)
 	return nil
 }
 
-func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) (err error) {
+func (c *Client) execEnqueueWithID(ctx context.Context, j *Job, q adapter.Queryable, ulid ulid.ULID) (err error) {
 	if j.Type == "" {
 		return ErrMissingType
 	}
@@ -124,29 +129,38 @@ func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) (
 		j.RunAt = now
 	}
 
+	j.ID = ulid
+	idAsString := ulid.String()
+
 	if j.Args == nil {
 		j.Args = []byte{}
 	}
 
-	if j.ID, err = ulid.New(ulid.Timestamp(now), c.entropy); err != nil {
-		return fmt.Errorf("could not generate new Job ULID ID: %w", err)
-	}
 	_, err = q.Exec(ctx, `INSERT INTO gue_jobs
 (job_id, queue, priority, run_at, job_type, args, created_at, updated_at)
 VALUES
 ($1, $2, $3, $4, $5, $6, $7, $7)
-`, j.ID.String(), j.Queue, j.Priority, j.RunAt, j.Type, j.Args, now)
+`, idAsString, j.Queue, j.Priority, j.RunAt, j.Type, j.Args, now)
 
 	c.logger.Debug(
 		"Tried to enqueue a job",
 		adapter.Err(err),
 		adapter.F("queue", j.Queue),
-		adapter.F("id", j.ID.String()),
+		adapter.F("id", idAsString),
 	)
 
 	c.mEnqueue.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(err == nil)))
 
 	return err
+}
+
+func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) error {
+	ulid, err := ulid.New(ulid.Now(), c.entropy)
+	if err != nil {
+		return fmt.Errorf("could not generate new Job ULID ID: %w", err)
+	}
+
+	return c.execEnqueueWithID(ctx, j, q, ulid)
 }
 
 // LockJob attempts to retrieve a Job from the database in the specified queue.
