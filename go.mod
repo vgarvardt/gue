@@ -3,7 +3,7 @@ module github.com/vgarvardt/gue/v5
 go 1.19
 
 require (
-	github.com/jackc/pgconn v1.14.0
+	github.com/jackc/pgconn v1.14.1
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/jackc/pgx/v5 v5.4.2
 	github.com/lib/pq v1.10.9
