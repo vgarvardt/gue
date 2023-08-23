@@ -1,27 +1,26 @@
-//go:build go1.20
+//go:build go1.21
 
 package slog
 
 import (
 	"bytes"
 	"errors"
+	libSLog "log/slog"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	libSLog "golang.org/x/exp/slog"
 
 	"github.com/vgarvardt/gue/v5/adapter"
 )
 
 func TestNew(t *testing.T) {
 	var buf bytes.Buffer
-	h := libSLog.HandlerOptions{
+	l := libSLog.New(libSLog.NewJSONHandler(&buf, &libSLog.HandlerOptions{
 		AddSource: true,
 		Level:     libSLog.LevelDebug,
-	}.NewJSONHandler(&buf)
-	l := libSLog.New(h)
+	}))
 	ll := New(l)
 
 	err := errors.New("something went wrong")
