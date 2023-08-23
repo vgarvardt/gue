@@ -1,9 +1,9 @@
-//go:build go1.20
+//go:build go1.21
 
 package slog
 
 import (
-	libSLog "golang.org/x/exp/slog"
+	libSLog "log/slog"
 
 	"github.com/vgarvardt/gue/v5/adapter"
 )
