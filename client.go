@@ -117,20 +117,20 @@ func (c *Client) EnqueueBatchTx(ctx context.Context, jobs []*Job, tx adapter.Tx)
 	return nil
 }
 
-func (c *Client) execEnqueueWithID(ctx context.Context, j *Job, q adapter.Queryable, ulid ulid.ULID) (err error) {
+func (c *Client) execEnqueueWithID(ctx context.Context, j *Job, q adapter.Queryable, jobID ulid.ULID) (err error) {
 	if j.Type == "" {
 		return ErrMissingType
 	}
 
-	now := time.Now().UTC()
+	j.CreatedAt = time.Now().UTC()
 
 	runAt := j.RunAt
 	if runAt.IsZero() {
-		j.RunAt = now
+		j.RunAt = j.CreatedAt
 	}
 
-	j.ID = ulid
-	idAsString := ulid.String()
+	j.ID = jobID
+	idAsString := jobID.String()
 
 	if j.Args == nil {
 		j.Args = []byte{}
@@ -140,7 +140,7 @@ func (c *Client) execEnqueueWithID(ctx context.Context, j *Job, q adapter.Querya
 (job_id, queue, priority, run_at, job_type, args, created_at, updated_at)
 VALUES
 ($1, $2, $3, $4, $5, $6, $7, $7)
-`, idAsString, j.Queue, j.Priority, j.RunAt, j.Type, j.Args, now)
+`, idAsString, j.Queue, j.Priority, j.RunAt, j.Type, j.Args, j.CreatedAt)
 
 	c.logger.Debug(
 		"Tried to enqueue a job",
@@ -155,12 +155,12 @@ VALUES
 }
 
 func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) error {
-	ulid, err := ulid.New(ulid.Now(), c.entropy)
+	jobID, err := ulid.New(ulid.Now(), c.entropy)
 	if err != nil {
 		return fmt.Errorf("could not generate new Job ULID ID: %w", err)
 	}
 
-	return c.execEnqueueWithID(ctx, j, q, ulid)
+	return c.execEnqueueWithID(ctx, j, q, jobID)
 }
 
 // LockJob attempts to retrieve a Job from the database in the specified queue.
@@ -177,7 +177,7 @@ func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) e
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockJob(ctx context.Context, queue string) (*Job, error) {
-	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error
+	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error, created_at
 FROM gue_jobs
 WHERE queue = $1 AND run_at <= $2
 ORDER BY priority ASC
@@ -197,7 +197,7 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockJobByID(ctx context.Context, id ulid.ULID) (*Job, error) {
-	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error
+	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error, created_at
 FROM gue_jobs
 WHERE job_id = $1 FOR UPDATE SKIP LOCKED`
 
@@ -218,7 +218,7 @@ WHERE job_id = $1 FOR UPDATE SKIP LOCKED`
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockNextScheduledJob(ctx context.Context, queue string) (*Job, error) {
-	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error
+	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error, created_at
 FROM gue_jobs
 WHERE queue = $1 AND run_at <= $2
 ORDER BY run_at, priority ASC
@@ -245,6 +245,7 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 		&j.Args,
 		&j.ErrorCount,
 		&j.LastError,
+		&j.CreatedAt,
 	)
 	if err == nil {
 		c.mLockJob.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(true)))
@@ -252,7 +253,7 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 	}
 
 	rbErr := tx.Rollback(ctx)
-	if handleErrNoRows && err == adapter.ErrNoRows {
+	if handleErrNoRows && errors.Is(err, adapter.ErrNoRows) {
 		return nil, rbErr
 	}
 
