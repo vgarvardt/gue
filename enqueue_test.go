@@ -34,6 +34,7 @@ func testEnqueueOnlyType(t *testing.T, connPool adapter.ConnPool) {
 	j, err := c.LockJobByID(ctx, job.ID)
 	require.NoError(t, err)
 	require.NotNil(t, j)
+	require.False(t, j.CreatedAt.IsZero())
 
 	t.Cleanup(func() {
 		err := j.Done(ctx)
@@ -49,6 +50,15 @@ func testEnqueueOnlyType(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, []byte(``), j.Args)
 	assert.Equal(t, int32(0), j.ErrorCount)
 	assert.False(t, j.LastError.Valid)
+
+	assert.False(t, j.CreatedAt.IsZero())
+	assert.True(t, time.Now().After(j.CreatedAt))
+	assert.True(
+		t,
+		job.CreatedAt.Round(time.Second).Equal(j.CreatedAt.Round(time.Second)),
+		job.CreatedAt.Round(time.Second).String(),
+		j.CreatedAt.Round(time.Second).String(),
+	)
 }
 
 func TestEnqueueWithPriority(t *testing.T) {

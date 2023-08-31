@@ -60,6 +60,12 @@ type Job struct {
 	// being updated when the current Job run errored. This field supposed to be used mostly for the debug reasons.
 	LastError sql.NullString
 
+	// CreatedAt is the job creation time.
+	// This field is initialised only when the Job is being retrieved from the DB and is not
+	// being updated when the current Job run errored. This field can be used as a decision parameter in some handlers
+	// whether it makes sense to retry the job or it can be dropped.
+	CreatedAt time.Time
+
 	mu      sync.Mutex
 	deleted bool
 	tx      adapter.Tx
