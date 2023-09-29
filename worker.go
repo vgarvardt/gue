@@ -239,21 +239,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 
 	wf, ok := w.wm[j.Type]
 	if !ok {
-		w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(false)))
-
-		span.RecordError(fmt.Errorf("job with unknown type: %q", j.Type))
-		ll.Error("Got a job with unknown type")
-
-		errUnknownType := fmt.Errorf("worker[id=%s] unknown job type: %q", w.id, j.Type)
-		if err = j.Error(ctx, errUnknownType); err != nil {
-			span.RecordError(fmt.Errorf("failed to mark job as error: %w", err))
-			ll.Error("Got an error on setting an error to unknown job", adapter.Err(err))
-		}
-
-		for _, hook := range w.hooksUnknownJobType {
-			hook(ctx, j, errUnknownType)
-		}
-
+		w.handleUnknownJobType(ctx, j, span, ll)
 		return
 	}
 
@@ -292,6 +278,23 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 	w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(err == nil)))
 	ll.Debug("Job finished")
 	return
+}
+
+func (w *Worker) handleUnknownJobType(ctx context.Context, j *Job, span trace.Span, ll adapter.Logger) {
+	w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(false)))
+
+	span.RecordError(fmt.Errorf("job with unknown type: %q", j.Type))
+	ll.Error("Got a job with unknown type")
+
+	errUnknownType := fmt.Errorf("worker[id=%s] unknown job type: %q", w.id, j.Type)
+	if err := j.Error(ctx, errUnknownType); err != nil {
+		span.RecordError(fmt.Errorf("failed to mark job as error: %w", err))
+		ll.Error("Got an error on setting an error to unknown job", adapter.Err(err))
+	}
+
+	for _, hook := range w.hooksUnknownJobType {
+		hook(ctx, j, errUnknownType)
+	}
 }
 
 func (w *Worker) initMetrics() (err error) {
