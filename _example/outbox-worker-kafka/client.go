@@ -2,13 +2,14 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"time"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/AlecAivazis/survey/v2/terminal"
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/vgarvardt/gue/v5"
@@ -48,7 +49,7 @@ func newClientCommand() *cobra.Command {
 						&num,
 						survey.WithValidator(survey.Required),
 					); err != nil {
-						if err == terminal.InterruptErr {
+						if errors.Is(err, terminal.InterruptErr) {
 							log.Printf("Received terminal interrupt, exiting app\n")
 							return nil
 						}
