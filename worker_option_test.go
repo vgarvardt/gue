@@ -276,6 +276,25 @@ func TestWithWorkerHooksJobDone(t *testing.T) {
 	require.Equal(t, 3, hook.counter)
 }
 
+func TestWithWorkerHooksJobUndone(t *testing.T) {
+	ctx := context.Background()
+	hook := new(dummyHook)
+
+	workerWOutHooks, err := NewWorker(nil, dummyWM)
+	require.NoError(t, err)
+	for _, h := range workerWOutHooks.hooksJobUndone {
+		h(ctx, nil, nil)
+	}
+	require.Equal(t, 0, hook.counter)
+
+	workerWithHooks, err := NewWorker(nil, dummyWM, WithWorkerHooksJobUndone(hook.handler, hook.handler, hook.handler))
+	require.NoError(t, err)
+	for _, h := range workerWithHooks.hooksJobUndone {
+		h(ctx, nil, nil)
+	}
+	require.Equal(t, 3, hook.counter)
+}
+
 func TestWithWorkerSpanWorkOneNoJob(t *testing.T) {
 	workerWOutSpanWorkOneNoJob, err := NewWorker(nil, dummyWM)
 	require.NoError(t, err)
@@ -359,6 +378,29 @@ func TestWithPoolHooksJobDone(t *testing.T) {
 	require.NoError(t, err)
 	for _, w := range poolWithHooks.workers {
 		for _, h := range w.hooksJobDone {
+			h(ctx, nil, nil)
+		}
+	}
+	require.Equal(t, 9, hook.counter)
+}
+
+func TestWithPoolHooksJobUndone(t *testing.T) {
+	ctx := context.Background()
+	hook := new(dummyHook)
+
+	poolWOutHooks, err := NewWorkerPool(nil, dummyWM, 3)
+	require.NoError(t, err)
+	for _, w := range poolWOutHooks.workers {
+		for _, h := range w.hooksJobUndone {
+			h(ctx, nil, nil)
+		}
+	}
+	require.Equal(t, 0, hook.counter)
+
+	poolWithHooks, err := NewWorkerPool(nil, dummyWM, 3, WithPoolHooksJobUndone(hook.handler, hook.handler, hook.handler))
+	require.NoError(t, err)
+	for _, w := range poolWithHooks.workers {
+		for _, h := range w.hooksJobUndone {
 			h(ctx, nil, nil)
 		}
 	}

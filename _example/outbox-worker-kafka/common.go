@@ -11,7 +11,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/Shopify/sarama"
+	"github.com/IBM/sarama"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/vgarvardt/gue/v5"
 	"github.com/vgarvardt/gue/v5/adapter"
@@ -121,8 +121,8 @@ func createTestTopic() error {
 		NumPartitions:     5,
 		ReplicationFactor: 1,
 	}, false); err != nil {
-		topicErr, ok := err.(*sarama.TopicError)
-		if !ok || topicErr.Err != sarama.ErrTopicAlreadyExists {
+		var topicErr *sarama.TopicError
+		if !errors.As(err, &topicErr) || topicErr.Err != sarama.ErrTopicAlreadyExists {
 			return fmt.Errorf("could not create test topic: %w", err)
 		}
 	}

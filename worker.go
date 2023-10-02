@@ -84,6 +84,7 @@ type Worker struct {
 	hooksJobLocked      []HookFunc
 	hooksUnknownJobType []HookFunc
 	hooksJobDone        []HookFunc
+	hooksJobUndone      []HookFunc
 
 	mWorked   metric.Int64Counter
 	mDuration metric.Int64Histogram
@@ -221,6 +222,11 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 		if err := j.Done(ctx); err != nil {
 			span.RecordError(fmt.Errorf("failed to mark job as done: %w", err))
 			ll.Error("Failed to mark job as done", adapter.Err(err))
+
+			// let user handle critical job failure
+			for _, hook := range w.hooksJobUndone {
+				hook(ctx, j, err)
+			}
 		}
 
 		w.mDuration.Record(
@@ -373,6 +379,7 @@ type WorkerPool struct {
 	hooksJobLocked      []HookFunc
 	hooksUnknownJobType []HookFunc
 	hooksJobDone        []HookFunc
+	hooksJobUndone      []HookFunc
 
 	panicStackBufSize int
 	spanWorkOneNoJob  bool
@@ -420,6 +427,7 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 			WithWorkerHooksJobLocked(w.hooksJobLocked...),
 			WithWorkerHooksUnknownJobType(w.hooksUnknownJobType...),
 			WithWorkerHooksJobDone(w.hooksJobDone...),
+			WithWorkerHooksJobUndone(w.hooksJobUndone...),
 			WithWorkerPanicStackBufSize(w.panicStackBufSize),
 			WithWorkerSpanWorkOneNoJob(w.spanWorkOneNoJob),
 			WithWorkerJobTTL(w.jobTTL),
