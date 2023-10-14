@@ -271,5 +271,5 @@ drivers have been implemented:
   Instantiate it with `adapter/zap.New(...)`.
 - Olivier Poitrey's `zerolog` - adapter that uses [`github.com/rs/zerolog`](https://pkg.go.dev/github.com/rs/zerolog)
   logger for logs output. Instantiate it with `adapter/zerolog.New(...)`.
-- (Future) Stdlib `slog` - adapter that uses [`golang.org/x/exp/slog`](https://pkg.go.dev/golang.org/x/exp/slog)
+- Stdlib `slog` - adapter that uses [`log/slog`](https://pkg.go.dev/log/slog)
   logger for logs output. Instantiate it with `adapter/slog.New(...)`.
