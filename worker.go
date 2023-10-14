@@ -218,23 +218,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 
 	ll := w.logger.With(adapter.F("job-id", j.ID.String()), adapter.F("job-type", j.Type))
 
-	defer func() {
-		if err := j.Done(ctx); err != nil {
-			span.RecordError(fmt.Errorf("failed to mark job as done: %w", err))
-			ll.Error("Failed to mark job as done", adapter.Err(err))
-
-			// let user handle critical job failure
-			for _, hook := range w.hooksJobUndone {
-				hook(ctx, j, err)
-			}
-		}
-
-		w.mDuration.Record(
-			ctx,
-			time.Since(processingStartedAt).Milliseconds(),
-			metric.WithAttributes(attrJobType.String(j.Type)),
-		)
-	}()
+	defer w.markJobDone(ctx, j, processingStartedAt, span, ll)
 	defer w.recoverPanic(ctx, ll, j)
 
 	for _, hook := range w.hooksJobLocked {
@@ -321,6 +305,24 @@ func (w *Worker) initMetrics() (err error) {
 	}
 
 	return nil
+}
+
+func (w *Worker) markJobDone(ctx context.Context, j *Job, processingStartedAt time.Time, span trace.Span, ll adapter.Logger) {
+	if err := j.Done(ctx); err != nil {
+		span.RecordError(fmt.Errorf("failed to mark job as done: %w", err))
+		ll.Error("Failed to mark job as done", adapter.Err(err))
+
+		// let user handle critical job failure
+		for _, hook := range w.hooksJobUndone {
+			hook(ctx, j, err)
+		}
+	}
+
+	w.mDuration.Record(
+		ctx,
+		time.Since(processingStartedAt).Milliseconds(),
+		metric.WithAttributes(attrJobType.String(j.Type)),
+	)
 }
 
 // recoverPanic tries to handle panics in job execution.

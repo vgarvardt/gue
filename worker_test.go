@@ -246,39 +246,6 @@ func testWorkerPoolWorkOne(t *testing.T, connPool adapter.ConnPool) {
 	assert.NoError(t, jobDoneHook.err)
 }
 
-func BenchmarkWorker(b *testing.B) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
-		b.Run(name, func(b *testing.B) {
-			benchmarkWorker(b, openFunc(b))
-		})
-	}
-}
-
-func benchmarkWorker(b *testing.B, connPool adapter.ConnPool) {
-	ctx := context.Background()
-
-	c, err := NewClient(connPool)
-	require.NoError(b, err)
-
-	w, err := NewWorker(c, WorkMap{"Nil": nilWorker})
-	require.NoError(b, err)
-
-	for i := 0; i < b.N; i++ {
-		if err := c.Enqueue(ctx, &Job{Type: "Nil"}); err != nil {
-			b.Fatal(err)
-		}
-	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		w.WorkOne(ctx)
-	}
-}
-
-func nilWorker(context.Context, *Job) error {
-	return nil
-}
-
 func TestWorkerWorkReturnsError(t *testing.T) {
 	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
