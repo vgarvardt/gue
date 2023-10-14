@@ -219,7 +219,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 	ll := w.logger.With(adapter.F("job-id", j.ID.String()), adapter.F("job-type", j.Type))
 
 	defer w.markJobDone(ctx, j, processingStartedAt, span, ll)
-	defer w.recoverPanic(ctx, ll, j)
+	defer w.recoverPanic(ctx, j, ll)
 
 	for _, hook := range w.hooksJobLocked {
 		hook(ctx, j, nil)
@@ -327,7 +327,7 @@ func (w *Worker) markJobDone(ctx context.Context, j *Job, processingStartedAt ti
 
 // recoverPanic tries to handle panics in job execution.
 // A stacktrace is stored into Job last_error.
-func (w *Worker) recoverPanic(ctx context.Context, logger adapter.Logger, j *Job) {
+func (w *Worker) recoverPanic(ctx context.Context, j *Job, logger adapter.Logger) {
 	if r := recover(); r != nil {
 		ctx, span := w.tracer.Start(ctx, "Worker.recoverPanic")
 		defer span.End()
