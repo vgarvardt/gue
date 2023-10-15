@@ -129,6 +129,27 @@ func TestWithWorkerPanicStackBufSize(t *testing.T) {
 	assert.Equal(t, 1234, workerWithCustomSize.panicStackBufSize)
 }
 
+func TestWithWorkerUnknownJobWorkFunc(t *testing.T) {
+	workerWithoutHandler, err := NewWorker(nil, dummyWM)
+	require.NoError(t, err)
+	assert.Nil(t, workerWithoutHandler.unknownJobTypeWF)
+
+	var wfCalled int
+	wf := WorkFunc(func(ctx context.Context, j *Job) error {
+		wfCalled++
+		return nil
+	})
+
+	workerWithHandler, err := NewWorker(nil, dummyWM, WithWorkerUnknownJobWorkFunc(wf))
+	require.NoError(t, err)
+	require.NotNil(t, workerWithHandler.unknownJobTypeWF)
+
+	assert.Equal(t, 0, wfCalled)
+	err = workerWithHandler.unknownJobTypeWF(nil, nil)
+	assert.Equal(t, 1, wfCalled)
+	assert.NoError(t, err)
+}
+
 func TestWithPoolPollInterval(t *testing.T) {
 	workerPoolWithDefaultInterval, err := NewWorkerPool(nil, dummyWM, 2)
 	require.NoError(t, err)
@@ -483,4 +504,31 @@ func TestWithPoolJobTTL(t *testing.T) {
 	for _, w := range poolWithJobTTL.workers {
 		assert.Equal(t, 10*time.Minute, w.jobTTL)
 	}
+}
+
+func TestWithPoolUnknownJobWorkFunc(t *testing.T) {
+	poolWithoutHandler, err := NewWorkerPool(nil, dummyWM, 2)
+	require.NoError(t, err)
+	for _, w := range poolWithoutHandler.workers {
+		assert.Nil(t, w.unknownJobTypeWF)
+	}
+
+	var wfCalled int
+	wf := WorkFunc(func(ctx context.Context, j *Job) error {
+		wfCalled++
+		return nil
+	})
+
+	poolWithHandler, err := NewWorkerPool(nil, dummyWM, 2, WithPoolUnknownJobWorkFunc(wf))
+	require.NoError(t, err)
+	require.NotNil(t, poolWithHandler.unknownJobTypeWF)
+
+	assert.Equal(t, 0, wfCalled)
+	for _, w := range poolWithHandler.workers {
+		require.NotNil(t, w.unknownJobTypeWF)
+
+		err := w.unknownJobTypeWF(nil, nil)
+		assert.NoError(t, err)
+	}
+	assert.Equal(t, 2, wfCalled)
 }

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -484,6 +485,52 @@ func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, int32(1), j.ErrorCount)
 	assert.True(t, j.LastError.Valid)
 	assert.Contains(t, j.LastError.String, `unknown job type: "MyJob"`)
+}
+
+func TestWorkerWorkOneUnknownTypeWM(t *testing.T) {
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testWorkerWorkOneUnknownTypeWM(t, openFunc(t))
+		})
+	}
+}
+
+func testWorkerWorkOneUnknownTypeWM(t *testing.T, connPool adapter.ConnPool) {
+	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	wm := WorkMap{}
+
+	var unknownWFCalled int
+	unknownJobTypeHook := new(mockHook)
+
+	w, err := NewWorker(
+		c,
+		wm,
+		WithWorkerHooksUnknownJobType(unknownJobTypeHook.handler),
+		WithWorkerUnknownJobWorkFunc(func(ctx context.Context, j *Job) error {
+			unknownWFCalled++
+			return nil
+		}),
+	)
+	require.NoError(t, err)
+
+	didWork := w.WorkOne(ctx)
+	assert.False(t, didWork)
+
+	assert.Equal(t, 0, unknownJobTypeHook.called)
+
+	// random job type, because we do not really care in this case
+	err = c.Enqueue(ctx, &Job{Type: ulid.MustNew(ulid.Now(), ulid.DefaultEntropy()).String()})
+	require.NoError(t, err)
+
+	didWork = w.WorkOne(ctx)
+	assert.True(t, didWork)
+
+	assert.Equal(t, 0, unknownJobTypeHook.called)
+	assert.Equal(t, 1, unknownWFCalled)
 }
 
 // TestWorker_WorkOne_errorHookTx tests that JobDone hooks are running in the same transaction as the errored job

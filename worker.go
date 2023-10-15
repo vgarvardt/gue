@@ -81,6 +81,8 @@ type Worker struct {
 	tracer trace.Tracer
 	meter  metric.Meter
 
+	unknownJobTypeWF WorkFunc
+
 	hooksJobLocked      []HookFunc
 	hooksUnknownJobType []HookFunc
 	hooksJobDone        []HookFunc
@@ -229,8 +231,12 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 
 	wf, ok := w.wm[j.Type]
 	if !ok {
-		w.handleUnknownJobType(ctx, j, span, ll)
-		return
+		if w.unknownJobTypeWF == nil {
+			w.handleUnknownJobType(ctx, j, span, ll)
+			return
+		}
+
+		wf = w.unknownJobTypeWF
 	}
 
 	handlerCtx := ctx
@@ -378,6 +384,8 @@ type WorkerPool struct {
 	tracer trace.Tracer
 	meter  metric.Meter
 
+	unknownJobTypeWF WorkFunc
+
 	hooksJobLocked      []HookFunc
 	hooksUnknownJobType []HookFunc
 	hooksJobDone        []HookFunc
@@ -433,6 +441,7 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 			WithWorkerPanicStackBufSize(w.panicStackBufSize),
 			WithWorkerSpanWorkOneNoJob(w.spanWorkOneNoJob),
 			WithWorkerJobTTL(w.jobTTL),
+			WithWorkerUnknownJobWorkFunc(w.unknownJobTypeWF),
 		)
 
 		if err != nil {

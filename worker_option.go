@@ -80,6 +80,8 @@ func WithWorkerHooksJobLocked(hooks ...HookFunc) WorkerOption {
 // WithWorkerHooksUnknownJobType sets hooks that are called when worker finds a job with unknown type.
 // Error field for this event type is always set since this is an error situation.
 // If this hook is called - no other lifecycle hooks will be called for the job.
+// When the handler for unknown job types is set with WithWorkerUnknownJobWorkFunc - these hooks are never called
+// as the job is handled in the regular way using that handler.
 func WithWorkerHooksUnknownJobType(hooks ...HookFunc) WorkerOption {
 	return func(w *Worker) {
 		w.hooksUnknownJobType = hooks
@@ -145,6 +147,15 @@ func WithWorkerJobTTL(d time.Duration) WorkerOption {
 	}
 }
 
+// WithWorkerUnknownJobWorkFunc sets the handler for unknown job types.
+// When the handler is set - hooks set with WithWorkerHooksUnknownJobType are never called as the job is
+// handled in the regular way.
+func WithWorkerUnknownJobWorkFunc(wf WorkFunc) WorkerOption {
+	return func(w *Worker) {
+		w.unknownJobTypeWF = wf
+	}
+}
+
 // WithPoolPollInterval overrides default poll interval with the given value.
 // Poll interval is the "sleep" duration if there were no jobs found in the DB.
 func WithPoolPollInterval(d time.Duration) WorkerPoolOption {
@@ -203,6 +214,8 @@ func WithPoolHooksJobLocked(hooks ...HookFunc) WorkerPoolOption {
 }
 
 // WithPoolHooksUnknownJobType calls WithWorkerHooksUnknownJobType for every worker in the pool.
+// When the handler for unknown job types is set with WithPoolUnknownJobWorkFunc - these hooks are never called
+// as the job is handled in the regular way using that handler.
 func WithPoolHooksUnknownJobType(hooks ...HookFunc) WorkerPoolOption {
 	return func(w *WorkerPool) {
 		w.hooksUnknownJobType = hooks
@@ -255,5 +268,14 @@ func WithPoolSpanWorkOneNoJob(spanWorkOneNoJob bool) WorkerPoolOption {
 func WithPoolJobTTL(d time.Duration) WorkerPoolOption {
 	return func(w *WorkerPool) {
 		w.jobTTL = d
+	}
+}
+
+// WithPoolUnknownJobWorkFunc sets the handler for unknown job types.
+// When the handler is set - hooks set with WithPoolHooksUnknownJobType are never called as the job is
+// handled in the regular way.
+func WithPoolUnknownJobWorkFunc(wf WorkFunc) WorkerPoolOption {
+	return func(w *WorkerPool) {
+		w.unknownJobTypeWF = wf
 	}
 }
