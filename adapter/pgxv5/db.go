@@ -2,6 +2,7 @@ package pgxv5
 
 import (
 	"context"
+	"errors"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -18,7 +19,7 @@ type aRow struct {
 // Scan implements adapter.Row.Scan() using github.com/jackc/pgx/v5
 func (r *aRow) Scan(dest ...any) error {
 	err := r.row.Scan(dest...)
-	if err == pgx.ErrNoRows {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return adapter.ErrNoRows
 	}
 
@@ -96,7 +97,7 @@ func (tx *aTx) Query(ctx context.Context, query string, args ...any) (adapter.Ro
 // Rollback implements adapter.Tx.Rollback() using github.com/jackc/pgx/v5
 func (tx *aTx) Rollback(ctx context.Context) error {
 	err := tx.tx.Rollback(ctx)
-	if err == pgx.ErrTxClosed {
+	if errors.Is(err, pgx.ErrTxClosed) {
 		return adapter.ErrTxClosed
 	}
 

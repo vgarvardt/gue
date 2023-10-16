@@ -3,6 +3,7 @@ package libpq
 import (
 	"context"
 	"database/sql"
+	"errors"
 
 	"github.com/vgarvardt/gue/v5/adapter"
 )
@@ -15,7 +16,7 @@ type aRow struct {
 // Scan implements adapter.Row.Scan() using github.com/lib/pq
 func (r *aRow) Scan(dest ...any) error {
 	err := r.row.Scan(dest...)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		return adapter.ErrNoRows
 	}
 
@@ -99,7 +100,7 @@ func (tx *aTx) Query(ctx context.Context, query string, args ...any) (adapter.Ro
 // Rollback implements adapter.Tx.Rollback() using github.com/lib/pq
 func (tx *aTx) Rollback(_ context.Context) error {
 	err := tx.tx.Rollback()
-	if err == sql.ErrTxDone {
+	if errors.Is(err, sql.ErrTxDone) {
 		return adapter.ErrTxClosed
 	}
 
