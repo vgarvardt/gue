@@ -67,7 +67,7 @@ Here is a complete example showing worker setup for pgx/v4 and two jobs enqueued
 			"PrintName": printName,
 		}
 
-		// create a pool w/ 2 workers
+		// create a pool with 2 workers
 		workers, err := gue.NewWorkerPool(gc, wm, 2, gue.WithPoolQueue("name_printer"))
 		if err != nil {
 			log.Fatal(err)
