@@ -11,8 +11,9 @@ import (
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
-	"go.opentelemetry.io/otel/metric/noop"
+	noopM "go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/trace"
+	noopT "go.opentelemetry.io/otel/trace/noop"
 	"go.uber.org/multierr"
 	"golang.org/x/sync/errgroup"
 
@@ -112,8 +113,8 @@ func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) (*Worker, error) 
 		wm:           wm,
 		logger:       adapter.NoOpLogger{},
 		pollStrategy: PriorityPollStrategy,
-		tracer:       trace.NewNoopTracerProvider().Tracer("noop"),
-		meter:        noop.NewMeterProvider().Meter("noop"),
+		tracer:       noopT.NewTracerProvider().Tracer("noop"),
+		meter:        noopM.NewMeterProvider().Meter("noop"),
 
 		panicStackBufSize: defaultPanicStackBufSize,
 	}
@@ -410,8 +411,8 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 		workers:      make([]*Worker, poolSize),
 		logger:       adapter.NoOpLogger{},
 		pollStrategy: PriorityPollStrategy,
-		tracer:       trace.NewNoopTracerProvider().Tracer("noop"),
-		meter:        noop.NewMeterProvider().Meter("noop"),
+		tracer:       noopT.NewTracerProvider().Tracer("noop"),
+		meter:        noopM.NewMeterProvider().Meter("noop"),
 
 		panicStackBufSize: defaultPanicStackBufSize,
 	}
