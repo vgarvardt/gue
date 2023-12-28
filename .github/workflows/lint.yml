@@ -39,7 +39,7 @@ jobs:
       - name: Setup dependencies
         uses: ./.github/actions/setup-deps
         with:
-          go-version: '1.19'
+          go-version: '1.20'
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Lint Golang
