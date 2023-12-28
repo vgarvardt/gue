@@ -1,9 +1,15 @@
 package gue
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
+
+// ErrJobPanicked is returned when the job failed ot be handled because it is panicked.
+// Error is normally returned wrapped, so use `errors.Is(err, gue.ErrJobPanicked)` to ensure this is the error you're
+// looking for.
+var ErrJobPanicked = errors.New("job panicked")
 
 // ErrJobReschedule interface implementation allows errors to reschedule jobs in the individual basis.
 type ErrJobReschedule interface {

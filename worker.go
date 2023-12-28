@@ -334,32 +334,40 @@ func (w *Worker) markJobDone(ctx context.Context, j *Job, processingStartedAt ti
 // recoverPanic tries to handle panics in job execution.
 // A stacktrace is stored into Job last_error.
 func (w *Worker) recoverPanic(ctx context.Context, j *Job, logger adapter.Logger) {
-	if r := recover(); r != nil {
-		ctx, span := w.tracer.Start(ctx, "Worker.recoverPanic")
-		defer span.End()
+	r := recover()
+	if r == nil {
+		return
+	}
 
-		// record an error on the job with panic message and stacktrace
-		stackBuf := make([]byte, w.panicStackBufSize)
-		n := runtime.Stack(stackBuf, false)
+	ctx, span := w.tracer.Start(ctx, "Worker.recoverPanic")
+	defer span.End()
 
-		buf := new(bytes.Buffer)
-		_, printRErr := fmt.Fprintf(buf, "%v\n", r)
-		_, printStackErr := fmt.Fprintln(buf, string(stackBuf[:n]))
-		_, printEllipsisErr := fmt.Fprintln(buf, "[...]")
-		stacktrace := buf.String()
+	// record an error on the job with panic message and stacktrace
+	stackBuf := make([]byte, w.panicStackBufSize)
+	n := runtime.Stack(stackBuf, false)
 
-		if err := errors.Join(printRErr, printStackErr, printEllipsisErr); err != nil {
-			logger.Error("Could not build panicked job stacktrace", adapter.Err(err), adapter.F("runtime-stack", string(stackBuf[:n])))
-		}
+	buf := new(bytes.Buffer)
+	_, printRErr := fmt.Fprintf(buf, "%v\n", r)
+	_, printStackErr := fmt.Fprintln(buf, string(stackBuf[:n]))
+	_, printEllipsisErr := fmt.Fprintln(buf, "[...]")
+	stacktrace := buf.String()
 
-		w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(false)))
-		span.RecordError(errors.New("job panicked"), trace.WithAttributes(attribute.String("stacktrace", stacktrace)))
-		logger.Error("Job panicked", adapter.F("stacktrace", stacktrace))
+	if err := errors.Join(printRErr, printStackErr, printEllipsisErr); err != nil {
+		logger.Error("Could not build panicked job stacktrace", adapter.Err(err), adapter.F("runtime-stack", string(stackBuf[:n])))
+	}
 
-		if err := j.Error(ctx, errors.New(stacktrace)); err != nil {
-			span.RecordError(fmt.Errorf("failed to mark panicked job as error: %w", err))
-			logger.Error("Got an error on setting an error to a panicked job", adapter.Err(err))
-		}
+	w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(false)))
+	span.RecordError(ErrJobPanicked, trace.WithAttributes(attribute.String("stacktrace", stacktrace)))
+	logger.Error("Job panicked", adapter.F("stacktrace", stacktrace))
+
+	errPanic := fmt.Errorf("%w:\n%s", ErrJobPanicked, stacktrace)
+	for _, hook := range w.hooksJobDone {
+		hook(ctx, j, errPanic)
+	}
+
+	if err := j.Error(ctx, errPanic); err != nil {
+		span.RecordError(fmt.Errorf("failed to mark panicked job as error: %w", err))
+		logger.Error("Got an error on setting an error to a panicked job", adapter.Err(err))
 	}
 }
 
