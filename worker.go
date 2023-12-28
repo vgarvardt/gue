@@ -334,33 +334,72 @@ func (w *Worker) markJobDone(ctx context.Context, j *Job, processingStartedAt ti
 // recoverPanic tries to handle panics in job execution.
 // A stacktrace is stored into Job last_error.
 func (w *Worker) recoverPanic(ctx context.Context, j *Job, logger adapter.Logger) {
-	if r := recover(); r != nil {
-		ctx, span := w.tracer.Start(ctx, "Worker.recoverPanic")
-		defer span.End()
-
-		// record an error on the job with panic message and stacktrace
-		stackBuf := make([]byte, w.panicStackBufSize)
-		n := runtime.Stack(stackBuf, false)
-
-		buf := new(bytes.Buffer)
-		_, printRErr := fmt.Fprintf(buf, "%v\n", r)
-		_, printStackErr := fmt.Fprintln(buf, string(stackBuf[:n]))
-		_, printEllipsisErr := fmt.Fprintln(buf, "[...]")
-		stacktrace := buf.String()
-
-		if err := errors.Join(printRErr, printStackErr, printEllipsisErr); err != nil {
-			logger.Error("Could not build panicked job stacktrace", adapter.Err(err), adapter.F("runtime-stack", string(stackBuf[:n])))
-		}
-
-		w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(false)))
-		span.RecordError(errors.New("job panicked"), trace.WithAttributes(attribute.String("stacktrace", stacktrace)))
-		logger.Error("Job panicked", adapter.F("stacktrace", stacktrace))
-
-		if err := j.Error(ctx, errors.New(stacktrace)); err != nil {
-			span.RecordError(fmt.Errorf("failed to mark panicked job as error: %w", err))
-			logger.Error("Got an error on setting an error to a panicked job", adapter.Err(err))
-		}
+	r := recover()
+	if r == nil {
+		return
 	}
+
+	defer w.recoverPanicRecovery(ctx, j, logger)
+
+	ctx, span := w.tracer.Start(ctx, "Worker.recoverPanic")
+	defer span.End()
+
+	stacktrace := buildStackTrace(r, w.panicStackBufSize, logger)
+
+	w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(false)))
+	span.RecordError(ErrJobPanicked, trace.WithAttributes(attribute.String("stacktrace", stacktrace)))
+	logger.Error("Job panicked", adapter.F("stacktrace", stacktrace))
+
+	errPanic := fmt.Errorf("%w:\n%s", ErrJobPanicked, stacktrace)
+	for _, hook := range w.hooksJobDone {
+		hook(ctx, j, errPanic)
+	}
+
+	// record an error on the job with panic message and stacktrace
+	if err := j.Error(ctx, errPanic); err != nil {
+		span.RecordError(fmt.Errorf("failed to mark panicked job as error: %w", err))
+		logger.Error("Got an error on setting an error to a panicked job", adapter.Err(err))
+	}
+}
+
+// recoverPanicRecovery tries to handle panics in hook job done thrown in the process of panicked job recovery.
+// A stacktrace is stored into Job last_error.
+func (w *Worker) recoverPanicRecovery(ctx context.Context, j *Job, logger adapter.Logger) {
+	r := recover()
+	if r == nil {
+		return
+	}
+
+	ctx, span := w.tracer.Start(ctx, "Worker.recoverPanicRecovery")
+	defer span.End()
+
+	stacktrace := buildStackTrace(r, w.panicStackBufSize, logger)
+
+	span.RecordError(ErrHookJobDonePanicked, trace.WithAttributes(attribute.String("stacktrace", stacktrace)))
+	logger.Error("Job panicked during the panic recovery", adapter.F("stacktrace", stacktrace))
+
+	errPanic := fmt.Errorf("%w (%w):\n%s", ErrHookJobDonePanicked, ErrJobPanicked, stacktrace)
+	// record an error on the job with panic message and stacktrace
+	if err := j.Error(ctx, errPanic); err != nil {
+		span.RecordError(fmt.Errorf("failed to mark panicked job (hook job done) as error: %w", err))
+		logger.Error("Got an error on setting an error to a panicked job (hook job done)", adapter.Err(err))
+	}
+}
+
+func buildStackTrace(r any, bufSize int, logger adapter.Logger) string {
+	stackBuf := make([]byte, bufSize)
+	n := runtime.Stack(stackBuf, false)
+
+	buf := new(bytes.Buffer)
+	_, printRErr := fmt.Fprintf(buf, "%v\n", r)
+	_, printStackErr := fmt.Fprintln(buf, string(stackBuf[:n]))
+	_, printEllipsisErr := fmt.Fprintln(buf, "[...]")
+
+	if err := errors.Join(printRErr, printStackErr, printEllipsisErr); err != nil {
+		logger.Error("Could not build panicked job stacktrace", adapter.Err(err), adapter.F("runtime-stack", string(stackBuf[:n])))
+	}
+
+	return buf.String()
 }
 
 // WorkerPool is a pool of Workers, each working jobs from the queue

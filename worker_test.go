@@ -333,14 +333,19 @@ func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
 	c, err := NewClient(connPool)
 	require.NoError(t, err)
 
-	called := 0
+	var handlerCalled int
 	wm := WorkMap{
 		"MyJob": func(ctx context.Context, j *Job) error {
-			called++
+			handlerCalled++
 			panic("the panic msg")
 		},
 	}
-	w, err := NewWorker(c, wm, WithWorkerLogger(adapterZap.New(logger)))
+
+	var hookDoneCalled int
+	w, err := NewWorker(c, wm, WithWorkerLogger(adapterZap.New(logger)), WithWorkerHooksJobDone(func(ctx context.Context, j *Job, err error) {
+		hookDoneCalled++
+		assert.ErrorIs(t, err, ErrJobPanicked)
+	}))
 	require.NoError(t, err)
 
 	job := Job{Type: "MyJob"}
@@ -348,7 +353,8 @@ func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
 	require.NoError(t, err)
 
 	w.WorkOne(ctx)
-	assert.Equal(t, 1, called)
+	require.Equal(t, 1, handlerCalled)
+	require.Equal(t, 1, hookDoneCalled)
 
 	j, err := c.LockJobByID(ctx, job.ID)
 	require.NoError(t, err)
