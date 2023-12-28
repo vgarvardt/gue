@@ -14,7 +14,6 @@ import (
 	noopM "go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/trace"
 	noopT "go.opentelemetry.io/otel/trace/noop"
-	"go.uber.org/multierr"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/vgarvardt/gue/v5/adapter"
@@ -349,7 +348,7 @@ func (w *Worker) recoverPanic(ctx context.Context, j *Job, logger adapter.Logger
 		_, printEllipsisErr := fmt.Fprintln(buf, "[...]")
 		stacktrace := buf.String()
 
-		if err := multierr.Combine(printRErr, printStackErr, printEllipsisErr); err != nil {
+		if err := errors.Join(printRErr, printStackErr, printEllipsisErr); err != nil {
 			logger.Error("Could not build panicked job stacktrace", adapter.Err(err), adapter.F("runtime-stack", string(stackBuf[:n])))
 		}
 
