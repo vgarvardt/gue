@@ -6,10 +6,17 @@ import (
 	"time"
 )
 
-// ErrJobPanicked is returned when the job failed ot be handled because it is panicked.
-// Error is normally returned wrapped, so use `errors.Is(err, gue.ErrJobPanicked)` to ensure this is the error you're
-// looking for.
-var ErrJobPanicked = errors.New("job panicked")
+var (
+	// ErrJobPanicked is returned when the job failed ot be handled because it is panicked.
+	// Error is normally returned wrapped, so use `errors.Is(err, gue.ErrJobPanicked)` to ensure this is the error you're
+	// looking for.
+	ErrJobPanicked = errors.New("job panicked")
+
+	// ErrHookJobDonePanicked is returned when the hook job done panicked while panicked job recovery.
+	// Error is normally returned wrapped, so use `errors.Is(err, gue.ErrHookJobDonePanicked)` to ensure this is the error you're
+	// looking for.
+	ErrHookJobDonePanicked = errors.New("hook job done panicked in job panic recovery")
+)
 
 // ErrJobReschedule interface implementation allows errors to reschedule jobs in the individual basis.
 type ErrJobReschedule interface {
