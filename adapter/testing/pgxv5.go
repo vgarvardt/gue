@@ -7,8 +7,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
 
-	"github.com/vgarvardt/gue/v5/adapter"
-	"github.com/vgarvardt/gue/v5/adapter/pgxv5"
+	"github.com/sadpenguinn/gue/v6/adapter"
+	"github.com/sadpenguinn/gue/v6/adapter/pgxv5"
 )
 
 // OpenTestPoolMaxConnsPGXv5 opens connections pool used in testing

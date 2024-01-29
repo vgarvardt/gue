@@ -14,9 +14,9 @@ import (
 	"github.com/IBM/sarama"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/vgarvardt/gue/v5"
-	"github.com/vgarvardt/gue/v5/adapter"
-	"github.com/vgarvardt/gue/v5/adapter/pgxv5"
+	"github.com/sadpenguinn/gue/v6"
+	"github.com/sadpenguinn/gue/v6/adapter"
+	"github.com/sadpenguinn/gue/v6/adapter/pgxv5"
 )
 
 // func init() {

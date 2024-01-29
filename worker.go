@@ -16,7 +16,7 @@ import (
 	noopT "go.opentelemetry.io/otel/trace/noop"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/vgarvardt/gue/v5/adapter"
+	"github.com/sadpenguinn/gue/v6/adapter"
 )
 
 // PollStrategy determines how the DB is queried for the next job to work on
@@ -265,7 +265,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 		hook(ctx, j, nil)
 	}
 
-	err = j.Delete(ctx)
+	err = j.Finish(ctx, JobStatusSuccess)
 	if err != nil {
 		span.RecordError(fmt.Errorf("failed to delete finished job: %w", err))
 		ll.Error("Got an error on deleting a job", adapter.Err(err))
