@@ -32,10 +32,11 @@ jobs:
         run: task test
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
         if: success()
+        uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
           fail_ci_if_error: false
 
