@@ -137,10 +137,10 @@ func (c *Client) execEnqueueWithID(ctx context.Context, j *Job, q adapter.Querya
 	}
 
 	_, err = q.Exec(ctx, `INSERT INTO gue_jobs
-(job_id, queue, priority, run_at, job_type, args, created_at, updated_at)
+(job_id, queue, priority, run_at, job_type, args, skip_delete, status, created_at, updated_at)
 VALUES
-($1, $2, $3, $4, $5, $6, $7, $7)
-`, idAsString, j.Queue, j.Priority, j.RunAt, j.Type, j.Args, j.CreatedAt)
+($1, $2, $3, $4, $5, $6, $7, $8, $9, $9)
+`, idAsString, j.Queue, j.Priority, j.RunAt, j.Type, j.Args, boolToInt16(j.SkipDelete), JobStatusTodo, j.CreatedAt)
 
 	c.logger.Debug(
 		"Tried to enqueue a job",
@@ -177,13 +177,13 @@ func (c *Client) execEnqueue(ctx context.Context, j *Job, q adapter.Queryable) e
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockJob(ctx context.Context, queue string) (*Job, error) {
-	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error, created_at
+	sql := `SELECT job_id, queue, priority, run_at, job_type, args, skip_delete, status, error_count, last_error, created_at
 FROM gue_jobs
-WHERE queue = $1 AND run_at <= $2
+WHERE queue = $1 AND run_at <= $2 AND (status = $3 OR status = $4)
 ORDER BY priority ASC
 LIMIT 1 FOR UPDATE SKIP LOCKED`
 
-	return c.execLockJob(ctx, true, sql, queue, time.Now().UTC())
+	return c.execLockJob(ctx, true, sql, queue, time.Now().UTC(), JobStatusTodo, JobStatusRetry)
 }
 
 // LockJobByID attempts to retrieve a specific Job from the database.
@@ -197,7 +197,7 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockJobByID(ctx context.Context, id ulid.ULID) (*Job, error) {
-	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error, created_at
+	sql := `SELECT job_id, queue, priority, run_at, job_type, args, skip_delete, status, error_count, last_error, created_at
 FROM gue_jobs
 WHERE job_id = $1 FOR UPDATE SKIP LOCKED`
 
@@ -218,13 +218,13 @@ WHERE job_id = $1 FOR UPDATE SKIP LOCKED`
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockNextScheduledJob(ctx context.Context, queue string) (*Job, error) {
-	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error, created_at
+	sql := `SELECT job_id, queue, priority, run_at, job_type, args, skip_delete, status, error_count, last_error, created_at
 FROM gue_jobs
-WHERE queue = $1 AND run_at <= $2
+WHERE queue = $1 AND run_at <= $2 AND (status = $3 OR status = $4)
 ORDER BY run_at, priority ASC
 LIMIT 1 FOR UPDATE SKIP LOCKED`
 
-	return c.execLockJob(ctx, true, sql, queue, time.Now().UTC())
+	return c.execLockJob(ctx, true, sql, queue, time.Now().UTC(), JobStatusTodo, JobStatusRetry)
 }
 
 func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql string, args ...any) (*Job, error) {
@@ -236,6 +236,7 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 
 	j := Job{tx: tx, backoff: c.backoff, logger: c.logger}
 
+	var skipDelete int16
 	err = tx.QueryRow(ctx, sql, args...).Scan(
 		&j.ID,
 		&j.Queue,
@@ -243,11 +244,14 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 		&j.RunAt,
 		&j.Type,
 		&j.Args,
+		&skipDelete,
+		&j.Status,
 		&j.ErrorCount,
 		&j.LastError,
 		&j.CreatedAt,
 	)
 	if err == nil {
+		j.SkipDelete = int16ToBool(skipDelete)
 		c.mLockJob.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(true)))
 		return &j, nil
 	}
@@ -278,4 +282,18 @@ func (c *Client) initMetrics() (err error) {
 	}
 
 	return nil
+}
+
+func boolToInt16(v bool) int16 {
+	if v {
+		return 1
+	}
+	return 0
+}
+
+func int16ToBool(v int16) bool {
+	if v > 0 {
+		return true
+	}
+	return false
 }
