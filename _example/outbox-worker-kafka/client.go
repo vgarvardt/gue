@@ -20,7 +20,7 @@ func newClientCommand() *cobra.Command {
 
 	return &cobra.Command{
 		Use:   "client",
-		Short: "Outbox Worker Client, enqueues messages to the gue for further processing by teh worker",
+		Short: "Outbox Worker Client, enqueues messages to the gue for further processing by the worker",
 		PreRunE: func(cmd *cobra.Command, args []string) (err error) {
 			gc, err = newGueClient(cmd.Context())
 			return

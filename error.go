@@ -7,7 +7,7 @@ import (
 )
 
 var (
-	// ErrJobPanicked is returned when the job failed ot be handled because it is panicked.
+	// ErrJobPanicked is returned when the job failed to be handled because it is panicked.
 	// Error is normally returned wrapped, so use `errors.Is(err, gue.ErrJobPanicked)` to ensure this is the error you're
 	// looking for.
 	ErrJobPanicked = errors.New("job panicked")
