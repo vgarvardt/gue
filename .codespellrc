@@ -1,0 +1,3 @@
+[codespell]
+skip = go.mod,go.sum,coverage.txt,.codespellrc,./vendor,./_example/outbox-worker-kafka/vendor,./.git,./.idea
+check-hidden = true

@@ -2,7 +2,7 @@
 name: "Lint"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref }}
+  group: '${{ github.workflow }}-${{ github.head_ref }}'
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 on:
@@ -48,3 +48,12 @@ jobs:
           only-new-issues: ${{ github.event_name == 'pull_request' }}
           args: >
             --config=./.github/linters/.golangci.yml
+
+  codespell:
+    name: Check spelling
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: codespell-project/actions-codespell@v2
