@@ -84,6 +84,11 @@ func (c *Client) EnqueueTx(ctx context.Context, j *Job, tx adapter.Tx) error {
 
 // EnqueueBatch adds a batch of jobs. Operation is atomic, so either all jobs are added, or none.
 func (c *Client) EnqueueBatch(ctx context.Context, jobs []*Job) error {
+	// No need to start a transaction if there are no jobs to enqueue
+	if len(jobs) == 0 {
+		return nil
+	}
+
 	tx, err := c.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("could not begin transaction")
@@ -108,6 +113,10 @@ func (c *Client) EnqueueBatch(ctx context.Context, jobs []*Job) error {
 // It is the caller's responsibility to Commit or Rollback the transaction after
 // this function is called.
 func (c *Client) EnqueueBatchTx(ctx context.Context, jobs []*Job, tx adapter.Tx) error {
+	if len(jobs) == 0 {
+		return nil
+	}
+
 	for i, j := range jobs {
 		if err := c.execEnqueue(ctx, j, tx); err != nil {
 			return fmt.Errorf("could not enqueue job from the batch [idx %d]: %w", i, err)
