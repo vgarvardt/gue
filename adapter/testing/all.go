@@ -123,5 +123,5 @@ func testMySQLConnDSN(t testing.TB) string {
 	//require.NotEmpty(t, testMySQLConnString, "TEST_MYSQL env var is empty")
 	//
 	//return strings.Replace(testMySQLConnString, "0.0.0.0", "127.0.0.1", 1)
-	return `test:test@tcp(127.0.0.1:65515)/test?charset=utf8&parseTime=true`
+	return `test:test@tcp(127.0.0.1:58771)/test?charset=utf8&parseTime=true`
 }

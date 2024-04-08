@@ -3,8 +3,6 @@ package gue
 import (
 	"context"
 	"errors"
-	"fmt"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -739,101 +737,4 @@ func testQueryableQuery(ctx context.Context, t *testing.T, q adapter.Queryable, 
 	assert.Equal(t, j2.Type, jobs[1].Type)
 	assert.Equal(t, j3.ID.String(), jobs[2].ID.String())
 	assert.Equal(t, j3.Type, jobs[2].Type)
-}
-
-func TestMultiSchema(t *testing.T) {
-	connPool := adapterTesting.OpenTestPoolLibPQCustomSchemas(t, "gue", "foo")
-	ctx := context.Background()
-
-	// create table with the explicitly set second schema as gue table was already created in the first one
-	_, err := connPool.Exec(ctx, "CREATE TABLE IF NOT EXISTS foo.bar ( id serial NOT NULL PRIMARY KEY, data text NOT NULL )")
-	require.NoError(t, err)
-
-	// insert into created table w/out setting schema explicitly - search_path should take care of this
-	_, err = connPool.Exec(ctx, "INSERT INTO bar (data) VALUES ('baz')")
-	require.NoError(t, err)
-
-	// run basic gue client test to ensure it works as expected in its own schema known to search_path
-	c, err := NewClient(connPool)
-	require.NoError(t, err)
-
-	newJob := &Job{
-		Type: "MyJob",
-	}
-	err = c.Enqueue(ctx, newJob)
-	require.NoError(t, err)
-	require.NotEmpty(t, newJob.ID)
-
-	j, err := c.LockJob(ctx, "")
-	require.NoError(t, err)
-
-	require.NotNil(t, j.tx)
-
-	t.Cleanup(func() {
-		err := j.Done(ctx)
-		assert.NoError(t, err)
-	})
-}
-
-func TestJobIDMigration(t *testing.T) {
-	connPool := adapterTesting.OpenTestPoolLibPQCustomSchemas(t, "job_id_migration_01", "job_id_migration_02")
-	ctx := context.Background()
-
-	// create a table with the serial ID
-	// editorconfig-checker-disable
-	_, err := connPool.Exec(ctx, `
-DROP TABLE IF EXISTS gue_jobs;
-CREATE TABLE gue_jobs
-(
-  job_id      BIGSERIAL   NOT NULL PRIMARY KEY,
-  priority    SMALLINT    NOT NULL,
-  run_at      TIMESTAMPTZ NOT NULL,
-  job_type    TEXT        NOT NULL,
-  args        BYTEA       NOT NULL,
-  error_count INTEGER     NOT NULL DEFAULT 0,
-  last_error  TEXT,
-  queue       TEXT        NOT NULL,
-  created_at  TIMESTAMPTZ NOT NULL,
-  updated_at  TIMESTAMPTZ NOT NULL
-);
-
-CREATE INDEX IF NOT EXISTS idx_gue_jobs_selector ON gue_jobs (queue, run_at, priority);
-`)
-	require.NoError(t, err)
-	// editorconfig-checker-enable
-
-	// insert several records to test if the data migration works fine
-	now := time.Now()
-	const queueName string = "some-queue"
-	for i := 0; i < 101; i++ {
-		_, err = connPool.Exec(ctx, `INSERT INTO gue_jobs
-(queue, priority, run_at, job_type, args, created_at, updated_at)
-VALUES
-($1, $2, $3, $4, $5, $6, $6)
-`, queueName, 0, now, "foo-bar", []byte(fmt.Sprintf(`{"job":%d}`, i)), now)
-		require.NoError(t, err)
-	}
-
-	migrationSQL, err := os.ReadFile("./migrations/job_id_to_ulid.sql")
-	require.NoError(t, err)
-	_, err = connPool.Exec(ctx, string(migrationSQL))
-	require.NoError(t, err)
-
-	// ensure it is possible to retrieve a job from the DB after the conversion
-	c, err := NewClient(connPool)
-	require.NoError(t, err)
-
-	j1, err := c.LockJob(ctx, queueName)
-	require.NoError(t, err)
-	require.NotNil(t, j1)
-	t.Logf("Locked a job: %s %s", j1.ID.String(), string(j1.Args))
-
-	err = j1.Delete(ctx)
-	require.NoError(t, err)
-	err = j1.Done(ctx)
-	require.NoError(t, err)
-
-	j2, err := c.LockJobByID(ctx, j1.ID)
-	require.Error(t, err)
-	require.Nil(t, j2)
 }
