@@ -272,6 +272,7 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 
 	rbErr := tx.Rollback(ctx)
 	if handleErrNoRows && errors.Is(err, adapter.ErrNoRows) {
+		c.logger.Debug("No job found to lock", adapter.Err(err))
 		return nil, rbErr
 	}
 

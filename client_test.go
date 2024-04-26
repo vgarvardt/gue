@@ -10,9 +10,11 @@ import (
 	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zaptest"
 
 	"github.com/vgarvardt/gue/v5/adapter"
 	adapterTesting "github.com/vgarvardt/gue/v5/adapter/testing"
+	adapterZap "github.com/vgarvardt/gue/v5/adapter/zap"
 )
 
 func TestLockJob(t *testing.T) {
@@ -595,7 +597,8 @@ func TestJobPriority(t *testing.T) {
 func testJobPriority(t *testing.T, connPool adapter.ConnPool) {
 	ctx := context.Background()
 
-	c, err := NewClient(connPool)
+	logger := adapterZap.New(zaptest.NewLogger(t))
+	c, err := NewClient(connPool, WithClientLogger(logger))
 	require.NoError(t, err)
 
 	// insert in the order different from expected to be locked
@@ -621,6 +624,8 @@ func testJobPriority(t *testing.T, connPool adapter.ConnPool) {
 
 	expectedOrder := []*Job{jobPriorityHighest, jobPriorityHigh, jobPriorityDefault, jobPriorityLow, jobPriorityLowest}
 	for _, expected := range expectedOrder {
+		logger.Debug("Locking job", adapter.F("priority", expected.Priority))
+
 		j, err := c.LockJob(ctx, "")
 		require.NoError(t, err)
 		require.NotNil(t, j)

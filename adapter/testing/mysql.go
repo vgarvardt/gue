@@ -25,10 +25,18 @@ func OpenTestPoolMaxConnsMySQL(t testing.TB, maxConnections int) adapter.ConnPoo
 
 	db.SetMaxOpenConns(maxConnections)
 
+	// Tt seems that the default isolation level in MySQL is set to "REPEATABLE READ", which means that all queries
+	// within the same transaction see the snapshot of the database at the start of the transaction, regardless of
+	// the changes made during the transaction.
+	// But we need "READ COMMITTED" to allow a transaction to see changes made by other transactions that were
+	// committed after the start of the current transaction.
+	_, err = db.Exec(`SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED`)
+	require.NoError(t, err)
+
 	pool := mysql.NewConnPool(db)
 
 	t.Cleanup(func() {
-		truncateAndClose(t, pool)
+		//truncateAndClose(t, pool)
 	})
 
 	return pool
