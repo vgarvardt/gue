@@ -43,7 +43,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Lint Golang
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v5
         with:
           only-new-issues: ${{ github.event_name == 'pull_request' }}
           args: >
