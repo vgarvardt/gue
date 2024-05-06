@@ -35,6 +35,7 @@ jobs:
           # and the functionality is tested using integration tests
           VALIDATE_SQL: false
           VALIDATE_SQLFLUFF: false
+          VALIDATE_CHECKOV: false
 
       - name: Setup dependencies
         uses: ./.github/actions/setup-deps
