@@ -44,3 +44,8 @@ tasks:
             --volume "{{.CURDIR}}:/workdir" \
             --workdir "/workdir" \
             python:3.12-slim bash -c "python -m pip install --upgrade pip && pip install 'codespell>=2.2.4' && codespell"
+
+  lint:
+    summary: Lint the code (expects golangci-lint to be installed)
+    cmds:
+      - cmd: golangci-lint run --config=./.github/linters/.golangci.yml --fix

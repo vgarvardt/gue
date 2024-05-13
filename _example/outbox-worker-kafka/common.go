@@ -18,9 +18,9 @@ import (
 	"github.com/vgarvardt/gue/v5/adapter/pgxv5"
 )
 
-//func init() {
+// func init() {
 //	sarama.Logger = log.New(os.Stdout, "[Sarama] ", log.LstdFlags)
-//}
+// }
 
 const (
 	kafkaTopic    = "test-topic"
