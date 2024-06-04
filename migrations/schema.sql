@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS gue_jobs
   run_at      TIMESTAMPTZ NOT NULL,
   job_type    TEXT        NOT NULL,
   args        BYTEA       NOT NULL,
+  skip_delete SMALLINT    NOT NULL,
+  status      TEXT        NOT NULL,
   error_count INTEGER     NOT NULL DEFAULT 0,
   last_error  TEXT,
   queue       TEXT        NOT NULL,

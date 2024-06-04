@@ -265,7 +265,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 		hook(ctx, j, nil)
 	}
 
-	err = j.Delete(ctx)
+	err = j.Finish(ctx, JobStatusSuccess)
 	if err != nil {
 		span.RecordError(fmt.Errorf("failed to delete finished job: %w", err))
 		ll.Error("Got an error on deleting a job", adapter.Err(err))

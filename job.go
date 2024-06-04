@@ -24,6 +24,15 @@ const (
 	JobPriorityLowest  JobPriority = 32767
 )
 
+type JobStatus string
+
+const (
+	JobStatusTodo    JobStatus = "todo"
+	JobStatusRetry   JobStatus = "retry"
+	JobStatusSuccess JobStatus = "success"
+	JobStatusError   JobStatus = "error"
+)
+
 // Job is a single unit of work for Gue to perform.
 type Job struct {
 	// ID is the unique database ID of the Job. It is ignored on job creation.
@@ -49,6 +58,14 @@ type Job struct {
 	// Args for the job.
 	Args []byte
 
+	// SkipDelete is it necessary to keep task in postgres queue after successful execution.
+	// If this field set to true, gue won't delete task from postgres table.
+	SkipDelete bool
+
+	// JobStatus is the task execution status.
+	// It is ignored on job creation.
+	Status JobStatus
+
 	// ErrorCount is the number of times this job has attempted to run, but failed with an error.
 	// It is ignored on job creation.
 	// This field is initialised only when the Job is being retrieved from the DB and is not
@@ -66,11 +83,11 @@ type Job struct {
 	// whether it makes sense to retry the job or it can be dropped.
 	CreatedAt time.Time
 
-	mu      sync.Mutex
-	deleted bool
-	tx      adapter.Tx
-	backoff Backoff
-	logger  adapter.Logger
+	mu       sync.Mutex
+	finished bool
+	tx       adapter.Tx
+	backoff  Backoff
+	logger   adapter.Logger
 }
 
 // Tx returns DB transaction that this job is locked to. You may use
@@ -81,25 +98,33 @@ func (j *Job) Tx() adapter.Tx {
 	return j.tx
 }
 
-// Delete marks this job as complete by deleting it from the database.
+// Finish marks this job as complete.
+// If job has property SkipDelete set to true, then Finish function will mark it as finished by changing its status field.
+// If job has no such property, it will mark job as complete by deleting it from the database.
 //
 // You must also later call Done() to return this job's database connection to
 // the pool. If you got the job from the worker - it will take care of cleaning up the job and resources,
 // no need to do this manually in a WorkFunc.
-func (j *Job) Delete(ctx context.Context) error {
+func (j *Job) Finish(ctx context.Context, status JobStatus) error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	if j.deleted {
+	if j.finished {
 		return nil
 	}
 
-	_, err := j.tx.Exec(ctx, `DELETE FROM gue_jobs WHERE job_id = $1`, j.ID.String())
+	var err error
+	if j.SkipDelete {
+		_, err = j.tx.Exec(ctx, `UPDATE gue_jobs SET status = $1 WHERE job_id = $2`, status, j.ID.String())
+	} else {
+		_, err = j.tx.Exec(ctx, `DELETE FROM gue_jobs WHERE job_id = $1`, j.ID.String())
+	}
+
 	if err != nil {
 		return err
 	}
 
-	j.deleted = true
+	j.finished = true
 	return nil
 }
 
@@ -150,14 +175,25 @@ func (j *Job) Error(ctx context.Context, jErr error) (err error) {
 			adapter.F("job-errors", errorCount),
 			adapter.Err(jErr),
 		)
-		err = j.Delete(ctx)
+
+		// save last error for history
+		_, err = j.tx.Exec(
+			ctx,
+			`UPDATE gue_jobs SET error_count = $1, last_error = $2, updated_at = $3 WHERE job_id = $4`,
+			errorCount, jErr.Error(), now, j.ID.String(),
+		)
+		if err != nil {
+			return
+		}
+
+		err = j.Finish(ctx, JobStatusError)
 		return
 	}
 
 	_, err = j.tx.Exec(
 		ctx,
-		`UPDATE gue_jobs SET error_count = $1, run_at = $2, last_error = $3, updated_at = $4 WHERE job_id = $5`,
-		errorCount, newRunAt, jErr.Error(), now, j.ID.String(),
+		`UPDATE gue_jobs SET error_count = $1, run_at = $2, last_error = $3, updated_at = $4, status = $5 WHERE job_id = $6`,
+		errorCount, newRunAt, jErr.Error(), now, JobStatusRetry, j.ID.String(),
 	)
 
 	return err
