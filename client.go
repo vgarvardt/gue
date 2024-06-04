@@ -91,7 +91,7 @@ func (c *Client) EnqueueBatch(ctx context.Context, jobs []*Job) error {
 
 	tx, err := c.pool.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("could not begin transaction")
+		return fmt.Errorf("could not begin transaction: %w", err)
 	}
 
 	for i, j := range jobs {

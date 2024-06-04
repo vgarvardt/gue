@@ -193,7 +193,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 
 	j, err := w.pollFunc(ctx, w.queue)
 	if err != nil {
-		span.RecordError(fmt.Errorf("woker failed to lock a job: %w", err))
+		span.RecordError(fmt.Errorf("worker failed to lock a job: %w", err))
 		w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(""), attrSuccess.Bool(false)))
 		w.logger.Error("Worker failed to lock a job", adapter.Err(err))
 
