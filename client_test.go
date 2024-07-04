@@ -140,7 +140,7 @@ func testLockJobCustomQueue(t *testing.T, connPool adapter.ConnPool) {
 		assert.NoError(t, err)
 	})
 
-	err = j.Delete(ctx)
+	err = j.Finish(ctx, JobStatusSuccess)
 	require.NoError(t, err)
 }
 
@@ -405,15 +405,15 @@ func testJobConnRace(t *testing.T, connPool adapter.ConnPool) {
 	wg.Wait()
 }
 
-func TestJobDelete(t *testing.T) {
+func TestJobFinish(t *testing.T) {
 	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
-			testJobDelete(t, openFunc(t))
+			testJobFinish(t, openFunc(t))
 		})
 	}
 }
 
-func testJobDelete(t *testing.T, connPool adapter.ConnPool) {
+func testJobFinish(t *testing.T, connPool adapter.ConnPool) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -427,7 +427,7 @@ func testJobDelete(t *testing.T, connPool adapter.ConnPool) {
 	require.NoError(t, err)
 	require.NotNil(t, j)
 
-	err = j.Delete(ctx)
+	err = j.Finish(ctx, JobStatusSuccess)
 	require.NoError(t, err)
 
 	err = j.Done(ctx)
@@ -438,6 +438,48 @@ func testJobDelete(t *testing.T, connPool adapter.ConnPool) {
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, adapter.ErrNoRows))
 	assert.Nil(t, jj)
+}
+
+func TestJobFinishSkipDelete(t *testing.T) {
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testJobFinishSkipDelete(t, openFunc(t))
+		})
+	}
+}
+
+func testJobFinishSkipDelete(t *testing.T, connPool adapter.ConnPool) {
+	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	job := Job{Type: "MyJob", SkipDelete: true}
+	err = c.Enqueue(ctx, &job)
+	require.NoError(t, err)
+
+	j, err := c.LockJob(ctx, "")
+	require.NoError(t, err)
+	require.NotNil(t, j)
+
+	err = j.Finish(ctx, JobStatusSuccess)
+	require.NoError(t, err)
+
+	err = j.Done(ctx)
+	require.NoError(t, err)
+
+	// make sure job was not deleted
+	j2, err := c.LockJobByID(ctx, job.ID)
+	require.NoError(t, err)
+	require.NotNil(t, j2)
+
+	t.Cleanup(func() {
+		err := j2.Done(ctx)
+		assert.NoError(t, err)
+	})
+
+	assert.Equal(t, job.Type, j2.Type)
+	assert.Equal(t, JobStatusSuccess, j2.Status)
 }
 
 func TestJobDone(t *testing.T) {
@@ -536,6 +578,50 @@ func testJobError(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, msg, j2.LastError.String)
 	assert.Equal(t, int32(1), j2.ErrorCount)
 	assert.Greater(t, j2.RunAt.Unix(), job.RunAt.Unix())
+	assert.Equal(t, JobStatusRetry, j2.Status)
+}
+
+func TestJobErrorSkipDelete(t *testing.T) {
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testJobErrorSkipDelete(t, openFunc(t))
+		})
+	}
+}
+
+func testJobErrorSkipDelete(t *testing.T, connPool adapter.ConnPool) {
+	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	job := &Job{Type: "MyJob", SkipDelete: true}
+	err = c.Enqueue(ctx, job)
+	require.NoError(t, err)
+
+	j, err := c.LockJob(ctx, "")
+	require.NoError(t, err)
+	require.NotNil(t, j)
+
+	msg := "world\nended"
+	err = j.Error(ctx, errors.New(msg))
+	require.NoError(t, err)
+
+	// make sure job was not deleted
+	j2, err := c.LockJobByID(ctx, job.ID)
+	require.NoError(t, err)
+	require.NotNil(t, j2)
+
+	t.Cleanup(func() {
+		err := j2.Done(ctx)
+		assert.NoError(t, err)
+	})
+
+	assert.True(t, j2.LastError.Valid)
+	assert.Equal(t, msg, j2.LastError.String)
+	assert.Equal(t, int32(1), j2.ErrorCount)
+	assert.Greater(t, j2.RunAt.Unix(), job.RunAt.Unix())
+	assert.Equal(t, JobStatusRetry, j2.Status)
 }
 
 func TestJobErrorCustomBackoff(t *testing.T) {
@@ -584,6 +670,83 @@ func testJobErrorCustomBackoff(t *testing.T, connPool adapter.ConnPool) {
 	assert.Greater(t, j2.RunAt.Unix(), job.RunAt.Unix())
 	// a diff in a sec is possible when doing dates math, so allow it
 	assert.WithinDuration(t, job.RunAt.Add(time.Hour), j2.RunAt, time.Second)
+	assert.Equal(t, JobStatusRetry, j2.Status)
+}
+
+func TestJobErrorBackoffNever(t *testing.T) {
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testJobErrorBackoffNever(t, openFunc(t))
+		})
+	}
+}
+
+func testJobErrorBackoffNever(t *testing.T, connPool adapter.ConnPool) {
+	ctx := context.Background()
+
+	c, err := NewClient(connPool, WithClientBackoff(BackoffNever))
+	require.NoError(t, err)
+
+	job := &Job{Type: "MyJob"}
+	err = c.Enqueue(ctx, job)
+	require.NoError(t, err)
+
+	j, err := c.LockJob(ctx, "")
+	require.NoError(t, err)
+	require.NotNil(t, j)
+
+	msg := "world\nended"
+	err = j.Error(ctx, errors.New(msg))
+	require.NoError(t, err)
+
+	// make sure job was deleted
+	jj, err := c.LockJobByID(ctx, job.ID)
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, adapter.ErrNoRows))
+	assert.Nil(t, jj)
+}
+
+func TestJobErrorBackoffNeverSkipDelete(t *testing.T) {
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testJobErrorBackoffNeverSkipDelete(t, openFunc(t))
+		})
+	}
+}
+
+func testJobErrorBackoffNeverSkipDelete(t *testing.T, connPool adapter.ConnPool) {
+	ctx := context.Background()
+
+	c, err := NewClient(connPool, WithClientBackoff(BackoffNever))
+	require.NoError(t, err)
+
+	job := &Job{Type: "MyJob", SkipDelete: true}
+	err = c.Enqueue(ctx, job)
+	require.NoError(t, err)
+
+	j, err := c.LockJob(ctx, "")
+	require.NoError(t, err)
+	require.NotNil(t, j)
+
+	msg := "world\nended"
+	err = j.Error(ctx, errors.New(msg))
+	require.NoError(t, err)
+
+	// make sure job was not deleted
+	j2, err := c.LockJobByID(ctx, job.ID)
+	require.NoError(t, err)
+	require.NotNil(t, j2)
+
+	t.Cleanup(func() {
+		err := j2.Done(ctx)
+		assert.NoError(t, err)
+	})
+
+	assert.True(t, j2.LastError.Valid)
+	assert.Equal(t, msg, j2.LastError.String)
+	assert.Equal(t, int32(1), j2.ErrorCount)
+	assert.Equal(t, j2.RunAt.Unix(), job.RunAt.Unix())
+	assert.Equal(t, JobStatusError, j2.Status)
 }
 
 func TestJobPriority(t *testing.T) {
@@ -783,6 +946,8 @@ CREATE TABLE gue_jobs
   run_at      TIMESTAMPTZ NOT NULL,
   job_type    TEXT        NOT NULL,
   args        BYTEA       NOT NULL,
+  skip_delete SMALLINT    NOT NULL,
+  status      TEXT        NOT NULL,
   error_count INTEGER     NOT NULL DEFAULT 0,
   last_error  TEXT,
   queue       TEXT        NOT NULL,
@@ -800,10 +965,10 @@ CREATE INDEX IF NOT EXISTS idx_gue_jobs_selector ON gue_jobs (queue, run_at, pri
 	const queueName string = "some-queue"
 	for i := 0; i < 101; i++ {
 		_, err = connPool.Exec(ctx, `INSERT INTO gue_jobs
-(queue, priority, run_at, job_type, args, created_at, updated_at)
+(queue, priority, run_at, job_type, args, skip_delete, status, created_at, updated_at)
 VALUES
-($1, $2, $3, $4, $5, $6, $6)
-`, queueName, 0, now, "foo-bar", []byte(fmt.Sprintf(`{"job":%d}`, i)), now)
+($1, $2, $3, $4, $5, $6, $7, $8, $8)
+`, queueName, 0, now, "foo-bar", []byte(fmt.Sprintf(`{"job":%d}`, i)), 0, JobStatusTodo, now)
 		require.NoError(t, err)
 	}
 
@@ -821,7 +986,7 @@ VALUES
 	require.NotNil(t, j1)
 	t.Logf("Locked a job: %s %s", j1.ID.String(), string(j1.Args))
 
-	err = j1.Delete(ctx)
+	err = j1.Finish(ctx, JobStatusSuccess)
 	require.NoError(t, err)
 	err = j1.Done(ctx)
 	require.NoError(t, err)
