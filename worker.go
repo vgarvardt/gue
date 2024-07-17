@@ -82,6 +82,7 @@ type Worker struct {
 	hooksJobLocked      []HookFunc
 	hooksUnknownJobType []HookFunc
 	hooksJobDone        []HookFunc
+	hooksJobUndone      []HookFunc
 
 	mWorked   metric.Int64Counter
 	mDuration metric.Int64Histogram
@@ -187,10 +188,11 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 	}
 
 	j, err := w.pollFunc(ctx, w.queue)
-
 	if err != nil {
+		span.RecordError(fmt.Errorf("worker failed to lock a job: %w", err))
 		w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(""), attrSuccess.Bool(false)))
 		w.logger.Error("Worker failed to lock a job", adapter.Err(err))
+
 		for _, hook := range w.hooksJobLocked {
 			hook(ctx, nil, err)
 		}
@@ -214,14 +216,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 
 	ll := w.logger.With(adapter.F("job-id", j.ID), adapter.F("job-type", j.Type))
 
-	defer func() {
-		if err := j.Done(ctx); err != nil {
-			span.RecordError(fmt.Errorf("failed to mark job as done: %w", err))
-			ll.Error("Failed to mark job as done", adapter.Err(err))
-		}
-
-		w.mDuration.Record(ctx, time.Since(processingStartedAt).Milliseconds(), metric.WithAttributes(attrJobType.String(j.Type)))
-	}()
+	defer w.markJobDone(ctx, j, processingStartedAt, span, ll)
 	defer w.recoverPanic(ctx, j, ll)
 
 	for _, hook := range w.hooksJobLocked {
@@ -250,7 +245,11 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 		return
 	}
 
-	if err = wf(ctx, j); err != nil {
+	handlerCtx := ctx
+	cancel := context.CancelFunc(func() {})
+	defer cancel()
+
+	if err = wf(handlerCtx, j); err != nil {
 		w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(false)))
 
 		for _, hook := range w.hooksJobDone {
@@ -298,6 +297,24 @@ func (w *Worker) initMetrics() (err error) {
 	}
 
 	return nil
+}
+
+func (w *Worker) markJobDone(ctx context.Context, j *Job, processingStartedAt time.Time, span trace.Span, ll adapter.Logger) {
+	if err := j.Done(ctx); err != nil {
+		span.RecordError(fmt.Errorf("failed to mark job as done: %w", err))
+		ll.Error("Failed to mark job as done", adapter.Err(err))
+
+		// let user handle critical job failure
+		for _, hook := range w.hooksJobUndone {
+			hook(ctx, j, err)
+		}
+	}
+
+	w.mDuration.Record(
+		ctx,
+		time.Since(processingStartedAt).Milliseconds(),
+		metric.WithAttributes(attrJobType.String(j.Type)),
+	)
 }
 
 // recoverPanic tries to handle panics in job execution.
@@ -393,6 +410,7 @@ type WorkerPool struct {
 	hooksJobLocked      []HookFunc
 	hooksUnknownJobType []HookFunc
 	hooksJobDone        []HookFunc
+	hooksJobUndone      []HookFunc
 
 	panicStackBufSize int
 	spanWorkOneNoJob  bool
@@ -440,6 +458,7 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 			WithWorkerHooksJobLocked(w.hooksJobLocked...),
 			WithWorkerHooksUnknownJobType(w.hooksUnknownJobType...),
 			WithWorkerHooksJobDone(w.hooksJobDone...),
+			WithWorkerHooksJobUndone(w.hooksJobUndone...),
 			WithWorkerPanicStackBufSize(w.panicStackBufSize),
 			WithWorkerSpanWorkOneNoJob(w.spanWorkOneNoJob),
 		)

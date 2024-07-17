@@ -96,6 +96,15 @@ func WithWorkerHooksJobDone(hooks ...HookFunc) WorkerOption {
 	}
 }
 
+// WithWorkerHooksJobUndone sets hooks that are called when worker fails to mark the job as done.
+// This is an exceptional situation, most likely caused by transaction failed to be committed.
+// Hook implementation MUST NOT rely on the transaction provided by the job as it may already be marked as failed.
+func WithWorkerHooksJobUndone(hooks ...HookFunc) WorkerOption {
+	return func(w *Worker) {
+		w.hooksJobUndone = hooks
+	}
+}
+
 // WithWorkerPollStrategy overrides default poll strategy with given value
 func WithWorkerPollStrategy(s PollStrategy) WorkerOption {
 	return func(w *Worker) {
@@ -196,6 +205,13 @@ func WithPoolHooksUnknownJobType(hooks ...HookFunc) WorkerPoolOption {
 func WithPoolHooksJobDone(hooks ...HookFunc) WorkerPoolOption {
 	return func(w *WorkerPool) {
 		w.hooksJobDone = hooks
+	}
+}
+
+// WithPoolHooksJobUndone calls WithWorkerHooksJobUndone for every worker in the pool.
+func WithPoolHooksJobUndone(hooks ...HookFunc) WorkerPoolOption {
+	return func(w *WorkerPool) {
+		w.hooksJobUndone = hooks
 	}
 }
 
