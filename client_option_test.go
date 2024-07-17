@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/noop"
 
 	"github.com/vgarvardt/gue/v4/adapter"
 )
@@ -66,7 +66,7 @@ func TestWithClientBackoff(t *testing.T) {
 }
 
 func TestWithClientMeter(t *testing.T) {
-	customMeter := metric.NewNoopMeterProvider().Meter("custom")
+	customMeter := noop.NewMeterProvider().Meter("custom")
 
 	_, err := NewClient(nil)
 	require.NoError(t, err)

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/vgarvardt/gue/v4/adapter"
@@ -190,7 +190,7 @@ func TestWithPoolTracer(t *testing.T) {
 }
 
 func TestWithPoolMeter(t *testing.T) {
-	customMeter := metric.NewNoopMeterProvider().Meter("custom")
+	customMeter := noop.NewMeterProvider().Meter("custom")
 
 	workerPoolWithMeter, err := NewWorkerPool(nil, dummyWM, 2, WithPoolMeter(customMeter))
 	require.NoError(t, err)
