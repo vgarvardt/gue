@@ -14,24 +14,38 @@ tasks:
 
   test-deps-up:
     summary: Starts test dependencies
-    preconditions:
-      - sh: docker-compose version --short | grep '^2'
-        msg: "docker-compose v2 is expected to be installed"
     cmds:
-      - cmd: docker-compose up --detach --wait
+      - cmd: docker compose up --detach --wait
 
   test-deps-down:
     summary: Stops test dependencies
     cmds:
-      - cmd: docker-compose down -v
+      - cmd: docker compose down -v
 
   test-run:
-    summary: Runs tests, must have dependencies running in the docker-compose
+    summary: Runs tests, must have dependencies running in the docker compose
     cmds:
       - cmd: go test -timeout 2m -cover -coverprofile=coverage.txt -covermode=atomic ./...
     vars:
-      PG_PORT:
-        # `docker-compose port postgres 5432` -> "0.0.0.0:52041"
-        sh: docker-compose port postgres 5432 | cut -f2 -d":"
+      PG_HOST:
+        sh: docker compose port postgres 5432
     env:
-      TEST_POSTGRES: 'postgres://test:test@localhost:{{.PG_PORT}}/test?sslmode=disable'
+      TEST_POSTGRES: 'postgres://test:test@{{.PG_HOST}}/test?sslmode=disable'
+
+  spell-lint:
+    summary: Check spelling
+    vars:
+      CURDIR:
+        sh: pwd
+    cmds:
+      - cmd: |
+          docker run \
+            --interactive --tty --rm \
+            --volume "{{.CURDIR}}:/workdir" \
+            --workdir "/workdir" \
+            python:3.12-slim bash -c "python -m pip install --upgrade pip && pip install 'codespell>=2.2.4' && codespell"
+
+  lint:
+    summary: Lint the code (expects golangci-lint to be installed)
+    cmds:
+      - cmd: golangci-lint run --config=./.github/linters/.golangci.yml --fix

@@ -12,6 +12,7 @@ linters:
     - govet
     - revive
     - gofmt
+    - gci
 linters-settings:
   errcheck:
     # report about assignment of errors to blank identifier: `num, _ := strconv.Atoi(numStr)`;
@@ -28,6 +29,12 @@ linters-settings:
       - name: exported
         arguments:
           - disableStutteringCheck
+  gci:
+    custom-order: true
+    sections:
+      - standard
+      - default
+      - prefix(github.com/vgarvardt/gue)
 
 issues:
   exclude-rules:

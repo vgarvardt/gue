@@ -59,6 +59,15 @@ func WithWorkerMeter(meter metric.Meter) WorkerOption {
 	}
 }
 
+// WithWorkerPanicStackBufSize sets max size for the stacktrace buffer for panicking jobs.
+// Default value is 1024 that is enough for most of the cases. Be careful setting buffer suze to the big values
+// as this may affect overall performance.
+func WithWorkerPanicStackBufSize(size int) WorkerOption {
+	return func(w *Worker) {
+		w.panicStackBufSize = size
+	}
+}
+
 // WithWorkerHooksJobLocked sets hooks that are called right after the job was polled from the DB.
 // Depending on the polling results hook will have either error or job set, but not both.
 // If the error field is set - no other lifecycle hooks will be called for the job.
@@ -87,6 +96,15 @@ func WithWorkerHooksJobDone(hooks ...HookFunc) WorkerOption {
 	}
 }
 
+// WithWorkerHooksJobUndone sets hooks that are called when worker fails to mark the job as done.
+// This is an exceptional situation, most likely caused by transaction failed to be committed.
+// Hook implementation MUST NOT rely on the transaction provided by the job as it may already be marked as failed.
+func WithWorkerHooksJobUndone(hooks ...HookFunc) WorkerOption {
+	return func(w *Worker) {
+		w.hooksJobUndone = hooks
+	}
+}
+
 // WithWorkerPollStrategy overrides default poll strategy with given value
 func WithWorkerPollStrategy(s PollStrategy) WorkerOption {
 	return func(w *Worker) {
@@ -107,6 +125,15 @@ func WithWorkerGracefulShutdown(handlerCtx func() context.Context) WorkerOption 
 	return func(w *Worker) {
 		w.graceful = true
 		w.gracefulCtx = handlerCtx
+	}
+}
+
+// WithWorkerSpanWorkOneNoJob enables tracing span generation for every try to get one.
+// When set to true - generates a span for every DB poll, even when no job was acquired. This may
+// generate a lot of empty spans, but may help with some debugging, so use carefully.
+func WithWorkerSpanWorkOneNoJob(spanWorkOneNoJob bool) WorkerOption {
+	return func(w *Worker) {
+		w.spanWorkOneNoJob = spanWorkOneNoJob
 	}
 }
 
@@ -181,11 +208,36 @@ func WithPoolHooksJobDone(hooks ...HookFunc) WorkerPoolOption {
 	}
 }
 
+// WithPoolHooksJobUndone calls WithWorkerHooksJobUndone for every worker in the pool.
+func WithPoolHooksJobUndone(hooks ...HookFunc) WorkerPoolOption {
+	return func(w *WorkerPool) {
+		w.hooksJobUndone = hooks
+	}
+}
+
 // WithPoolGracefulShutdown enables graceful shutdown mode for all workers in the pool.
 // See WithWorkerGracefulShutdown for details.
 func WithPoolGracefulShutdown(handlerCtx func() context.Context) WorkerPoolOption {
 	return func(w *WorkerPool) {
 		w.graceful = true
 		w.gracefulCtx = handlerCtx
+	}
+}
+
+// WithPoolPanicStackBufSize sets max size for the stacktrace buffer for panicking jobs.
+// Default value is 1024 that is enough for most of the cases. Be careful setting buffer suze to the big values
+// as this may affect overall performance.
+func WithPoolPanicStackBufSize(size int) WorkerPoolOption {
+	return func(w *WorkerPool) {
+		w.panicStackBufSize = size
+	}
+}
+
+// WithPoolSpanWorkOneNoJob enables tracing span generation for every try to get one.
+// When set to true - generates a span for every DB poll, even when no job was acquired. This may
+// generate a lot of empty spans, but may help with some debugging, so use carefully.
+func WithPoolSpanWorkOneNoJob(spanWorkOneNoJob bool) WorkerPoolOption {
+	return func(w *WorkerPool) {
+		w.spanWorkOneNoJob = spanWorkOneNoJob
 	}
 }

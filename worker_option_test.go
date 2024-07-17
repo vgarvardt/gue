@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/vgarvardt/gue/v4/adapter"
@@ -190,7 +190,7 @@ func TestWithPoolTracer(t *testing.T) {
 }
 
 func TestWithPoolMeter(t *testing.T) {
-	customMeter := metric.NewNoopMeterProvider().Meter("custom")
+	customMeter := noop.NewMeterProvider().Meter("custom")
 
 	workerPoolWithMeter, err := NewWorkerPool(nil, dummyWM, 2, WithPoolMeter(customMeter))
 	require.NoError(t, err)
@@ -266,6 +266,25 @@ func TestWithWorkerHooksJobDone(t *testing.T) {
 	require.Equal(t, 3, hook.counter)
 }
 
+func TestWithWorkerHooksJobUndone(t *testing.T) {
+	ctx := context.Background()
+	hook := new(dummyHook)
+
+	workerWOutHooks, err := NewWorker(nil, dummyWM)
+	require.NoError(t, err)
+	for _, h := range workerWOutHooks.hooksJobUndone {
+		h(ctx, nil, nil)
+	}
+	require.Equal(t, 0, hook.counter)
+
+	workerWithHooks, err := NewWorker(nil, dummyWM, WithWorkerHooksJobUndone(hook.handler, hook.handler, hook.handler))
+	require.NoError(t, err)
+	for _, h := range workerWithHooks.hooksJobUndone {
+		h(ctx, nil, nil)
+	}
+	require.Equal(t, 3, hook.counter)
+}
+
 func TestWithPoolHooksJobLocked(t *testing.T) {
 	ctx := context.Background()
 	hook := new(dummyHook)
@@ -335,6 +354,29 @@ func TestWithPoolHooksJobDone(t *testing.T) {
 	require.Equal(t, 9, hook.counter)
 }
 
+func TestWithPoolHooksJobUndone(t *testing.T) {
+	ctx := context.Background()
+	hook := new(dummyHook)
+
+	poolWOutHooks, err := NewWorkerPool(nil, dummyWM, 3)
+	require.NoError(t, err)
+	for _, w := range poolWOutHooks.workers {
+		for _, h := range w.hooksJobUndone {
+			h(ctx, nil, nil)
+		}
+	}
+	require.Equal(t, 0, hook.counter)
+
+	poolWithHooks, err := NewWorkerPool(nil, dummyWM, 3, WithPoolHooksJobUndone(hook.handler, hook.handler, hook.handler))
+	require.NoError(t, err)
+	for _, w := range poolWithHooks.workers {
+		for _, h := range w.hooksJobUndone {
+			h(ctx, nil, nil)
+		}
+	}
+	require.Equal(t, 9, hook.counter)
+}
+
 func TestWithPoolGracefulShutdown(t *testing.T) {
 	poolWithNoGraceful, err := NewWorkerPool(nil, dummyWM, 5)
 	require.NoError(t, err)
@@ -364,5 +406,35 @@ func TestWithPoolGracefulShutdown(t *testing.T) {
 	for _, w := range poolWithGracefulCtx.workers {
 		assert.True(t, w.graceful)
 		assert.Same(t, ctx, poolWithGracefulCtx.gracefulCtx())
+	}
+}
+
+func TestWithPoolPanicStackBufSize(t *testing.T) {
+	poolWithDefaultSize, err := NewWorkerPool(nil, dummyWM, 2)
+	require.NoError(t, err)
+	assert.Equal(t, defaultPanicStackBufSize, poolWithDefaultSize.panicStackBufSize)
+	for _, w := range poolWithDefaultSize.workers {
+		assert.Equal(t, defaultPanicStackBufSize, w.panicStackBufSize)
+	}
+
+	poolWithCustomSize, err := NewWorkerPool(nil, dummyWM, 3, WithPoolPanicStackBufSize(12345))
+	require.NoError(t, err)
+	assert.Equal(t, 12345, poolWithCustomSize.panicStackBufSize)
+	for _, w := range poolWithCustomSize.workers {
+		assert.Equal(t, 12345, w.panicStackBufSize)
+	}
+}
+
+func TestWithPoolSpanWorkOneNoJob(t *testing.T) {
+	poolWOutSpanWorkOneNoJob, err := NewWorkerPool(nil, dummyWM, 2)
+	require.NoError(t, err)
+	for _, w := range poolWOutSpanWorkOneNoJob.workers {
+		assert.False(t, w.spanWorkOneNoJob)
+	}
+
+	poolWithSpanWorkOneNoJob, err := NewWorkerPool(nil, dummyWM, 2, WithPoolSpanWorkOneNoJob(true))
+	require.NoError(t, err)
+	for _, w := range poolWithSpanWorkOneNoJob.workers {
+		assert.True(t, w.spanWorkOneNoJob)
 	}
 }
