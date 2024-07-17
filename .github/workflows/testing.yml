@@ -7,30 +7,45 @@ concurrency:
 
 on:
   push:
-    branches: [ master ]
+    branches: [ v4 ]
   pull_request:
+    branches: [ v4 ]
 
 jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [ '1.21', '1.22', 'stable' ]
     timeout-minutes: 10
     steps:
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup dependencies
         uses: ./.github/actions/setup-deps
         with:
-          token: ${{secrets.GITHUB_TOKEN}}
+          go-version: ${{ matrix.go-version }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests
         run: task test
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
         if: success()
+        uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           file: ./coverage.txt
           fail_ci_if_error: false
+
+  summary:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: [ test ]
+    timeout-minutes: 1
+    steps:
+      - name: Dummy task
+        run: echo 'Dummy summary task to have one PR status for all tested versions'
