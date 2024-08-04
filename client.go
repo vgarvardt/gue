@@ -186,14 +186,9 @@ func (c *Client) execEnqueue(ctx context.Context, jobs []*Job, q adapter.Queryab
 //
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
-func (c *Client) LockJob(ctx context.Context, queue string) (*Job, error) {
-	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error, created_at
-FROM gue_jobs
-WHERE queue = $1 AND run_at <= $2
-ORDER BY priority ASC
-LIMIT 1 FOR UPDATE SKIP LOCKED`
-
-	return c.execLockJob(ctx, true, sql, queue, time.Now().UTC())
+func (c *Client) LockJob(ctx context.Context, queue string, jobTypes ...string) (*Job, error) {
+	sql, args := newLockJobQuery(queue, jobTypes)
+	return c.execLockJob(ctx, true, sql, args...)
 }
 
 // LockJobByID attempts to retrieve a specific Job from the database.
@@ -207,11 +202,8 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockJobByID(ctx context.Context, id ulid.ULID) (*Job, error) {
-	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error, created_at
-FROM gue_jobs
-WHERE job_id = $1 FOR UPDATE SKIP LOCKED`
-
-	return c.execLockJob(ctx, false, sql, id.String())
+	sql, args := newLockByIDQuery(id)
+	return c.execLockJob(ctx, false, sql, args...)
 }
 
 // LockNextScheduledJob attempts to retrieve the earliest scheduled Job from the database in the specified queue.
@@ -227,14 +219,9 @@ WHERE job_id = $1 FOR UPDATE SKIP LOCKED`
 //
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
-func (c *Client) LockNextScheduledJob(ctx context.Context, queue string) (*Job, error) {
-	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error, created_at
-FROM gue_jobs
-WHERE queue = $1 AND run_at <= $2
-ORDER BY run_at, priority ASC
-LIMIT 1 FOR UPDATE SKIP LOCKED`
-
-	return c.execLockJob(ctx, true, sql, queue, time.Now().UTC())
+func (c *Client) LockNextScheduledJob(ctx context.Context, queue string, queueTypes ...string) (*Job, error) {
+	sql, args := newLockNextScheduledJobQuery(queue, queueTypes)
+	return c.execLockJob(ctx, true, sql, args...)
 }
 
 func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql string, args ...any) (*Job, error) {
