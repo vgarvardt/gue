@@ -58,7 +58,7 @@ type HookFunc func(ctx context.Context, j *Job, err error)
 type WorkMap map[string]WorkFunc
 
 // pollFunc is a function that queries the DB for the next job to work on
-type pollFunc func(context.Context, string) (*Job, error)
+type pollFunc func(context.Context, string, ...string) (*Job, error)
 
 // Worker is a single worker that pulls jobs off the specified queue. If no Job
 // is found, the Worker will sleep for interval seconds.
@@ -66,6 +66,7 @@ type Worker struct {
 	wm           WorkMap
 	interval     time.Duration
 	queue        string
+	jobTypes     []string
 	c            *Client
 	id           string
 	logger       adapter.Logger
@@ -191,7 +192,7 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 		defer span.End()
 	}
 
-	j, err := w.pollFunc(ctx, w.queue)
+	j, err := w.pollFunc(ctx, w.queue, w.jobTypes...)
 	if err != nil {
 		span.RecordError(fmt.Errorf("worker failed to lock a job: %w", err))
 		w.mWorked.Add(ctx, 1, metric.WithAttributes(attrJobType.String(""), attrSuccess.Bool(false)))
@@ -408,6 +409,7 @@ type WorkerPool struct {
 	wm           WorkMap
 	interval     time.Duration
 	queue        string
+	jobTypes     []string
 	c            *Client
 	workers      []*Worker
 	id           string
@@ -468,6 +470,7 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 			w.wm,
 			WithWorkerPollInterval(w.interval),
 			WithWorkerQueue(w.queue),
+			WithWorkerJobTypes(w.jobTypes),
 			WithWorkerID(fmt.Sprintf("%s/worker-%d", w.id, i)),
 			WithWorkerLogger(w.logger),
 			WithWorkerPollStrategy(w.pollStrategy),
@@ -482,7 +485,6 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 			WithWorkerJobTTL(w.jobTTL),
 			WithWorkerUnknownJobWorkFunc(w.unknownJobTypeWF),
 		)
-
 		if err != nil {
 			return nil, fmt.Errorf("could not init worker instance: %w", err)
 		}
