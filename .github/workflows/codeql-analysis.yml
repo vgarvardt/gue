@@ -3,11 +3,11 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master ]
+    branches: [master]
   schedule:
-    - cron: '0 9 * * 1'
+    - cron: "0 9 * * 1"
 
 jobs:
   analyze:
@@ -25,7 +25,7 @@ jobs:
       - name: Setup dependencies
         uses: ./.github/actions/setup-deps
         with:
-          go-version: '1.21'
+          go-version: "1.21"
           token: ${{secrets.GITHUB_TOKEN}}
 
       - name: Initialize CodeQL
