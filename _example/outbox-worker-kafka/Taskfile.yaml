@@ -1,5 +1,5 @@
 ---
-version: '3'
+version: "3"
 
 env:
   CGO_ENABLED: 0
@@ -22,7 +22,7 @@ tasks:
     cmds:
       - go run ./... client
     env:
-      DB_DSN: 'postgres://outbox:outbox@localhost:{{.PG_PORT}}/outbox?sslmode=disable'
+      DB_DSN: "postgres://outbox:outbox@localhost:{{.PG_PORT}}/outbox?sslmode=disable"
     vars:
       PG_PORT:
         # `docker compose port postgres 5432` -> "0.0.0.0:52041"
@@ -33,8 +33,8 @@ tasks:
     cmds:
       - go run ./... worker
     env:
-      DB_DSN: 'postgres://outbox:outbox@localhost:{{.PG_PORT}}/outbox?sslmode=disable'
-      KAFKA_BROKERS: 'localhost:{{.KAFKA_PORT}}'
+      DB_DSN: "postgres://outbox:outbox@localhost:{{.PG_PORT}}/outbox?sslmode=disable"
+      KAFKA_BROKERS: "localhost:{{.KAFKA_PORT}}"
     vars:
       PG_PORT:
         # `docker compose port postgres 5432` -> "0.0.0.0:52041"

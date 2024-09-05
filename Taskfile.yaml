@@ -1,5 +1,5 @@
 ---
-version: '3'
+version: "3"
 
 env:
   CGO_ENABLED: 0
@@ -30,7 +30,7 @@ tasks:
       PG_HOST:
         sh: docker compose port postgres 5432
     env:
-      TEST_POSTGRES: 'postgres://test:test@{{.PG_HOST}}/test?sslmode=disable'
+      TEST_POSTGRES: "postgres://test:test@{{.PG_HOST}}/test?sslmode=disable"
 
   spell-lint:
     summary: Check spelling
