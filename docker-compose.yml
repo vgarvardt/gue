@@ -3,7 +3,7 @@ services:
   postgres:
     image: postgres:11
     ports:
-      - '5432'
+      - "5432"
     environment:
       LC_ALL: C.UTF-8
       POSTGRES_USER: test
@@ -12,7 +12,7 @@ services:
     tmpfs:
       - /var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD", "pg_isready" ]
+      test: ["CMD", "pg_isready"]
       interval: 3s
       timeout: 3s
       retries: 5

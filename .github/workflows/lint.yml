@@ -36,6 +36,8 @@ jobs:
           VALIDATE_SQL: false
           VALIDATE_SQLFLUFF: false
           VALIDATE_CHECKOV: false
+          # it forces all list items to be on a single line in .github/linters/.jscpd.json that is not pretty at all
+          VALIDATE_JSON_PRETTIER: false
 
       - name: Setup dependencies
         uses: ./.github/actions/setup-deps
