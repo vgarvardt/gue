@@ -12,4 +12,4 @@ CREATE TABLE IF NOT EXISTS gue_jobs
   updated_at  TIMESTAMPTZ NOT NULL
 );
 
-CREATE INDEX IF NOT EXISTS idx_gue_jobs_selector ON gue_jobs (queue, run_at, priority);
+CREATE INDEX IF NOT EXISTS idx_gue_jobs_selector ON gue_jobs (queue, job_type, run_at, priority);
