@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/vgarvardt/gue/v5/adapter"
+	"github.com/sadpenguinn/gue/v6/adapter"
 )
 
 // aRow implements adapter.Row using github.com/lib/pq

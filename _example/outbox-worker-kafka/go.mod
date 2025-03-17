@@ -1,6 +1,8 @@
-module github.com/vgarvardt/gue/v5/example/outbox-worker-kafka
+module github.com/sadpenguinn/gue/v6/example/outbox-worker-kafka
 
-go 1.21
+go 1.22.0
+
+toolchain go1.24.0
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
@@ -8,7 +10,7 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/spf13/cobra v1.8.1
-	github.com/vgarvardt/gue/v5 v5.7.1
+	github.com/sadpenguinn/gue/v6 v5.7.1
 )
 
 require (

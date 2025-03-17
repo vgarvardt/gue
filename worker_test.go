@@ -15,9 +15,9 @@ import (
 	"go.uber.org/zap/zaptest/observer"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/vgarvardt/gue/v5/adapter"
-	adapterTesting "github.com/vgarvardt/gue/v5/adapter/testing"
-	adapterZap "github.com/vgarvardt/gue/v5/adapter/zap"
+	"github.com/sadpenguinn/gue/v6/adapter"
+	adapterTesting "github.com/sadpenguinn/gue/v6/adapter/testing"
+	adapterZap "github.com/sadpenguinn/gue/v6/adapter/zap"
 )
 
 type mockHook struct {

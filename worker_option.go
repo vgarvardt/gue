@@ -7,7 +7,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/vgarvardt/gue/v5/adapter"
+	"github.com/sadpenguinn/gue/v6/adapter"
 )
 
 // WorkerOption defines a type that allows to set worker properties during the build-time.

@@ -10,8 +10,8 @@ import (
 	"github.com/IBM/sarama"
 	"github.com/spf13/cobra"
 
-	"github.com/vgarvardt/gue/v5"
-	"github.com/vgarvardt/gue/v5/adapter"
+	"github.com/sadpenguinn/gue/v6"
+	"github.com/sadpenguinn/gue/v6/adapter"
 )
 
 func newWorkerCommand() *cobra.Command {

@@ -14,7 +14,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/noop"
 
-	"github.com/vgarvardt/gue/v5/adapter"
+	"github.com/sadpenguinn/gue/v6/adapter"
 )
 
 // ErrMissingType is returned when you attempt to enqueue a job with no Type
@@ -138,11 +138,11 @@ func (c *Client) execEnqueueWithID(ctx context.Context, jobs []*Job, q adapter.Q
 		}
 
 		values = append(values, fmt.Sprintf("($%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)", i*8+1, i*8+2, i*8+3, i*8+4, i*8+5, i*8+6, i*8+7, i*8+8))
-		args = append(args, idAsString, j.Queue, j.Priority, j.RunAt, j.Type, j.Args, j.CreatedAt, j.CreatedAt)
+		args = append(args, idAsString, j.Queue, j.Priority, j.RunAt, j.Type, j.Args, boolToInt16(j.SkipDelete), JobStatusTodo, j.CreatedAt, j.CreatedAt)
 	}
 
 	_, err = q.Exec(ctx, `INSERT INTO gue_jobs
-(job_id, queue, priority, run_at, job_type, args, created_at, updated_at)
+(job_id, queue, priority, run_at, job_type, args, skip_delete, status, created_at, updated_at)
 VALUES
 `+strings.Join(values, ", "), args...)
 
@@ -187,13 +187,13 @@ func (c *Client) execEnqueue(ctx context.Context, jobs []*Job, q adapter.Queryab
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockJob(ctx context.Context, queue string) (*Job, error) {
-	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error, created_at
+	sql := `SELECT job_id, queue, priority, run_at, job_type, args, skip_delete, status, error_count, last_error, created_at
 FROM gue_jobs
-WHERE queue = $1 AND run_at <= $2
+WHERE queue = $1 AND run_at <= $2 AND (status = $3 OR status = $4)
 ORDER BY priority ASC
 LIMIT 1 FOR UPDATE SKIP LOCKED`
 
-	return c.execLockJob(ctx, true, sql, queue, time.Now().UTC())
+	return c.execLockJob(ctx, true, sql, queue, time.Now().UTC(), JobStatusTodo, JobStatusRetry)
 }
 
 // LockJobByID attempts to retrieve a specific Job from the database.
@@ -207,7 +207,7 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockJobByID(ctx context.Context, id ulid.ULID) (*Job, error) {
-	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error, created_at
+	sql := `SELECT job_id, queue, priority, run_at, job_type, args, skip_delete, status, error_count, last_error, created_at
 FROM gue_jobs
 WHERE job_id = $1 FOR UPDATE SKIP LOCKED`
 
@@ -228,13 +228,13 @@ WHERE job_id = $1 FOR UPDATE SKIP LOCKED`
 // After the Job has been worked, you must call either Job.Done() or Job.Error() on it
 // in order to commit transaction to persist Job changes (remove or update it).
 func (c *Client) LockNextScheduledJob(ctx context.Context, queue string) (*Job, error) {
-	sql := `SELECT job_id, queue, priority, run_at, job_type, args, error_count, last_error, created_at
+	sql := `SELECT job_id, queue, priority, run_at, job_type, args, skip_delete, status, error_count, last_error, created_at
 FROM gue_jobs
-WHERE queue = $1 AND run_at <= $2
+WHERE queue = $1 AND run_at <= $2 AND (status = $3 OR status = $4)
 ORDER BY run_at, priority ASC
 LIMIT 1 FOR UPDATE SKIP LOCKED`
 
-	return c.execLockJob(ctx, true, sql, queue, time.Now().UTC())
+	return c.execLockJob(ctx, true, sql, queue, time.Now().UTC(), JobStatusTodo, JobStatusRetry)
 }
 
 func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql string, args ...any) (*Job, error) {
@@ -246,6 +246,7 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 
 	j := Job{tx: tx, backoff: c.backoff, logger: c.logger}
 
+	var skipDelete int16
 	err = tx.QueryRow(ctx, sql, args...).Scan(
 		&j.ID,
 		&j.Queue,
@@ -253,11 +254,14 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 		&j.RunAt,
 		&j.Type,
 		&j.Args,
+		&skipDelete,
+		&j.Status,
 		&j.ErrorCount,
 		&j.LastError,
 		&j.CreatedAt,
 	)
 	if err == nil {
+		j.SkipDelete = int16ToBool(skipDelete)
 		c.mLockJob.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(true)))
 		return &j, nil
 	}
@@ -288,4 +292,18 @@ func (c *Client) initMetrics() (err error) {
 	}
 
 	return nil
+}
+
+func boolToInt16(v bool) int16 {
+	if v {
+		return 1
+	}
+	return 0
+}
+
+func int16ToBool(v int16) bool {
+	if v > 0 {
+		return true
+	}
+	return false
 }
