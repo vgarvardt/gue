@@ -247,7 +247,7 @@ func TestClient_EnqueueBatchTx(t *testing.T) {
 func TestEnqueueTxWithID(t *testing.T) {
 	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
-			testEnqueueTx(t, openFunc(t))
+			testEnqueueTxWithID(t, openFunc(t))
 		})
 	}
 }
