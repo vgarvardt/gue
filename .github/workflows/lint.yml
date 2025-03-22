@@ -51,6 +51,7 @@ jobs:
           only-new-issues: ${{ github.event_name == 'pull_request' }}
           args: >
             --config=./.github/linters/.golangci.yml
+            --timeout=5m
 
   codespell:
     name: Check spelling
