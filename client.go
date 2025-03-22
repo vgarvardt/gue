@@ -83,8 +83,8 @@ func (c *Client) EnqueueTx(ctx context.Context, j *Job, tx adapter.Tx) error {
 	return c.execEnqueue(ctx, []*Job{j}, tx)
 }
 
-// EnqueueTxWithID is the same as EnqueueTx except it enqueus the job with a
-// specific id.
+// EnqueueTxWithID is the same as EnqueueTx except it adds a job to the queue
+// with a specific id.
 func (c *Client) EnqueueTxWithID(ctx context.Context, j *Job, jobID ulid.ULID, tx adapter.Tx) error {
 	return c.execEnqueueWithID(ctx, []*Job{j}, tx, []ulid.ULID{jobID})
 }
