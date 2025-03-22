@@ -21,9 +21,6 @@ linters-settings:
   gocyclo:
     # minimal code complexity to report, 30 by default
     min-complexity: 15
-  maligned:
-    # print struct with more effective memory layout or not, false by default
-    suggest-new: true
   revive:
     rules:
       - name: exported
