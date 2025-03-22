@@ -1,6 +1,6 @@
 module github.com/vgarvardt/gue/v5
 
-go 1.22
+go 1.23
 
 require (
 	github.com/jackc/pgconn v1.14.3
