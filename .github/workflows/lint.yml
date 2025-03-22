@@ -31,6 +31,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # go validator works pretty bad in super-linter, we'll use the original one
           VALIDATE_GO: false
+          VALIDATE_GO_MODULES: false
           # do not validate SQL - linters are pretty useless in case of this library,
           # and the functionality is tested using integration tests
           VALIDATE_SQL: false

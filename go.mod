@@ -1,6 +1,6 @@
 module github.com/vgarvardt/gue/v5
 
-go 1.23
+go 1.23.0
 
 require (
 	github.com/jackc/pgconn v1.14.3
@@ -15,7 +15,7 @@ require (
 	go.opentelemetry.io/otel/metric v1.35.0
 	go.opentelemetry.io/otel/trace v1.35.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/sync v0.11.0
+	golang.org/x/sync v0.12.0
 )
 
 require (
