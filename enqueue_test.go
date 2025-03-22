@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -241,6 +242,40 @@ func TestClient_EnqueueBatchTx(t *testing.T) {
 			testEnqueueBatchTx(t, openFunc(t))
 		})
 	}
+}
+
+func TestEnqueueTxWithID(t *testing.T) {
+	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+		t.Run(name, func(t *testing.T) {
+			testEnqueueTx(t, openFunc(t))
+		})
+	}
+}
+
+func testEnqueueTxWithID(t *testing.T, connPool adapter.ConnPool) {
+	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	tx, err := connPool.Begin(ctx)
+	require.NoError(t, err)
+
+	specifiedID := ulid.Make()
+
+	job := Job{Type: "MyJob"}
+	err = c.EnqueueTxWithID(ctx, &job, specifiedID, tx)
+	require.NoError(t, err)
+
+	j := findOneJob(t, tx)
+	require.NotNil(t, j)
+	require.Equal(t, specifiedID, j.ID)
+
+	err = tx.Rollback(ctx)
+	require.NoError(t, err)
+
+	j = findOneJob(t, connPool)
+	require.Nil(t, j)
 }
 
 func testEnqueueBatchTx(t *testing.T, connPool adapter.ConnPool) {
