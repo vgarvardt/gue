@@ -83,6 +83,12 @@ func (c *Client) EnqueueTx(ctx context.Context, j *Job, tx adapter.Tx) error {
 	return c.execEnqueue(ctx, []*Job{j}, tx)
 }
 
+// EnqueueTxWithID is the same as EnqueueTx except it adds a job to the queue
+// with a specific id.
+func (c *Client) EnqueueTxWithID(ctx context.Context, j *Job, jobID ulid.ULID, tx adapter.Tx) error {
+	return c.execEnqueueWithID(ctx, []*Job{j}, tx, []ulid.ULID{jobID})
+}
+
 // EnqueueBatch adds a batch of jobs. Operation is atomic, so either all jobs are added, or none.
 func (c *Client) EnqueueBatch(ctx context.Context, jobs []*Job) error {
 	// No need to start a transaction if there are no jobs to enqueue
