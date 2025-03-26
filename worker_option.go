@@ -31,6 +31,13 @@ func WithWorkerQueue(queue string) WorkerOption {
 	}
 }
 
+// WithWorkerJobTypes limits/filters the job types this worker will fetch from the DB.
+func WithWorkerJobTypes(jobTypes []string) WorkerOption {
+	return func(w *Worker) {
+		w.jobTypes = jobTypes
+	}
+}
+
 // WithWorkerID sets worker ID for easier identification in logs
 func WithWorkerID(id string) WorkerOption {
 	return func(w *Worker) {
@@ -168,6 +175,13 @@ func WithPoolPollInterval(d time.Duration) WorkerPoolOption {
 func WithPoolQueue(queue string) WorkerPoolOption {
 	return func(w *WorkerPool) {
 		w.queue = queue
+	}
+}
+
+// WithPoolJobTypes limits/filters the job types this worker will fetch from the DB.
+func WithPoolJobTypes(jobTypes ...string) WorkerPoolOption {
+	return func(w *WorkerPool) {
+		w.jobTypes = jobTypes
 	}
 }
 
