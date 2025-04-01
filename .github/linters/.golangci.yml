@@ -1,48 +1,55 @@
 ---
-# configure golangci-lint
-# based on https://github.com/github/super-linter/blob/main/TEMPLATES/.golangci.yml
+version: "2"
 linters:
   enable:
-    - gosec
-    - unconvert
-    - gocyclo
     - goconst
-    - goimports
     - gocritic
-    - govet
+    - gocyclo
+    - gosec
     - revive
-    - gofmt
-    - gci
-linters-settings:
-  errcheck:
-    # report about assignment of errors to blank identifier: `num, _ := strconv.Atoi(numStr)`;
-    # default is false: such cases aren't reported by default.
-    check-blank: true
-  gocyclo:
-    # minimal code complexity to report, 30 by default
-    min-complexity: 15
-  revive:
+    - unconvert
+  settings:
+    errcheck:
+      check-blank: true
+    gocyclo:
+      min-complexity: 15
+    revive:
+      rules:
+        - name: exported
+          arguments:
+            - disableStutteringCheck
+  exclusions:
+    generated: lax
+    presets:
+      - common-false-positives
+      - legacy
+      - std-error-handling
     rules:
-      - name: exported
-        arguments:
-          - disableStutteringCheck
-  gci:
-    custom-order: true
-    sections:
-      - standard
-      - default
-      - prefix(github.com/vgarvardt/gue)
-
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - dupl
-        - gosec
-        - goconst
-        - staticcheck
-  include:
-    # based on the
-    # https://www.pixelstech.net/article/1650069870-golangci-lint-to-enable-comment-check-for-exported-functions
-    - EXC0012 # EXC0012 revive: Annoying issue about not having a comment. The rare codebase has such comments
-    - EXC0014 # EXC0014 revive: Annoying issue about not having a comment. The rare codebase has such comments
+      - path: _test\.go
+        linters:
+          - dupl
+          - goconst
+          - gosec
+          - staticcheck
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
+        - prefix(github.com/vgarvardt/gue)
+      custom-order: true
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
