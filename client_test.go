@@ -2,6 +2,7 @@ package gue
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"os"
@@ -12,20 +13,17 @@ import (
 	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/vgarvardt/gue/v5/adapter"
-	adapterTesting "github.com/vgarvardt/gue/v5/adapter/testing"
 )
 
 func TestLockJob(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testLockJob(t, openFunc(t))
 		})
 	}
 }
 
-func testLockJob(t *testing.T, connPool adapter.ConnPool) {
+func testLockJob(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -57,18 +55,18 @@ func testLockJob(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, newJob.Type, j.Type)
 	assert.Equal(t, []byte(`{invalid]json>`), j.Args)
 	assert.Equal(t, int32(0), j.ErrorCount)
-	assert.False(t, j.LastError.Valid)
+	assert.Nil(t, j.LastError)
 }
 
 func TestLockJobAlreadyLocked(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testLockJobAlreadyLocked(t, openFunc(t))
 		})
 	}
 }
 
-func testLockJobAlreadyLocked(t *testing.T, connPool adapter.ConnPool) {
+func testLockJobAlreadyLocked(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -92,14 +90,14 @@ func testLockJobAlreadyLocked(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestLockJobNoJob(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testLockJobNoJob(t, openFunc(t))
 		})
 	}
 }
 
-func testLockJobNoJob(t *testing.T, connPool adapter.ConnPool) {
+func testLockJobNoJob(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -111,14 +109,14 @@ func testLockJobNoJob(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestLockJobCustomQueue(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testLockJobCustomQueue(t, openFunc(t))
 		})
 	}
 }
 
-func testLockJobCustomQueue(t *testing.T, connPool adapter.ConnPool) {
+func testLockJobCustomQueue(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -145,14 +143,14 @@ func testLockJobCustomQueue(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestLockJobByID(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testLockJobByID(t, openFunc(t))
 		})
 	}
 }
 
-func testLockJobByID(t *testing.T, connPool adapter.ConnPool) {
+func testLockJobByID(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -183,18 +181,18 @@ func testLockJobByID(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, newJob.Type, j.Type)
 	assert.Equal(t, []byte(``), j.Args)
 	assert.Equal(t, int32(0), j.ErrorCount)
-	assert.False(t, j.LastError.Valid)
+	assert.Nil(t, j.LastError)
 }
 
 func TestLockJobByIDAlreadyLocked(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testLockJobByIDAlreadyLocked(t, openFunc(t))
 		})
 	}
 }
 
-func testLockJobByIDAlreadyLocked(t *testing.T, connPool adapter.ConnPool) {
+func testLockJobByIDAlreadyLocked(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -222,14 +220,14 @@ func testLockJobByIDAlreadyLocked(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestLockJobByIDNoJob(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testLockJobByIDNoJob(t, openFunc(t))
 		})
 	}
 }
 
-func testLockJobByIDNoJob(t *testing.T, connPool adapter.ConnPool) {
+func testLockJobByIDNoJob(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -241,14 +239,14 @@ func testLockJobByIDNoJob(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestLockNextScheduledJob(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testLockNextScheduledJob(t, openFunc(t))
 		})
 	}
 }
 
-func testLockNextScheduledJob(t *testing.T, connPool adapter.ConnPool) {
+func testLockNextScheduledJob(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -280,18 +278,18 @@ func testLockNextScheduledJob(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, newJob.Type, j.Type)
 	assert.Equal(t, []byte(``), j.Args)
 	assert.Equal(t, int32(0), j.ErrorCount)
-	assert.False(t, j.LastError.Valid)
+	assert.Nil(t, j.LastError)
 }
 
 func TestLockNextScheduledJobAlreadyLocked(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testLockNextScheduledJobAlreadyLocked(t, openFunc(t))
 		})
 	}
 }
 
-func testLockNextScheduledJobAlreadyLocked(t *testing.T, connPool adapter.ConnPool) {
+func testLockNextScheduledJobAlreadyLocked(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -315,14 +313,14 @@ func testLockNextScheduledJobAlreadyLocked(t *testing.T, connPool adapter.ConnPo
 }
 
 func TestLockNextScheduledJobNoJob(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testLockNextScheduledJobNoJob(t, openFunc(t))
 		})
 	}
 }
 
-func testLockNextScheduledJobNoJob(t *testing.T, connPool adapter.ConnPool) {
+func testLockNextScheduledJobNoJob(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -334,14 +332,14 @@ func testLockNextScheduledJobNoJob(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestJobTx(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testJobTx(t, openFunc(t))
 		})
 	}
 }
 
-func testJobTx(t *testing.T, connPool adapter.ConnPool) {
+func testJobTx(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -363,14 +361,14 @@ func testJobTx(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestJobConnRace(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testJobConnRace(t, openFunc(t))
 		})
 	}
 }
 
-func testJobConnRace(t *testing.T, connPool adapter.ConnPool) {
+func testJobConnRace(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -406,14 +404,14 @@ func testJobConnRace(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestJobDelete(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testJobDelete(t, openFunc(t))
 		})
 	}
 }
 
-func testJobDelete(t *testing.T, connPool adapter.ConnPool) {
+func testJobDelete(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -436,19 +434,19 @@ func testJobDelete(t *testing.T, connPool adapter.ConnPool) {
 	// make sure job was deleted
 	jj, err := c.LockJobByID(ctx, job.ID)
 	require.Error(t, err)
-	assert.True(t, errors.Is(err, adapter.ErrNoRows))
+	assert.True(t, errors.Is(err, sql.ErrNoRows))
 	assert.Nil(t, jj)
 }
 
 func TestJobDone(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testJobDone(t, openFunc(t))
 		})
 	}
 }
 
-func testJobDone(t *testing.T, connPool adapter.ConnPool) {
+func testJobDone(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -469,14 +467,14 @@ func testJobDone(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestJobDoneMultiple(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testJobDoneMultiple(t, openFunc(t))
 		})
 	}
 }
 
-func testJobDoneMultiple(t *testing.T, connPool adapter.ConnPool) {
+func testJobDoneMultiple(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -497,14 +495,14 @@ func testJobDoneMultiple(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestJobError(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testJobError(t, openFunc(t))
 		})
 	}
 }
 
-func testJobError(t *testing.T, connPool adapter.ConnPool) {
+func testJobError(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -532,21 +530,21 @@ func testJobError(t *testing.T, connPool adapter.ConnPool) {
 		assert.NoError(t, err)
 	})
 
-	assert.True(t, j2.LastError.Valid)
-	assert.Equal(t, msg, j2.LastError.String)
+	require.NotNil(t, j2.LastError)
+	assert.Equal(t, msg, *j2.LastError)
 	assert.Equal(t, int32(1), j2.ErrorCount)
 	assert.Greater(t, j2.RunAt.Unix(), job.RunAt.Unix())
 }
 
 func TestJobErrorCustomBackoff(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testJobErrorCustomBackoff(t, openFunc(t))
 		})
 	}
 }
 
-func testJobErrorCustomBackoff(t *testing.T, connPool adapter.ConnPool) {
+func testJobErrorCustomBackoff(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	customBackoff := func(retries int) time.Duration {
@@ -578,8 +576,8 @@ func testJobErrorCustomBackoff(t *testing.T, connPool adapter.ConnPool) {
 		assert.NoError(t, err)
 	})
 
-	assert.True(t, j2.LastError.Valid)
-	assert.Equal(t, msg, j2.LastError.String)
+	require.NotNil(t, j2.LastError)
+	assert.Equal(t, msg, *j2.LastError)
 	assert.Equal(t, int32(1), j2.ErrorCount)
 	assert.Greater(t, j2.RunAt.Unix(), job.RunAt.Unix())
 	// a diff in a sec is possible when doing dates math, so allow it
@@ -587,14 +585,14 @@ func testJobErrorCustomBackoff(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestJobPriority(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testJobPriority(t, openFunc(t))
 		})
 	}
 }
 
-func testJobPriority(t *testing.T, connPool adapter.ConnPool) {
+func testJobPriority(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -626,6 +624,7 @@ func testJobPriority(t *testing.T, connPool adapter.ConnPool) {
 		j, err := c.LockJob(ctx, "")
 		require.NoError(t, err)
 		require.NotNil(t, j)
+
 		t.Cleanup(func() {
 			err := j.Done(ctx)
 			assert.NoError(t, err)
@@ -636,12 +635,12 @@ func testJobPriority(t *testing.T, connPool adapter.ConnPool) {
 	}
 }
 
-func findOneJob(t testing.TB, q adapter.Queryable) *Job {
+func findOneJob(t testing.TB, qc QuerierContext) *Job {
 	t.Helper()
 
 	j := new(Job)
-	err := q.QueryRow(
-		context.Background(),
+	err := qc.QueryRowContext(
+		t.Context(),
 		`SELECT priority, run_at, job_id, job_type, args, error_count, last_error, queue, created_at FROM gue_jobs LIMIT 1`,
 	).Scan(
 		&j.Priority,
@@ -654,7 +653,7 @@ func findOneJob(t testing.TB, q adapter.Queryable) *Job {
 		&j.Queue,
 		&j.CreatedAt,
 	)
-	if errors.Is(err, adapter.ErrNoRows) {
+	if errors.Is(err, sql.ErrNoRows) {
 		return nil
 	}
 	require.NoError(t, err)
@@ -662,88 +661,16 @@ func findOneJob(t testing.TB, q adapter.Queryable) *Job {
 	return j
 }
 
-func TestAdapterQuery(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
-		t.Run(name, func(t *testing.T) {
-			testAdapterQuery(t, openFunc(t))
-		})
-	}
-}
-
-func testAdapterQuery(t *testing.T, connPool adapter.ConnPool) {
-	ctx := context.Background()
-
-	c, err := NewClient(connPool)
-	require.NoError(t, err)
-
-	now := time.Now()
-	queue := now.Format(time.RFC3339Nano)
-
-	// schedule several jobs
-	j1 := Job{Queue: queue, RunAt: now, Type: "test1"}
-	j2 := Job{Queue: queue, RunAt: now, Type: "test2"}
-	j3 := Job{Queue: queue, RunAt: now, Type: "test3"}
-
-	err = c.EnqueueBatch(ctx, []*Job{&j1, &j2, &j3})
-	require.NoError(t, err)
-
-	// test pool
-	testQueryableQuery(ctx, t, connPool, queue, &j1, &j2, &j3)
-
-	// test connection
-	conn, err := connPool.Acquire(ctx)
-	require.NoError(t, err)
-
-	testQueryableQuery(ctx, t, conn, queue, &j1, &j2, &j3)
-	err = conn.Release()
-	assert.NoError(t, err)
-
-	// test transaction
-	tx, err := connPool.Begin(ctx)
-	require.NoError(t, err)
-
-	testQueryableQuery(ctx, t, tx, queue, &j1, &j2, &j3)
-	err = tx.Commit(ctx)
-	assert.NoError(t, err)
-}
-
-func testQueryableQuery(ctx context.Context, t *testing.T, q adapter.Queryable, queue string, j1, j2, j3 *Job) {
-	t.Helper()
-
-	rows, err := q.Query(ctx, `SELECT job_id, job_type FROM gue_jobs WHERE queue = $1 ORDER BY job_id ASC`, queue)
-	require.NoError(t, err)
-
-	var jobs []*Job
-	for rows.Next() {
-		j := new(Job)
-		err := rows.Scan(&j.ID, &j.Type)
-		require.NoError(t, err)
-
-		jobs = append(jobs, j)
-	}
-	require.Len(t, jobs, 3)
-
-	err = rows.Err()
-	require.NoError(t, err)
-
-	assert.Equal(t, j1.ID.String(), jobs[0].ID.String())
-	assert.Equal(t, j1.Type, jobs[0].Type)
-	assert.Equal(t, j2.ID.String(), jobs[1].ID.String())
-	assert.Equal(t, j2.Type, jobs[1].Type)
-	assert.Equal(t, j3.ID.String(), jobs[2].ID.String())
-	assert.Equal(t, j3.Type, jobs[2].Type)
-}
-
 func TestMultiSchema(t *testing.T) {
-	connPool := adapterTesting.OpenTestPoolLibPQCustomSchemas(t, "gue", "foo")
+	connPool := openTestPoolLibPQCustomSchemas(t, "gue", "foo")
 	ctx := context.Background()
 
 	// create table with the explicitly set second schema as gue table was already created in the first one
-	_, err := connPool.Exec(ctx, "CREATE TABLE IF NOT EXISTS foo.bar ( id serial NOT NULL PRIMARY KEY, data text NOT NULL )")
+	_, err := connPool.ExecContext(ctx, "CREATE TABLE IF NOT EXISTS foo.bar ( id serial NOT NULL PRIMARY KEY, data text NOT NULL )")
 	require.NoError(t, err)
 
 	// insert into created table w/out setting schema explicitly - search_path should take care of this
-	_, err = connPool.Exec(ctx, "INSERT INTO bar (data) VALUES ('baz')")
+	_, err = connPool.ExecContext(ctx, "INSERT INTO bar (data) VALUES ('baz')")
 	require.NoError(t, err)
 
 	// run basic gue client test to ensure it works as expected in its own schema known to search_path
@@ -769,12 +696,12 @@ func TestMultiSchema(t *testing.T) {
 }
 
 func TestJobIDMigration(t *testing.T) {
-	connPool := adapterTesting.OpenTestPoolLibPQCustomSchemas(t, "job_id_migration_01", "job_id_migration_02")
+	connPool := openTestPoolLibPQCustomSchemas(t, "job_id_migration_01", "job_id_migration_02")
 	ctx := context.Background()
 
 	// create a table with the serial ID
 	// editorconfig-checker-disable
-	_, err := connPool.Exec(ctx, `
+	_, err := connPool.ExecContext(ctx, `
 DROP TABLE IF EXISTS gue_jobs;
 CREATE TABLE gue_jobs
 (
@@ -799,7 +726,7 @@ CREATE INDEX IF NOT EXISTS idx_gue_jobs_selector ON gue_jobs (queue, run_at, pri
 	now := time.Now()
 	const queueName string = "some-queue"
 	for i := 0; i < 101; i++ {
-		_, err = connPool.Exec(ctx, `INSERT INTO gue_jobs
+		_, err = connPool.ExecContext(ctx, `INSERT INTO gue_jobs
 (queue, priority, run_at, job_type, args, created_at, updated_at)
 VALUES
 ($1, $2, $3, $4, $5, $6, $6)
@@ -809,7 +736,7 @@ VALUES
 
 	migrationSQL, err := os.ReadFile("./migrations/job_id_to_ulid.sql")
 	require.NoError(t, err)
-	_, err = connPool.Exec(ctx, string(migrationSQL))
+	_, err = connPool.ExecContext(ctx, string(migrationSQL))
 	require.NoError(t, err)
 
 	// ensure it is possible to retrieve a job from the DB after the conversion

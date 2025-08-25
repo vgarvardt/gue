@@ -1,4 +1,4 @@
-package testing
+package gue
 
 import (
 	"context"
@@ -10,31 +10,25 @@ import (
 	_ "github.com/lib/pq" // register pq sql driver
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/vgarvardt/gue/v5/adapter"
 )
 
 const defaultPoolConns = 5
 
 var migrations sync.Map
 
-// OpenTestPool callback type for opening connection pool with default parameters used in tests
-type OpenTestPool func(t testing.TB) adapter.ConnPool
+// openTestPool callback type for opening connection pool with default parameters used in tests
+type openTestPool func(t testing.TB) *sql.DB
 
-// OpenOpenTestPoolMaxConns callback type for opening connection pool with custom max connections used in tests
-type OpenOpenTestPoolMaxConns func(t testing.TB, maxConnections int32) adapter.ConnPool
-
-// AllAdaptersOpenTestPool lists all available adapters with callbacks
-var AllAdaptersOpenTestPool = map[string]OpenTestPool{
-	"pgx/v4": OpenTestPoolPGXv4,
-	"pgx/v5": OpenTestPoolPGXv5,
-	"lib/pq": OpenTestPoolLibPQ,
+// allAdaptersOpenTestPool lists all available adapters with callbacks
+var allAdaptersOpenTestPool = map[string]openTestPool{
+	"pgx/v5": openTestPoolPGXv5,
+	"lib/pq": openTestPoolLibPQ,
 }
 
-func truncateAndClose(t testing.TB, pool adapter.ConnPool) {
+func truncateAndClose(t testing.TB, pool *sql.DB) {
 	t.Helper()
 
-	_, err := pool.Exec(context.Background(), "TRUNCATE TABLE gue_jobs")
+	_, err := pool.ExecContext(context.WithoutCancel(t.Context()), "TRUNCATE TABLE gue_jobs")
 	assert.NoError(t, err)
 
 	err = pool.Close()

@@ -2,6 +2,7 @@ package gue
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"sync"
 	"testing"
@@ -15,8 +16,6 @@ import (
 	"go.uber.org/zap/zaptest/observer"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/vgarvardt/gue/v5/adapter"
-	adapterTesting "github.com/vgarvardt/gue/v5/adapter/testing"
 	adapterZap "github.com/vgarvardt/gue/v5/adapter/zap"
 )
 
@@ -33,14 +32,14 @@ func (h *mockHook) handler(ctx context.Context, j *Job, err error) {
 }
 
 func TestWorkerWorkOne(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testWorkerWorkOne(t, openFunc(t))
 		})
 	}
 }
 
-func testWorkerWorkOne(t *testing.T, connPool adapter.ConnPool) {
+func testWorkerWorkOne(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -89,21 +88,21 @@ func testWorkerWorkOne(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestWorker_Run(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testWorkerRun(t, openFunc(t))
 		})
 	}
 }
 
-func testWorkerRun(t *testing.T, connPool adapter.ConnPool) {
+func testWorkerRun(t *testing.T, connPool *sql.DB) {
 	c, err := NewClient(connPool)
 	require.NoError(t, err)
 
 	w, err := NewWorker(c, WorkMap{})
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	var grp errgroup.Group
 	grp.Go(func() error {
@@ -116,7 +115,7 @@ func testWorkerRun(t *testing.T, connPool adapter.ConnPool) {
 	assert.True(t, w.running)
 
 	// try to start one more time to get an error about already running worker
-	assert.Error(t, w.Run(context.Background()))
+	assert.Error(t, w.Run(t.Context()))
 
 	cancel()
 	assert.NoError(t, grp.Wait())
@@ -125,14 +124,14 @@ func testWorkerRun(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestWorkerPool_Run(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testWorkerPoolRun(t, openFunc(t))
 		})
 	}
 }
 
-func testWorkerPoolRun(t *testing.T, connPool adapter.ConnPool) {
+func testWorkerPoolRun(t *testing.T, connPool *sql.DB) {
 	c, err := NewClient(connPool)
 	require.NoError(t, err)
 
@@ -154,7 +153,7 @@ func testWorkerPoolRun(t *testing.T, connPool adapter.ConnPool) {
 	}, 2)
 	require.NoError(t, err)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	jobsToWork := 15
 	for i := 0; i < jobsToWork; i++ {
@@ -176,7 +175,7 @@ func testWorkerPoolRun(t *testing.T, connPool adapter.ConnPool) {
 	}
 
 	// try to start one more time to get an error about already running worker pool
-	assert.Error(t, w.Run(context.Background()))
+	assert.Error(t, w.Run(t.Context()))
 
 	cancel()
 
@@ -191,14 +190,14 @@ func testWorkerPoolRun(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestWorkerPool_WorkOne(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testWorkerPoolWorkOne(t, openFunc(t))
 		})
 	}
 }
 
-func testWorkerPoolWorkOne(t *testing.T, connPool adapter.ConnPool) {
+func testWorkerPoolWorkOne(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -248,14 +247,14 @@ func testWorkerPoolWorkOne(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestWorkerWorkReturnsError(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testWorkerWorkReturnsError(t, openFunc(t))
 		})
 	}
 }
 
-func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
+func testWorkerWorkReturnsError(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -313,19 +312,19 @@ func testWorkerWorkReturnsError(t *testing.T, connPool adapter.ConnPool) {
 	})
 
 	assert.Equal(t, int32(1), j.ErrorCount)
-	assert.True(t, j.LastError.Valid)
-	assert.Equal(t, "the error msg", j.LastError.String)
+	require.NotNil(t, j.LastError)
+	assert.Equal(t, "the error msg", *j.LastError)
 }
 
 func TestWorkerWorkRescuesPanic(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testWorkerWorkRescuesPanic(t, openFunc(t))
 		})
 	}
 }
 
-func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
+func testWorkerWorkRescuesPanic(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 	observed, logs := observer.New(zapcore.DebugLevel)
 	logger := zap.New(observed)
@@ -366,25 +365,25 @@ func testWorkerWorkRescuesPanic(t *testing.T, connPool adapter.ConnPool) {
 	})
 
 	assert.Equal(t, int32(1), j.ErrorCount)
-	assert.True(t, j.LastError.Valid)
-	assert.Contains(t, j.LastError.String, "the panic msg\n")
+	require.NotNil(t, j.LastError)
+	assert.Contains(t, *j.LastError, "the panic msg\n")
 	// basic check if a stacktrace is there - not the stacktrace format itself
-	assert.Contains(t, j.LastError.String, "worker.go:")
-	assert.Contains(t, j.LastError.String, "worker_test.go:")
+	assert.Contains(t, *j.LastError, "worker.go:")
+	assert.Contains(t, *j.LastError, "worker_test.go:")
 
 	panicLogs := logs.FilterLevelExact(zapcore.ErrorLevel).FilterMessage("Job panicked").All()
 	require.Len(t, panicLogs, 1)
 }
 
 func TestWorkerWorkWithWorkerHooksJobDonePanic(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testWorkerWorkWithWorkerHooksJobDonePanic(t, openFunc(t))
 		})
 	}
 }
 
-func testWorkerWorkWithWorkerHooksJobDonePanic(t *testing.T, connPool adapter.ConnPool) {
+func testWorkerWorkWithWorkerHooksJobDonePanic(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -419,22 +418,22 @@ func testWorkerWorkWithWorkerHooksJobDonePanic(t *testing.T, connPool adapter.Co
 	})
 
 	assert.Equal(t, int32(1), j.ErrorCount)
-	assert.True(t, j.LastError.Valid)
-	assert.Contains(t, j.LastError.String, "panic from the hook job done\n")
+	require.NotNil(t, j.LastError)
+	assert.Contains(t, *j.LastError, "panic from the hook job done\n")
 	// basic check if a stacktrace is there - not the stacktrace format itself
-	assert.Contains(t, j.LastError.String, "worker.go:")
-	assert.Contains(t, j.LastError.String, "worker_test.go:")
+	assert.Contains(t, *j.LastError, "worker.go:")
+	assert.Contains(t, *j.LastError, "worker_test.go:")
 }
 
 func TestWorkerWorkOneTypeNotInMap(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testWorkerWorkOneTypeNotInMap(t, openFunc(t))
 		})
 	}
 }
 
-func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
+func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -489,19 +488,19 @@ func testWorkerWorkOneTypeNotInMap(t *testing.T, connPool adapter.ConnPool) {
 	})
 
 	assert.Equal(t, int32(1), j.ErrorCount)
-	assert.True(t, j.LastError.Valid)
-	assert.Contains(t, j.LastError.String, `unknown job type: "MyJob"`)
+	require.NotNil(t, j.LastError)
+	assert.Contains(t, *j.LastError, `unknown job type: "MyJob"`)
 }
 
 func TestWorkerWorkOneUnknownTypeWM(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testWorkerWorkOneUnknownTypeWM(t, openFunc(t))
 		})
 	}
 }
 
-func testWorkerWorkOneUnknownTypeWM(t *testing.T, connPool adapter.ConnPool) {
+func testWorkerWorkOneUnknownTypeWM(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -541,14 +540,14 @@ func testWorkerWorkOneUnknownTypeWM(t *testing.T, connPool adapter.ConnPool) {
 
 // TestWorker_WorkOne_errorHookTx tests that JobDone hooks are running in the same transaction as the errored job
 func TestWorker_WorkOneErrorHookTx(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testWorkerWorkOneErrorHookTx(t, openFunc(t))
 		})
 	}
 }
 
-func testWorkerWorkOneErrorHookTx(t *testing.T, connPool adapter.ConnPool) {
+func testWorkerWorkOneErrorHookTx(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -569,7 +568,7 @@ func testWorkerWorkOneErrorHookTx(t *testing.T, connPool adapter.ConnPool) {
 
 		// ensure that transaction is still active
 		var count int64
-		txErr := j.Tx().QueryRow(ctx, `SELECT COUNT(1) FROM gue_jobs`).Scan(&count)
+		txErr := j.Tx().QueryRowContext(ctx, `SELECT COUNT(1) FROM gue_jobs`).Scan(&count)
 		assert.NoError(t, txErr)
 		assert.Greater(t, count, int64(0))
 	}
@@ -591,7 +590,7 @@ func testWorkerWorkOneErrorHookTx(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestNewWorker_GracefulShutdown(t *testing.T) {
-	connPool := adapterTesting.OpenTestPoolLibPQ(t)
+	connPool := openTestPoolLibPQ(t)
 
 	c, err := NewClient(connPool)
 	require.NoError(t, err)
@@ -610,7 +609,7 @@ func TestNewWorker_GracefulShutdown(t *testing.T) {
 		},
 	}
 
-	ctxNonGraceful, cancelNonGraceful := context.WithTimeout(context.Background(), time.Second)
+	ctxNonGraceful, cancelNonGraceful := context.WithTimeout(t.Context(), time.Second)
 	defer cancelNonGraceful()
 
 	err = c.Enqueue(ctxNonGraceful, &Job{Type: "MyJob"})
@@ -633,7 +632,7 @@ func TestNewWorker_GracefulShutdown(t *testing.T) {
 	<-chDone
 	require.True(t, jobCancelled)
 
-	ctxGraceful, cancelGraceful := context.WithTimeout(context.Background(), time.Second)
+	ctxGraceful, cancelGraceful := context.WithTimeout(t.Context(), time.Second)
 	defer cancelGraceful()
 
 	err = c.Enqueue(ctxGraceful, &Job{Type: "MyJob"})
@@ -653,7 +652,7 @@ func TestNewWorker_GracefulShutdown(t *testing.T) {
 }
 
 func TestNewWorker_JobTTL(t *testing.T) {
-	connPool := adapterTesting.OpenTestPoolLibPQ(t)
+	connPool := openTestPoolLibPQ(t)
 
 	c, err := NewClient(connPool)
 	require.NoError(t, err)
@@ -677,22 +676,22 @@ func TestNewWorker_JobTTL(t *testing.T) {
 	wWithJobTTL, err := NewWorker(c, wm, WithWorkerJobTTL(2*time.Second))
 	require.NoError(t, err)
 
-	err = c.Enqueue(context.Background(), &Job{Type: "MyJob"})
+	err = c.Enqueue(t.Context(), &Job{Type: "MyJob"})
 	require.NoError(t, err)
-	err = c.Enqueue(context.Background(), &Job{Type: "MyJob"})
+	err = c.Enqueue(t.Context(), &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
-	didWork := wNoJobTTL.WorkOne(context.Background())
+	didWork := wNoJobTTL.WorkOne(t.Context())
 	require.True(t, didWork)
 	require.False(t, jobCancelled)
 
-	didWork = wWithJobTTL.WorkOne(context.Background())
+	didWork = wWithJobTTL.WorkOne(t.Context())
 	require.True(t, didWork)
 	require.True(t, jobCancelled)
 }
 
 func TestNewWorkerPool_GracefulShutdown(t *testing.T) {
-	connPool := adapterTesting.OpenTestPoolLibPQ(t)
+	connPool := openTestPoolLibPQ(t)
 
 	c, err := NewClient(connPool)
 	require.NoError(t, err)
@@ -712,7 +711,7 @@ func TestNewWorkerPool_GracefulShutdown(t *testing.T) {
 		},
 	}
 
-	ctxNonGraceful, cancelNonGraceful := context.WithTimeout(context.Background(), time.Second)
+	ctxNonGraceful, cancelNonGraceful := context.WithTimeout(t.Context(), time.Second)
 	defer cancelNonGraceful()
 
 	for i := 0; i < numWorkers; i++ {
@@ -735,7 +734,7 @@ func TestNewWorkerPool_GracefulShutdown(t *testing.T) {
 	assert.Equal(t, 0, jobFinished)
 
 	jobCancelled, jobFinished = 0, 0
-	ctxGraceful, cancelGraceful := context.WithTimeout(context.Background(), time.Second)
+	ctxGraceful, cancelGraceful := context.WithTimeout(t.Context(), time.Second)
 	defer cancelGraceful()
 
 	err = c.Enqueue(ctxGraceful, &Job{Type: "MyJob"})

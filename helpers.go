@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// RandomStringID returns random alphanumeric string that can be used as ID.
+// RandomStringID returns random alphanumeric string that can be used as an ID.
 func RandomStringID() string {
 	hash := sha256.Sum256([]byte(time.Now().Format(time.RFC3339Nano)))
 	return hex.EncodeToString(hash[:])[:6]

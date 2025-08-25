@@ -58,7 +58,7 @@ type Job struct {
 	// LastError is the error message or stack trace from the last time the job failed. It is ignored on job creation.
 	// This field is initialised only when the Job is being retrieved from the DB and is not
 	// being updated when the current Job run errored. This field supposed to be used mostly for the debug reasons.
-	LastError sql.NullString
+	LastError *string
 
 	// CreatedAt is the job creation time.
 	// This field is initialised only when the Job is being retrieved from the DB and is not
@@ -68,7 +68,7 @@ type Job struct {
 
 	mu      sync.Mutex
 	deleted bool
-	tx      adapter.Tx
+	tx      *sql.Tx
 	backoff Backoff
 	logger  adapter.Logger
 }
@@ -77,7 +77,7 @@ type Job struct {
 // it as you please until you call Done(). At that point, this transaction
 // will be committed. This function will return nil if the Job's
 // transaction was closed with Done().
-func (j *Job) Tx() adapter.Tx {
+func (j *Job) Tx() *sql.Tx {
 	return j.tx
 }
 
@@ -94,7 +94,7 @@ func (j *Job) Delete(ctx context.Context) error {
 		return nil
 	}
 
-	_, err := j.tx.Exec(ctx, `DELETE FROM gue_jobs WHERE job_id = $1`, j.ID.String())
+	_, err := j.tx.ExecContext(ctx, `DELETE FROM gue_jobs WHERE job_id = $1`, j.ID.String())
 	if err != nil {
 		return err
 	}
@@ -105,7 +105,7 @@ func (j *Job) Delete(ctx context.Context) error {
 
 // Done commits transaction that marks job as done. If you got the job from the worker - it will take care of
 // cleaning up the job and resources, no need to do this manually in a WorkFunc.
-func (j *Job) Done(ctx context.Context) error {
+func (j *Job) Done(_ context.Context) error {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -114,7 +114,7 @@ func (j *Job) Done(ctx context.Context) error {
 		return nil
 	}
 
-	if err := j.tx.Commit(ctx); err != nil {
+	if err := j.tx.Commit(); err != nil {
 		return err
 	}
 
@@ -154,7 +154,7 @@ func (j *Job) Error(ctx context.Context, jErr error) (err error) {
 		return
 	}
 
-	_, err = j.tx.Exec(
+	_, err = j.tx.ExecContext(
 		ctx,
 		`UPDATE gue_jobs SET error_count = $1, run_at = $2, last_error = $3, updated_at = $4 WHERE job_id = $5`,
 		errorCount, newRunAt, jErr.Error(), now, j.ID.String(),

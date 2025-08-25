@@ -1,30 +1,27 @@
 package gue
 
 import (
-	"context"
+	"database/sql"
 	"fmt"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/vgarvardt/gue/v5/adapter"
-	adapterTesting "github.com/vgarvardt/gue/v5/adapter/testing"
 )
 
 func TestErrRescheduleJobIn(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testErrRescheduleJobIn(t, openFunc(t))
 		})
 	}
 }
 
-func testErrRescheduleJobIn(t *testing.T, connPool adapter.ConnPool) {
+func testErrRescheduleJobIn(t *testing.T, connPool *sql.DB) {
 	t.Helper()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	now := time.Now()
 
 	c, err := NewClient(connPool)
@@ -49,26 +46,26 @@ func testErrRescheduleJobIn(t *testing.T, connPool adapter.ConnPool) {
 	require.NoError(t, err)
 
 	assert.Equal(t, int32(1), jLocked2.ErrorCount)
-	assert.True(t, jLocked2.LastError.Valid)
-	assert.Equal(t, errRescheduleStr, jLocked2.LastError.String)
 	assert.GreaterOrEqual(t, jLocked2.RunAt.Sub(jLocked1.RunAt), 10*time.Second)
+	assert.NotNil(t, jLocked2.LastError)
+	assert.Equal(t, errRescheduleStr, *jLocked2.LastError)
 
 	err = jLocked2.Done(ctx)
 	require.NoError(t, err)
 }
 
 func TestErrRescheduleJobAt(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testErrRescheduleJobAt(t, openFunc(t))
 		})
 	}
 }
 
-func testErrRescheduleJobAt(t *testing.T, connPool adapter.ConnPool) {
+func testErrRescheduleJobAt(t *testing.T, connPool *sql.DB) {
 	t.Helper()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	now := time.Now()
 	rescheduleAt := now.Add(3 * time.Hour)
 
@@ -94,26 +91,26 @@ func testErrRescheduleJobAt(t *testing.T, connPool adapter.ConnPool) {
 	require.NoError(t, err)
 
 	assert.Equal(t, int32(1), jLocked2.ErrorCount)
-	assert.True(t, jLocked2.LastError.Valid)
-	assert.Equal(t, errRescheduleStr, jLocked2.LastError.String)
 	assert.True(t, jLocked2.RunAt.Round(time.Second).Equal(rescheduleAt.Round(time.Second)))
+	require.NotNil(t, jLocked2.LastError)
+	assert.Equal(t, errRescheduleStr, *jLocked2.LastError)
 
 	err = jLocked2.Done(ctx)
 	require.NoError(t, err)
 }
 
 func TestErrDiscardJob(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testErrDiscardJob(t, openFunc(t))
 		})
 	}
 }
 
-func testErrDiscardJob(t *testing.T, connPool adapter.ConnPool) {
+func testErrDiscardJob(t *testing.T, connPool *sql.DB) {
 	t.Helper()
 
-	ctx := context.Background()
+	ctx := t.Context()
 	now := time.Now()
 
 	c, err := NewClient(connPool)
