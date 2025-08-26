@@ -2,26 +2,24 @@ package gue
 
 import (
 	"context"
+	"database/sql"
 	"testing"
 	"time"
 
 	"github.com/oklog/ulid/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/vgarvardt/gue/v5/adapter"
-	adapterTesting "github.com/vgarvardt/gue/v5/adapter/testing"
 )
 
 func TestEnqueueOnlyType(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testEnqueueOnlyType(t, openFunc(t))
 		})
 	}
 }
 
-func testEnqueueOnlyType(t *testing.T, connPool adapter.ConnPool) {
+func testEnqueueOnlyType(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -50,7 +48,7 @@ func testEnqueueOnlyType(t *testing.T, connPool adapter.ConnPool) {
 	assert.Equal(t, jobType, j.Type)
 	assert.Equal(t, []byte(``), j.Args)
 	assert.Equal(t, int32(0), j.ErrorCount)
-	assert.False(t, j.LastError.Valid)
+	assert.Nil(t, j.LastError)
 
 	assert.False(t, j.CreatedAt.IsZero())
 	assert.True(t, time.Now().After(j.CreatedAt))
@@ -63,14 +61,14 @@ func testEnqueueOnlyType(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestEnqueueWithPriority(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testEnqueueWithPriority(t, openFunc(t))
 		})
 	}
 }
 
-func testEnqueueWithPriority(t *testing.T, connPool adapter.ConnPool) {
+func testEnqueueWithPriority(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -94,14 +92,14 @@ func testEnqueueWithPriority(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestEnqueueWithRunAt(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testEnqueueWithRunAt(t, openFunc(t))
 		})
 	}
 }
 
-func testEnqueueWithRunAt(t *testing.T, connPool adapter.ConnPool) {
+func testEnqueueWithRunAt(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -126,14 +124,14 @@ func testEnqueueWithRunAt(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestEnqueueWithArgs(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testEnqueueWithArgs(t, openFunc(t))
 		})
 	}
 }
 
-func testEnqueueWithArgs(t *testing.T, connPool adapter.ConnPool) {
+func testEnqueueWithArgs(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -157,14 +155,14 @@ func testEnqueueWithArgs(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestEnqueueWithQueue(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testEnqueueWithQueue(t, openFunc(t))
 		})
 	}
 }
 
-func testEnqueueWithQueue(t *testing.T, connPool adapter.ConnPool) {
+func testEnqueueWithQueue(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -188,14 +186,14 @@ func testEnqueueWithQueue(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestEnqueueWithEmptyType(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testEnqueueWithEmptyType(t, openFunc(t))
 		})
 	}
 }
 
-func testEnqueueWithEmptyType(t *testing.T, connPool adapter.ConnPool) {
+func testEnqueueWithEmptyType(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
@@ -206,20 +204,20 @@ func testEnqueueWithEmptyType(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestEnqueueTx(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testEnqueueTx(t, openFunc(t))
 		})
 	}
 }
 
-func testEnqueueTx(t *testing.T, connPool adapter.ConnPool) {
+func testEnqueueTx(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
 	require.NoError(t, err)
 
-	tx, err := connPool.Begin(ctx)
+	tx, err := connPool.BeginTx(ctx, nil)
 	require.NoError(t, err)
 
 	job := Job{Type: "MyJob"}
@@ -229,7 +227,7 @@ func testEnqueueTx(t *testing.T, connPool adapter.ConnPool) {
 	j := findOneJob(t, tx)
 	require.NotNil(t, j)
 
-	err = tx.Rollback(ctx)
+	err = tx.Rollback()
 	require.NoError(t, err)
 
 	j = findOneJob(t, connPool)
@@ -237,28 +235,50 @@ func testEnqueueTx(t *testing.T, connPool adapter.ConnPool) {
 }
 
 func TestClient_EnqueueBatchTx(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testEnqueueBatchTx(t, openFunc(t))
 		})
 	}
 }
 
+func testEnqueueBatchTx(t *testing.T, connPool *sql.DB) {
+	ctx := context.Background()
+
+	c, err := NewClient(connPool)
+	require.NoError(t, err)
+
+	tx, err := connPool.BeginTx(ctx, nil)
+	require.NoError(t, err)
+
+	err = c.EnqueueBatchTx(ctx, []*Job{{Type: "MyJob1"}, {Type: "MyJob2"}}, tx)
+	require.NoError(t, err)
+
+	j := findOneJob(t, tx)
+	require.NotNil(t, j)
+
+	err = tx.Rollback()
+	require.NoError(t, err)
+
+	j = findOneJob(t, connPool)
+	require.Nil(t, j)
+}
+
 func TestEnqueueTxWithID(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testEnqueueTxWithID(t, openFunc(t))
 		})
 	}
 }
 
-func testEnqueueTxWithID(t *testing.T, connPool adapter.ConnPool) {
+func testEnqueueTxWithID(t *testing.T, connPool *sql.DB) {
 	ctx := context.Background()
 
 	c, err := NewClient(connPool)
 	require.NoError(t, err)
 
-	tx, err := connPool.Begin(ctx)
+	tx, err := connPool.BeginTx(ctx, nil)
 	require.NoError(t, err)
 
 	specifiedID := ulid.Make()
@@ -271,29 +291,7 @@ func testEnqueueTxWithID(t *testing.T, connPool adapter.ConnPool) {
 	require.NotNil(t, j)
 	require.Equal(t, specifiedID, j.ID)
 
-	err = tx.Rollback(ctx)
-	require.NoError(t, err)
-
-	j = findOneJob(t, connPool)
-	require.Nil(t, j)
-}
-
-func testEnqueueBatchTx(t *testing.T, connPool adapter.ConnPool) {
-	ctx := context.Background()
-
-	c, err := NewClient(connPool)
-	require.NoError(t, err)
-
-	tx, err := connPool.Begin(ctx)
-	require.NoError(t, err)
-
-	err = c.EnqueueBatchTx(ctx, []*Job{{Type: "MyJob1"}, {Type: "MyJob2"}}, tx)
-	require.NoError(t, err)
-
-	j := findOneJob(t, tx)
-	require.NotNil(t, j)
-
-	err = tx.Rollback(ctx)
+	err = tx.Rollback()
 	require.NoError(t, err)
 
 	j = findOneJob(t, connPool)

@@ -1,4 +1,4 @@
-package testing
+package gue
 
 import (
 	"database/sql"
@@ -7,13 +7,10 @@ import (
 
 	_ "github.com/lib/pq" // register postgres driver
 	"github.com/stretchr/testify/require"
-
-	"github.com/vgarvardt/gue/v5/adapter"
-	"github.com/vgarvardt/gue/v5/adapter/libpq"
 )
 
-// OpenTestPoolMaxConnsLibPQ opens connections pool used in testing
-func OpenTestPoolMaxConnsLibPQ(t testing.TB, maxConnections int, gueSchema, secondSchema string) adapter.ConnPool {
+// openTestPoolMaxConnsLibPQ opens connections pool used in testing
+func openTestPoolMaxConnsLibPQ(t testing.TB, maxConnections int, gueSchema, secondSchema string) *sql.DB {
 	t.Helper()
 
 	if (gueSchema == "" && secondSchema != "") || (gueSchema != "" && secondSchema == "") {
@@ -40,26 +37,24 @@ func OpenTestPoolMaxConnsLibPQ(t testing.TB, maxConnections int, gueSchema, seco
 		require.NoError(t, err)
 	}
 
-	pool := libpq.NewConnPool(db)
-
 	t.Cleanup(func() {
-		truncateAndClose(t, pool)
+		truncateAndClose(t, db)
 	})
 
-	return pool
+	return db
 }
 
-// OpenTestPoolLibPQ opens connections pool used in testing
-func OpenTestPoolLibPQ(t testing.TB) adapter.ConnPool {
+// openTestPoolLibPQ opens connections pool used in testing
+func openTestPoolLibPQ(t testing.TB) *sql.DB {
 	t.Helper()
 
-	return OpenTestPoolMaxConnsLibPQ(t, defaultPoolConns, "", "")
+	return openTestPoolMaxConnsLibPQ(t, defaultPoolConns, "", "")
 }
 
-// OpenTestPoolLibPQCustomSchemas opens connections pool used in testing with gue table installed to own schema and
+// openTestPoolLibPQCustomSchemas opens connections pool used in testing with gue table installed to own schema and
 // search_path set to two different schemas
-func OpenTestPoolLibPQCustomSchemas(t testing.TB, gueSchema, secondSchema string) adapter.ConnPool {
+func openTestPoolLibPQCustomSchemas(t testing.TB, gueSchema, secondSchema string) *sql.DB {
 	t.Helper()
 
-	return OpenTestPoolMaxConnsLibPQ(t, defaultPoolConns, gueSchema, secondSchema)
+	return openTestPoolMaxConnsLibPQ(t, defaultPoolConns, gueSchema, secondSchema)
 }

@@ -16,6 +16,7 @@ tasks:
     summary: Starts test dependencies
     cmds:
       - cmd: docker compose up --detach --wait
+      - cmd: docker compose port postgres 5432
 
   test-deps-down:
     summary: Stops test dependencies

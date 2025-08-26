@@ -3,6 +3,7 @@ package gue
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"errors"
 	"fmt"
 	"io"
@@ -17,6 +18,17 @@ import (
 	"github.com/vgarvardt/gue/v5/adapter"
 )
 
+// ExecerContext is an interface that can execute a query with context.
+type ExecerContext interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+}
+
+// QuerierContext is an interface that can query with context.
+type QuerierContext interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
 // ErrMissingType is returned when you attempt to enqueue a job with no Type
 // specified.
 var ErrMissingType = errors.New("job type must be specified")
@@ -29,7 +41,7 @@ var (
 // Client is a Gue client that can add jobs to the queue and remove jobs from
 // the queue.
 type Client struct {
-	pool    adapter.ConnPool
+	pool    *sql.DB
 	logger  adapter.Logger
 	id      string
 	backoff Backoff
@@ -42,7 +54,7 @@ type Client struct {
 }
 
 // NewClient creates a new Client that uses the pgx pool.
-func NewClient(pool adapter.ConnPool, options ...ClientOption) (*Client, error) {
+func NewClient(pool *sql.DB, options ...ClientOption) (*Client, error) {
 	instance := Client{
 		pool:    pool,
 		logger:  adapter.NoOpLogger{},
@@ -79,13 +91,13 @@ func (c *Client) EnqueueWithID(ctx context.Context, j *Job, jobID ulid.ULID) err
 //
 // It is the caller's responsibility to Commit or Rollback the transaction after
 // this function is called.
-func (c *Client) EnqueueTx(ctx context.Context, j *Job, tx adapter.Tx) error {
+func (c *Client) EnqueueTx(ctx context.Context, j *Job, tx *sql.Tx) error {
 	return c.execEnqueue(ctx, []*Job{j}, tx)
 }
 
 // EnqueueTxWithID is the same as EnqueueTx except it adds a job to the queue
 // with a specific id.
-func (c *Client) EnqueueTxWithID(ctx context.Context, j *Job, jobID ulid.ULID, tx adapter.Tx) error {
+func (c *Client) EnqueueTxWithID(ctx context.Context, j *Job, jobID ulid.ULID, tx *sql.Tx) error {
 	return c.execEnqueueWithID(ctx, []*Job{j}, tx, []ulid.ULID{jobID})
 }
 
@@ -105,7 +117,7 @@ func (c *Client) EnqueueBatch(ctx context.Context, jobs []*Job) error {
 //
 // It is the caller's responsibility to Commit or Rollback the transaction after
 // this function is called.
-func (c *Client) EnqueueBatchTx(ctx context.Context, jobs []*Job, tx adapter.Tx) error {
+func (c *Client) EnqueueBatchTx(ctx context.Context, jobs []*Job, tx *sql.Tx) error {
 	if len(jobs) == 0 {
 		return nil
 	}
@@ -115,7 +127,7 @@ func (c *Client) EnqueueBatchTx(ctx context.Context, jobs []*Job, tx adapter.Tx)
 
 var errSlicesMustMatch = errors.New("jobs and jobIDs slices must have the same non-zero length, pls report this a bug")
 
-func (c *Client) execEnqueueWithID(ctx context.Context, jobs []*Job, q adapter.Queryable, jobIDs []ulid.ULID) (err error) {
+func (c *Client) execEnqueueWithID(ctx context.Context, jobs []*Job, ec ExecerContext, jobIDs []ulid.ULID) (err error) {
 	if len(jobs) != len(jobIDs) || len(jobs) == 0 || len(jobIDs) == 0 {
 		return errSlicesMustMatch
 	}
@@ -147,7 +159,7 @@ func (c *Client) execEnqueueWithID(ctx context.Context, jobs []*Job, q adapter.Q
 		args = append(args, idAsString, j.Queue, j.Priority, j.RunAt, j.Type, j.Args, j.CreatedAt, j.CreatedAt)
 	}
 
-	_, err = q.Exec(ctx, `INSERT INTO gue_jobs
+	_, err = ec.ExecContext(ctx, `INSERT INTO gue_jobs
 (job_id, queue, priority, run_at, job_type, args, created_at, updated_at)
 VALUES
 `+strings.Join(values, ", "), args...)
@@ -166,7 +178,7 @@ VALUES
 	return err
 }
 
-func (c *Client) execEnqueue(ctx context.Context, jobs []*Job, q adapter.Queryable) error {
+func (c *Client) execEnqueue(ctx context.Context, jobs []*Job, ec ExecerContext) error {
 	jobIDs := make([]ulid.ULID, 0, len(jobs))
 	for range jobs {
 		jobID, err := ulid.New(ulid.Now(), c.entropy)
@@ -176,7 +188,7 @@ func (c *Client) execEnqueue(ctx context.Context, jobs []*Job, q adapter.Queryab
 		jobIDs = append(jobIDs, jobID)
 	}
 
-	return c.execEnqueueWithID(ctx, jobs, q, jobIDs)
+	return c.execEnqueueWithID(ctx, jobs, ec, jobIDs)
 }
 
 // LockJob attempts to retrieve a Job from the database in the specified queue.
@@ -243,8 +255,8 @@ LIMIT 1 FOR UPDATE SKIP LOCKED`
 	return c.execLockJob(ctx, true, sql, queue, time.Now().UTC())
 }
 
-func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql string, args ...any) (*Job, error) {
-	tx, err := c.pool.Begin(ctx)
+func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, query string, args ...any) (*Job, error) {
+	tx, err := c.pool.BeginTx(ctx, nil)
 	if err != nil {
 		c.mLockJob.Add(ctx, 1, metric.WithAttributes(attrJobType.String(""), attrSuccess.Bool(false)))
 		return nil, err
@@ -252,7 +264,7 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 
 	j := Job{tx: tx, backoff: c.backoff, logger: c.logger}
 
-	err = tx.QueryRow(ctx, sql, args...).Scan(
+	err = tx.QueryRowContext(ctx, query, args...).Scan(
 		&j.ID,
 		&j.Queue,
 		&j.Priority,
@@ -268,8 +280,8 @@ func (c *Client) execLockJob(ctx context.Context, handleErrNoRows bool, sql stri
 		return &j, nil
 	}
 
-	rbErr := tx.Rollback(ctx)
-	if handleErrNoRows && errors.Is(err, adapter.ErrNoRows) {
+	rbErr := tx.Rollback()
+	if handleErrNoRows && errors.Is(err, sql.ErrNoRows) {
 		return nil, rbErr
 	}
 

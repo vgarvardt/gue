@@ -1,7 +1,7 @@
 package gue
 
 import (
-	"context"
+	"database/sql"
 	"errors"
 	"testing"
 	"time"
@@ -10,21 +10,19 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zaptest"
 
-	"github.com/vgarvardt/gue/v5/adapter"
-	adapterTesting "github.com/vgarvardt/gue/v5/adapter/testing"
 	adapterZap "github.com/vgarvardt/gue/v5/adapter/zap"
 )
 
 func TestBackoff(t *testing.T) {
-	for name, openFunc := range adapterTesting.AllAdaptersOpenTestPool {
+	for name, openFunc := range allAdaptersOpenTestPool {
 		t.Run(name, func(t *testing.T) {
 			testBackoff(t, openFunc(t))
 		})
 	}
 }
 
-func testBackoff(t *testing.T, connPool adapter.ConnPool) {
-	ctx := context.Background()
+func testBackoff(t *testing.T, connPool *sql.DB) {
+	ctx := t.Context()
 	logger := adapterZap.New(zaptest.NewLogger(t))
 	now := time.Now()
 
@@ -46,9 +44,9 @@ func testBackoff(t *testing.T, connPool adapter.ConnPool) {
 		require.NoError(t, err)
 
 		assert.Equal(t, int32(1), jLocked2.ErrorCount)
-		assert.True(t, jLocked2.LastError.Valid)
-		assert.Equal(t, "return with the error", jLocked2.LastError.String)
 		assert.Greater(t, jLocked2.RunAt.Unix(), jLocked1.RunAt.Unix())
+		require.NotNil(t, jLocked2.LastError)
+		assert.Equal(t, "return with the error", *jLocked2.LastError)
 
 		err = jLocked2.Done(ctx)
 		require.NoError(t, err)
@@ -91,10 +89,10 @@ func testBackoff(t *testing.T, connPool adapter.ConnPool) {
 		require.NoError(t, err)
 
 		assert.Equal(t, int32(1), jLocked2.ErrorCount)
-		assert.True(t, jLocked2.LastError.Valid)
-		assert.Equal(t, "return with the error", jLocked2.LastError.String)
 		assert.Greater(t, jLocked2.RunAt.Unix(), jLocked1.RunAt.Unix())
 		assert.WithinDuration(t, jLocked1.RunAt.Add(time.Minute), jLocked2.RunAt, time.Second)
+		require.NotNil(t, jLocked2.LastError)
+		assert.Equal(t, "return with the error", *jLocked2.LastError)
 
 		err = jLocked2.Done(ctx)
 		require.NoError(t, err)
