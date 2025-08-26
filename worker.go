@@ -213,9 +213,9 @@ func (w *Worker) WorkOne(ctx context.Context) (didWork bool) {
 
 	processingStartedAt := time.Now()
 	span.SetAttributes(
-		attribute.String("job-id", j.ID.String()),
-		attribute.String("job-queue", j.Queue),
-		attribute.String("job-type", j.Type),
+		attribute.String("job_id", j.ID.String()),
+		attribute.String("job_queue", j.Queue),
+		attribute.String("job_type", j.Type),
 	)
 
 	ll := w.logger.With(adapter.F("job-id", j.ID.String()), adapter.F("job-type", j.Type))

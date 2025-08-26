@@ -34,7 +34,7 @@ type QuerierContext interface {
 var ErrMissingType = errors.New("job type must be specified")
 
 var (
-	attrJobType = attribute.Key("job-type")
+	attrJobType = attribute.Key("job_type")
 	attrSuccess = attribute.Key("success")
 )
 
