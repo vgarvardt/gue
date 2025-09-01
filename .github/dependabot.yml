@@ -9,8 +9,18 @@ updates:
   - package-ecosystem: "gomod"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+    commit-message:
+      prefix: "chore(go)"
+    groups:
+      opentelemetry:
+        applies-to: version-updates
+        patterns:
+          - go.opentelemetry.io/*
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    commit-message:
+      prefix: "chore(gha)"
