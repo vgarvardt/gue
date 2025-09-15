@@ -3,7 +3,7 @@ module github.com/vgarvardt/gue/v5
 go 1.24.0
 
 require (
-	github.com/jackc/pgx/v5 v5.7.5
+	github.com/jackc/pgx/v5 v5.7.6
 	github.com/lib/pq v1.10.9
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/rs/zerolog v1.34.0
