@@ -1,16 +1,20 @@
 package gue
 
 import (
+	"log/slog"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/cappuccinotm/slogx"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/metric/noop"
-
-	"github.com/vgarvardt/gue/v5/adapter"
+	"go.uber.org/zap"
+	"go.uber.org/zap/exp/zapslog"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 func TestWithClientID(t *testing.T) {
@@ -27,20 +31,20 @@ func TestWithClientID(t *testing.T) {
 func TestWithClientLogger(t *testing.T) {
 	clientWithDefaultLogger, err := NewClient(nil)
 	require.NoError(t, err)
-	assert.IsType(t, adapter.NoOpLogger{}, clientWithDefaultLogger.logger)
+	assert.IsType(t, slogx.NopHandler(), clientWithDefaultLogger.logger.Handler())
 
-	logMessage := "hello"
+	const logMessage = "hello"
 
-	l := new(mockLogger)
-	l.On("Info", logMessage, mock.Anything)
-	// worker sets id as default logger field
-	l.On("With", mock.Anything).Return(l)
+	observe, logs := observer.New(zap.InfoLevel)
+	logger := zapcore.NewTee(zaptest.NewLogger(t).Core(), observe)
 
-	clientWithCustomLogger, err := NewClient(nil, WithClientLogger(l))
+	clientWithCustomLogger, err := NewClient(nil, WithClientLogger(slog.New(zapslog.NewHandler(logger))))
 	require.NoError(t, err)
 	clientWithCustomLogger.logger.Info(logMessage)
 
-	l.AssertExpectations(t)
+	require.Len(t, logs.All(), 1)
+	assert.Equal(t, logMessage, logs.All()[0].Message)
+	assert.Equal(t, zapcore.InfoLevel, logs.All()[0].Level)
 }
 
 func TestWithClientBackoff(t *testing.T) {

@@ -3,14 +3,14 @@ package gue
 import (
 	"database/sql"
 	"errors"
+	"log/slog"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/exp/zapslog"
 	"go.uber.org/zap/zaptest"
-
-	adapterZap "github.com/vgarvardt/gue/v5/adapter/zap"
 )
 
 func TestBackoff(t *testing.T) {
@@ -23,11 +23,11 @@ func TestBackoff(t *testing.T) {
 
 func testBackoff(t *testing.T, connPool *sql.DB) {
 	ctx := t.Context()
-	logger := adapterZap.New(zaptest.NewLogger(t))
+	logger := zaptest.NewLogger(t)
 	now := time.Now()
 
 	t.Run("default exponential backoff", func(t *testing.T) {
-		c, err := NewClient(connPool, WithClientLogger(logger))
+		c, err := NewClient(connPool, WithClientLogger(slog.New(zapslog.NewHandler(logger.Core()))))
 		require.NoError(t, err)
 
 		j := Job{RunAt: now, Type: "foo"}
@@ -53,7 +53,10 @@ func testBackoff(t *testing.T, connPool *sql.DB) {
 	})
 
 	t.Run("never backoff", func(t *testing.T) {
-		c, err := NewClient(connPool, WithClientLogger(logger), WithClientBackoff(BackoffNever))
+		c, err := NewClient(connPool,
+			WithClientLogger(slog.New(zapslog.NewHandler(logger.Core()))),
+			WithClientBackoff(BackoffNever),
+		)
 		require.NoError(t, err)
 
 		j := Job{RunAt: now, Type: "bar"}
@@ -72,7 +75,10 @@ func testBackoff(t *testing.T, connPool *sql.DB) {
 	})
 
 	t.Run("const backoff", func(t *testing.T) {
-		c, err := NewClient(connPool, WithClientLogger(logger), WithClientBackoff(NewConstantBackoff(time.Minute)))
+		c, err := NewClient(connPool,
+			WithClientLogger(slog.New(zapslog.NewHandler(logger.Core()))),
+			WithClientBackoff(NewConstantBackoff(time.Minute)),
+		)
 		require.NoError(t, err)
 
 		j := Job{RunAt: now, Type: "foo"}

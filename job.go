@@ -4,12 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 
+	"github.com/cappuccinotm/slogx"
 	"github.com/oklog/ulid/v2"
-
-	"github.com/vgarvardt/gue/v5/adapter"
 )
 
 // JobPriority is the wrapper type for Job.Priority
@@ -70,7 +70,7 @@ type Job struct {
 	deleted bool
 	tx      *sql.Tx
 	backoff Backoff
-	logger  adapter.Logger
+	logger  *slog.Logger
 }
 
 // Tx returns DB transaction that this job is locked to. You may use
@@ -145,10 +145,10 @@ func (j *Job) Error(ctx context.Context, jErr error) (err error) {
 	if newRunAt.IsZero() {
 		j.logger.Info(
 			"Got empty new run at for the errored job, discarding it",
-			adapter.F("job-type", j.Type),
-			adapter.F("job-queue", j.Queue),
-			adapter.F("job-errors", errorCount),
-			adapter.Err(jErr),
+			slog.String("job-type", j.Type),
+			slog.String("job-queue", j.Queue),
+			slog.Int("job-errors", int(errorCount)),
+			slogx.Error(jErr),
 		)
 		err = j.Delete(ctx)
 		return

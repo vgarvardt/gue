@@ -2,12 +2,11 @@ package gue
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"
-
-	"github.com/vgarvardt/gue/v5/adapter"
 )
 
 // WorkerOption defines a type that allows to set worker properties during the build-time.
@@ -39,7 +38,7 @@ func WithWorkerID(id string) WorkerOption {
 }
 
 // WithWorkerLogger sets Logger implementation to worker
-func WithWorkerLogger(logger adapter.Logger) WorkerOption {
+func WithWorkerLogger(logger *slog.Logger) WorkerOption {
 	return func(w *Worker) {
 		w.logger = logger
 	}
@@ -179,7 +178,7 @@ func WithPoolID(id string) WorkerPoolOption {
 }
 
 // WithPoolLogger sets Logger implementation to worker pool
-func WithPoolLogger(logger adapter.Logger) WorkerPoolOption {
+func WithPoolLogger(logger *slog.Logger) WorkerPoolOption {
 	return func(w *WorkerPool) {
 		w.logger = logger
 	}
