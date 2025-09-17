@@ -1,16 +1,16 @@
 package gue
 
 import (
-	"go.opentelemetry.io/otel/metric"
+	"log/slog"
 
-	"github.com/vgarvardt/gue/v5/adapter"
+	"go.opentelemetry.io/otel/metric"
 )
 
 // ClientOption defines a type that allows to set client properties during the build-time.
 type ClientOption func(*Client)
 
 // WithClientLogger sets Logger implementation to client.
-func WithClientLogger(logger adapter.Logger) ClientOption {
+func WithClientLogger(logger *slog.Logger) ClientOption {
 	return func(c *Client) {
 		c.logger = logger
 	}

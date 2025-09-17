@@ -2,38 +2,21 @@ package gue
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 	"time"
 
+	"github.com/cappuccinotm/slogx"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/metric/noop"
 	noopT "go.opentelemetry.io/otel/trace/noop"
-
-	"github.com/vgarvardt/gue/v5/adapter"
+	"go.uber.org/zap"
+	"go.uber.org/zap/exp/zapslog"
+	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap/zaptest"
+	"go.uber.org/zap/zaptest/observer"
 )
-
-type mockLogger struct {
-	mock.Mock
-}
-
-func (m *mockLogger) Debug(msg string, fields ...adapter.Field) {
-	m.Called(msg, fields)
-}
-
-func (m *mockLogger) Info(msg string, fields ...adapter.Field) {
-	m.Called(msg, fields)
-}
-
-func (m *mockLogger) Error(msg string, fields ...adapter.Field) {
-	m.Called(msg, fields)
-}
-
-func (m *mockLogger) With(fields ...adapter.Field) adapter.Logger {
-	args := m.Called(fields)
-	return args.Get(0).(adapter.Logger)
-}
 
 var dummyWM = WorkMap{
 	"MyJob": func(ctx context.Context, j *Job) error {
@@ -77,20 +60,20 @@ func TestWithWorkerID(t *testing.T) {
 func TestWithWorkerLogger(t *testing.T) {
 	workerWithDefaultLogger, err := NewWorker(nil, dummyWM)
 	require.NoError(t, err)
-	assert.IsType(t, adapter.NoOpLogger{}, workerWithDefaultLogger.logger)
+	assert.IsType(t, slogx.NopHandler(), workerWithDefaultLogger.logger.Handler())
 
-	logMessage := "hello"
+	const logMessage = "hello"
 
-	l := new(mockLogger)
-	l.On("Info", logMessage, mock.Anything)
-	// worker sets id as default logger field
-	l.On("With", mock.Anything).Return(l)
+	observe, logs := observer.New(zap.InfoLevel)
+	logger := zapcore.NewTee(zaptest.NewLogger(t).Core(), observe)
 
-	workerWithCustomLogger, err := NewWorker(nil, dummyWM, WithWorkerLogger(l))
+	workerWithCustomLogger, err := NewWorker(nil, dummyWM, WithWorkerLogger(slog.New(zapslog.NewHandler(logger))))
 	require.NoError(t, err)
-	workerWithCustomLogger.logger.Info(logMessage)
+	workerWithCustomLogger.logger.InfoContext(t.Context(), logMessage)
 
-	l.AssertExpectations(t)
+	require.Len(t, logs.All(), 1)
+	assert.Equal(t, logMessage, logs.All()[0].Message)
+	assert.Equal(t, zapcore.InfoLevel, logs.All()[0].Level)
 }
 
 func TestWithWorkerPollStrategy(t *testing.T) {
@@ -186,20 +169,20 @@ func TestWithPoolID(t *testing.T) {
 func TestWithPoolLogger(t *testing.T) {
 	workerPoolWithDefaultLogger, err := NewWorkerPool(nil, dummyWM, 2)
 	require.NoError(t, err)
-	assert.IsType(t, adapter.NoOpLogger{}, workerPoolWithDefaultLogger.logger)
+	assert.IsType(t, slogx.NopHandler(), workerPoolWithDefaultLogger.logger.Handler())
 
-	logMessage := "hello"
+	const logMessage = "hello"
 
-	l := new(mockLogger)
-	l.On("Info", logMessage, mock.Anything)
-	// worker pool sets id as default logger field
-	l.On("With", mock.Anything).Return(l)
+	observe, logs := observer.New(zap.InfoLevel)
+	logger := zapcore.NewTee(zaptest.NewLogger(t).Core(), observe)
 
-	workerPoolWithCustomLogger, err := NewWorkerPool(nil, dummyWM, 2, WithPoolLogger(l))
+	workerPoolWithCustomLogger, err := NewWorkerPool(nil, dummyWM, 2, WithPoolLogger(slog.New(zapslog.NewHandler(logger))))
 	require.NoError(t, err)
 	workerPoolWithCustomLogger.logger.Info(logMessage)
 
-	l.AssertExpectations(t)
+	require.Len(t, logs.All(), 1)
+	assert.Equal(t, logMessage, logs.All()[0].Message)
+	assert.Equal(t, zapcore.InfoLevel, logs.All()[0].Level)
 }
 
 func TestWithPoolPollStrategy(t *testing.T) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"log/slog"
 	"sync"
 	"testing"
 	"time"
@@ -12,11 +13,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"go.uber.org/zap/exp/zapslog"
 	"go.uber.org/zap/zapcore"
 	"go.uber.org/zap/zaptest/observer"
 	"golang.org/x/sync/errgroup"
-
-	adapterZap "github.com/vgarvardt/gue/v5/adapter/zap"
 )
 
 type mockHook struct {
@@ -341,10 +341,13 @@ func testWorkerWorkRescuesPanic(t *testing.T, connPool *sql.DB) {
 	}
 
 	var hookDoneCalled int
-	w, err := NewWorker(c, wm, WithWorkerLogger(adapterZap.New(logger)), WithWorkerHooksJobDone(func(ctx context.Context, j *Job, err error) {
-		hookDoneCalled++
-		assert.ErrorIs(t, err, ErrJobPanicked)
-	}))
+	w, err := NewWorker(c, wm,
+		WithWorkerLogger(slog.New(zapslog.NewHandler(logger.Core()))),
+		WithWorkerHooksJobDone(func(ctx context.Context, j *Job, err error) {
+			hookDoneCalled++
+			assert.ErrorIs(t, err, ErrJobPanicked)
+		}),
+	)
 	require.NoError(t, err)
 
 	job := Job{Type: "MyJob"}

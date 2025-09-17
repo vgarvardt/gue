@@ -7,15 +7,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"strings"
 	"time"
 
+	"github.com/cappuccinotm/slogx"
 	"github.com/oklog/ulid/v2"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/metric/noop"
-
-	"github.com/vgarvardt/gue/v5/adapter"
 )
 
 // ExecerContext is an interface that can execute a query with context.
@@ -42,7 +42,7 @@ var (
 // the queue.
 type Client struct {
 	pool    *sql.DB
-	logger  adapter.Logger
+	logger  *slog.Logger
 	id      string
 	backoff Backoff
 	meter   metric.Meter
@@ -57,7 +57,7 @@ type Client struct {
 func NewClient(pool *sql.DB, options ...ClientOption) (*Client, error) {
 	instance := Client{
 		pool:    pool,
-		logger:  adapter.NoOpLogger{},
+		logger:  slog.New(slogx.NopHandler()),
 		id:      RandomStringID(),
 		backoff: DefaultExponentialBackoff,
 		meter:   noop.NewMeterProvider().Meter("noop"),
@@ -70,7 +70,7 @@ func NewClient(pool *sql.DB, options ...ClientOption) (*Client, error) {
 		option(&instance)
 	}
 
-	instance.logger = instance.logger.With(adapter.F("client-id", instance.id))
+	instance.logger = instance.logger.With(slog.String("client-id", instance.id))
 
 	return &instance, instance.initMetrics()
 }
@@ -165,11 +165,10 @@ VALUES
 `+strings.Join(values, ", "), args...)
 
 	for _, j := range jobs {
-		c.logger.Debug(
-			"Tried to enqueue a job",
-			adapter.Err(err),
-			adapter.F("queue", j.Queue),
-			adapter.F("id", j.ID.String()),
+		c.logger.DebugContext(ctx, "Tried to enqueue a job",
+			slogx.Error(err),
+			slog.String("queue", j.Queue),
+			slog.String("id", j.ID.String()),
 		)
 
 		c.mEnqueue.Add(ctx, 1, metric.WithAttributes(attrJobType.String(j.Type), attrSuccess.Bool(err == nil)))
