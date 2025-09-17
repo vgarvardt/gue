@@ -143,12 +143,11 @@ func (j *Job) Error(ctx context.Context, jErr error) (err error) {
 	now := time.Now().UTC()
 	newRunAt := j.calculateErrorRunAt(jErr, now, errorCount)
 	if newRunAt.IsZero() {
-		j.logger.Info(
-			"Got empty new run at for the errored job, discarding it",
+		j.logger.InfoContext(ctx, "Got empty new run at for the errored job, discarding it",
+			slogx.Error(jErr),
 			slog.String("job-type", j.Type),
 			slog.String("job-queue", j.Queue),
 			slog.Int("job-errors", int(errorCount)),
-			slogx.Error(jErr),
 		)
 		err = j.Delete(ctx)
 		return

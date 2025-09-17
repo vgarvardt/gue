@@ -165,8 +165,7 @@ VALUES
 `+strings.Join(values, ", "), args...)
 
 	for _, j := range jobs {
-		c.logger.Debug(
-			"Tried to enqueue a job",
+		c.logger.DebugContext(ctx, "Tried to enqueue a job",
 			slogx.Error(err),
 			slog.String("queue", j.Queue),
 			slog.String("id", j.ID.String()),

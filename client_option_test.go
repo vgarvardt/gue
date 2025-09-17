@@ -40,7 +40,7 @@ func TestWithClientLogger(t *testing.T) {
 
 	clientWithCustomLogger, err := NewClient(nil, WithClientLogger(slog.New(zapslog.NewHandler(logger))))
 	require.NoError(t, err)
-	clientWithCustomLogger.logger.Info(logMessage)
+	clientWithCustomLogger.logger.InfoContext(t.Context(), logMessage)
 
 	require.Len(t, logs.All(), 1)
 	assert.Equal(t, logMessage, logs.All()[0].Message)

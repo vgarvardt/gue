@@ -69,7 +69,7 @@ func TestWithWorkerLogger(t *testing.T) {
 
 	workerWithCustomLogger, err := NewWorker(nil, dummyWM, WithWorkerLogger(slog.New(zapslog.NewHandler(logger))))
 	require.NoError(t, err)
-	workerWithCustomLogger.logger.Info(logMessage)
+	workerWithCustomLogger.logger.InfoContext(t.Context(), logMessage)
 
 	require.Len(t, logs.All(), 1)
 	assert.Equal(t, logMessage, logs.All()[0].Message)
