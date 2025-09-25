@@ -122,10 +122,23 @@ func WithWorkerPollStrategy(s PollStrategy) WorkerOption {
 // when the graceful mode is enabled.
 //
 // Use "handlerCtx" to set up custom handler context. When set to nil - defaults to context.Background().
+//
+// Deprecated: Superseded by WithWorkerContextFactory.
 func WithWorkerGracefulShutdown(handlerCtx func() context.Context) WorkerOption {
+	return WithWorkerContextFactory(func(_ context.Context) context.Context {
+		if handlerCtx == nil {
+			return context.Background()
+		}
+		return handlerCtx()
+	})
+}
+
+// WithWorkerContextFactory allows extending or overriding the worker context
+// for each run. This permits use cases like canceling a Job separately from a
+// Worker, or extending context on a per-worker basis.
+func WithWorkerContextFactory(factory func(original context.Context) context.Context) WorkerOption {
 	return func(w *Worker) {
-		w.graceful = true
-		w.gracefulCtx = handlerCtx
+		w.ctxFactory = factory
 	}
 }
 
@@ -237,10 +250,21 @@ func WithPoolHooksJobUndone(hooks ...HookFunc) WorkerPoolOption {
 
 // WithPoolGracefulShutdown enables graceful shutdown mode for all workers in the pool.
 // See WithWorkerGracefulShutdown for details.
+//
+// Deprecated: WithPoolWorkerContextFactory
 func WithPoolGracefulShutdown(handlerCtx func() context.Context) WorkerPoolOption {
+	return WithPoolWorkerContextFactory(func(_ context.Context) context.Context {
+		if handlerCtx == nil {
+			return context.Background()
+		}
+		return handlerCtx()
+	})
+}
+
+// WithPoolWorkerContextFactory enables customizing the context for all workers in the pool.
+func WithPoolWorkerContextFactory(factory func(original context.Context) context.Context) WorkerPoolOption {
 	return func(w *WorkerPool) {
-		w.graceful = true
-		w.gracefulCtx = handlerCtx
+		w.ctxFactory = factory
 	}
 }
 
