@@ -9,7 +9,7 @@ import (
 
 func TestSetWorkerIdx(t *testing.T) {
 	t.Run("no ctx", func(t *testing.T) {
-		idx := GetWorkerIdx(nil)
+		idx := GetWorkerIdx(context.TODO())
 		assert.Equal(t, WorkerIdxUnknown, idx)
 	})
 
