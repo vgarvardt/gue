@@ -74,9 +74,7 @@ type Worker struct {
 	pollStrategy PollStrategy
 	pollFunc     pollFunc
 	jobTTL       time.Duration
-
-	graceful    bool
-	gracefulCtx func() context.Context
+	ctxFactory   func(context.Context) context.Context
 
 	tracer trace.Tracer
 	meter  metric.Meter
@@ -122,6 +120,10 @@ func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) (*Worker, error) 
 		option(&w)
 	}
 
+	if w.ctxFactory == nil {
+		w.ctxFactory = func(c context.Context) context.Context { return c }
+	}
+
 	switch w.pollStrategy {
 	case RunAtPollStrategy:
 		w.pollFunc = w.c.LockNextScheduledJob
@@ -149,17 +151,8 @@ func (w *Worker) runLoop(ctx context.Context) error {
 	defer timer.Stop()
 
 	for {
-		handlerCtx := ctx
-		if w.graceful {
-			if w.gracefulCtx == nil {
-				handlerCtx = context.Background()
-			} else {
-				handlerCtx = w.gracefulCtx()
-			}
-		}
-
 		// Try to work a job
-		if w.WorkOne(handlerCtx) {
+		if w.WorkOne(w.ctxFactory(ctx)) {
 			// Since we just did work, non-blocking check whether we should exit
 			select {
 			case <-ctx.Done():
@@ -416,9 +409,7 @@ type WorkerPool struct {
 	running      bool
 	pollStrategy PollStrategy
 	jobTTL       time.Duration
-
-	graceful    bool
-	gracefulCtx func() context.Context
+	ctxFactory   func(context.Context) context.Context
 
 	tracer trace.Tracer
 	meter  metric.Meter
@@ -459,6 +450,10 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 		option(&w)
 	}
 
+	if w.ctxFactory == nil {
+		w.ctxFactory = func(c context.Context) context.Context { return c }
+	}
+
 	w.logger = w.logger.With(adapter.F("worker-pool-id", w.id))
 
 	var err error
@@ -487,8 +482,7 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 			return nil, fmt.Errorf("could not init worker instance: %w", err)
 		}
 
-		w.workers[i].graceful = w.graceful
-		w.workers[i].gracefulCtx = w.gracefulCtx
+		w.workers[i].ctxFactory = w.ctxFactory
 	}
 
 	return &w, nil
