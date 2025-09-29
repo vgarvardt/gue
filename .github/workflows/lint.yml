@@ -7,7 +7,7 @@ concurrency:
 
 on:
   push:
-    branches: [master]
+    branches: [v5]
   pull_request:
 
 jobs:
@@ -27,7 +27,7 @@ jobs:
         uses: github/super-linter@v7
         env:
           VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' }}
-          DEFAULT_BRANCH: master
+          DEFAULT_BRANCH: v5
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # go validator works pretty bad in super-linter, we'll use the original one
           VALIDATE_GO: false
@@ -47,7 +47,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Lint Golang
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v8
         with:
           only-new-issues: ${{ github.event_name == 'pull_request' }}
           args: >
