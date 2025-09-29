@@ -82,17 +82,6 @@ func TestWithWorkerPollStrategy(t *testing.T) {
 	assert.Equal(t, RunAtPollStrategy, workerWithWorkerPollStrategy.pollStrategy)
 }
 
-func TestWithWorkerGracefulShutdown(t *testing.T) {
-	ctx := context.WithValue(context.Background(), "foo", "bar")
-	workerWithGracefulCtx, err := NewWorker(
-		nil,
-		dummyWM,
-		WithWorkerGracefulShutdown(func() context.Context { return ctx }),
-	)
-	require.NoError(t, err)
-	assert.Same(t, ctx, workerWithGracefulCtx.ctxFactory(ctx))
-}
-
 func TestWithContextFactory(t *testing.T) {
 	workerWithFactory, err := NewWorker(
 		nil,
@@ -414,21 +403,6 @@ func TestWithPoolHooksJobUndone(t *testing.T) {
 		}
 	}
 	require.Equal(t, 9, hook.counter)
-}
-
-func TestWithPoolGracefulShutdown(t *testing.T) {
-	ctx := context.WithValue(context.Background(), "foo", "bar")
-	poolWithGracefulCtx, err := NewWorkerPool(
-		nil,
-		dummyWM,
-		5,
-		WithPoolGracefulShutdown(func() context.Context { return ctx }),
-	)
-	require.NoError(t, err)
-	assert.Same(t, ctx, poolWithGracefulCtx.ctxFactory(ctx))
-	for _, w := range poolWithGracefulCtx.workers {
-		assert.Same(t, ctx, w.ctxFactory(ctx))
-	}
 }
 
 func TestWithPoolContextFactory(t *testing.T) {

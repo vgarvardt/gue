@@ -1,5 +1,32 @@
 # Changelog
 
+## Upcoming
+
+ - `WithWorkerGracefulShutdown` family of options superseded by the `WithWorkerContextFactory`
+   family of options. To migrate to this version, replace:
+   ```go
+    WithWorkerGracefulShutdown(yourCtxBuilderFunc)
+   ```
+
+   with:
+   ```go
+    WithWorkerContextFactory(func(_ context.Context) context.Context {
+  		return yourCtxBuilderFunc()
+    })
+   ````
+
+   or:
+   ```go
+    WithWorkerGracefulShutdown(nil)
+   ```
+
+   with:
+   ```go
+    WithWorkerContextFactory(func(_ context.Context) context.Context {
+  		return context.Background()
+    })
+   ````
+
 ## v5
 
 ### Breaking

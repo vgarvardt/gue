@@ -592,7 +592,7 @@ func testWorkerWorkOneErrorHookTx(t *testing.T, connPool *sql.DB) {
 	assert.Equal(t, 1, called)
 }
 
-func TestNewWorker_GracefulShutdown(t *testing.T) {
+func TestNewWorker_ContextFactoryBackgroundWorkFn(t *testing.T) {
 	connPool := openTestPoolLibPQ(t)
 
 	c, err := NewClient(connPool)
@@ -641,7 +641,12 @@ func TestNewWorker_GracefulShutdown(t *testing.T) {
 	err = c.Enqueue(ctxGraceful, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
-	wGraceful, err := NewWorker(c, wm, WithWorkerGracefulShutdown(nil))
+	opt := WithWorkerContextFactory(func(_ context.Context) context.Context {
+		// Run the job with a different context than the worker that starts it.
+		return context.Background()
+	})
+
+	wGraceful, err := NewWorker(c, wm, opt)
 	require.NoError(t, err)
 
 	go func() {
@@ -693,7 +698,7 @@ func TestNewWorker_JobTTL(t *testing.T) {
 	require.True(t, jobCancelled)
 }
 
-func TestNewWorkerPool_GracefulShutdown(t *testing.T) {
+func TestNewWorkerPool_ContextFactoryBackgroundWorkFn(t *testing.T) {
 	connPool := openTestPoolLibPQ(t)
 
 	c, err := NewClient(connPool)
@@ -743,7 +748,12 @@ func TestNewWorkerPool_GracefulShutdown(t *testing.T) {
 	err = c.Enqueue(ctxGraceful, &Job{Type: "MyJob"})
 	require.NoError(t, err)
 
-	wGraceful, err := NewWorkerPool(c, wm, numWorkers, WithPoolGracefulShutdown(nil))
+	opt := WithPoolWorkerContextFactory(func(_ context.Context) context.Context {
+		// Run the job with a different context than the worker that starts it.
+		return context.Background()
+	})
+
+	wGraceful, err := NewWorkerPool(c, wm, numWorkers, opt)
 	require.NoError(t, err)
 
 	go func() {

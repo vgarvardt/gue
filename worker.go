@@ -74,8 +74,7 @@ type Worker struct {
 	pollStrategy PollStrategy
 	pollFunc     pollFunc
 	jobTTL       time.Duration
-
-	ctxFactory func(original context.Context) context.Context
+	ctxFactory   func(context.Context) context.Context
 
 	tracer trace.Tracer
 	meter  metric.Meter
@@ -113,13 +112,16 @@ func NewWorker(c *Client, wm WorkMap, options ...WorkerOption) (*Worker, error) 
 		pollStrategy: PriorityPollStrategy,
 		tracer:       noopT.NewTracerProvider().Tracer("noop"),
 		meter:        noopM.NewMeterProvider().Meter("noop"),
-		ctxFactory:   func(ctx context.Context) context.Context { return ctx },
 
 		panicStackBufSize: defaultPanicStackBufSize,
 	}
 
 	for _, option := range options {
 		option(&w)
+	}
+
+	if w.ctxFactory == nil {
+		w.ctxFactory = func(c context.Context) context.Context { return c }
 	}
 
 	switch w.pollStrategy {
@@ -407,8 +409,7 @@ type WorkerPool struct {
 	running      bool
 	pollStrategy PollStrategy
 	jobTTL       time.Duration
-
-	ctxFactory func(original context.Context) context.Context
+	ctxFactory   func(context.Context) context.Context
 
 	tracer trace.Tracer
 	meter  metric.Meter
@@ -441,13 +442,16 @@ func NewWorkerPool(c *Client, wm WorkMap, poolSize int, options ...WorkerPoolOpt
 		pollStrategy: PriorityPollStrategy,
 		tracer:       noopT.NewTracerProvider().Tracer("noop"),
 		meter:        noopM.NewMeterProvider().Meter("noop"),
-		ctxFactory:   func(ctx context.Context) context.Context { return ctx },
 
 		panicStackBufSize: defaultPanicStackBufSize,
 	}
 
 	for _, option := range options {
 		option(&w)
+	}
+
+	if w.ctxFactory == nil {
+		w.ctxFactory = func(c context.Context) context.Context { return c }
 	}
 
 	w.logger = w.logger.With(slog.String("worker-pool-id", w.id))
