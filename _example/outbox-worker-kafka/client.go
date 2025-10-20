@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
-	"github.com/vgarvardt/gue/v5"
+	"github.com/vgarvardt/gue/v6"
 )
 
 func newClientCommand() *cobra.Command {
@@ -23,6 +23,7 @@ func newClientCommand() *cobra.Command {
 		Use:   "client",
 		Short: "Outbox Worker Client, enqueues messages to the gue for further processing by the worker",
 		PreRunE: func(cmd *cobra.Command, args []string) (err error) {
+			initLogger()
 			gc, err = newGueClient(cmd.Context())
 			return
 		},
