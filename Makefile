@@ -27,7 +27,7 @@ deps-up:
 
 .PHONY: deps-down
 deps-down:
-	docker compose down -v
+	docker compose down --volumes --remove-orphans
 
 .PHONY: .test
 .test:

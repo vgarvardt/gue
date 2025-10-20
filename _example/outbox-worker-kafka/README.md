@@ -11,20 +11,20 @@ In order to run this example you'll need to have the following tools preinstalle
 
 - Golang 1.24+
 - Docker with compose command - run `docker compose version` to ensure it works
-- [Task runner](https://taskfile.dev/installation/)
+- make
 
 Example consist of two components:
 
 ## 1. Client
 
-Generates messages and enqueues them as `gue` Jobs for further processing. Run it with `task client`.
+Generates messages and enqueues them as `gue` Jobs for further processing. Run it with `make client`.
 
 Once running it asks how may messages do you want to publish to Kafka. Give it a number and check that jobs are being
 inserted into the `gue_jobs` table in the database.
 
 ## 2. Worker
 
-Runs `gue` Worker, polls Jobs enqueued by the Client and tries to publish them to Kafka. Run it with `task worker`.
+Runs `gue` Worker, polls Jobs enqueued by the Client and tries to publish them to Kafka. Run it with `make worker`.
 
 Once running it polls jobs from the `gue_jobs` table in the database and tries to publish messages to kafka.
 
