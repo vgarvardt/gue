@@ -58,9 +58,9 @@
 ### New
 
 - Handler may return special typed errors to control rescheduling/discarding of the jobs on the individual basis
-    - `ErrRescheduleJobIn()` - reschedule Job after some interval from the current time
-    - `ErrRescheduleJobAt()` - reschedule Job to some specific time
-    - `ErrDiscardJob()` - discard a Job
+  - `ErrRescheduleJobIn()` - reschedule Job after some interval from the current time
+  - `ErrRescheduleJobAt()` - reschedule Job to some specific time
+  - `ErrDiscardJob()` - discard a Job
 
 ## v4
 
@@ -82,22 +82,22 @@
 
 - `pgx v5` adapter support
 - const values for `JobPriority` type to simplify usage of the common values:
-    - `JobPriorityHighest`
-    - `JobPriorityHigh`
-    - `JobPriorityDefault` - set by default when the `Job.Priority` is not explicitly set
-    - `JobPriorityLow`
-    - `JobPriorityLowest`
+  - `JobPriorityHighest`
+  - `JobPriorityHigh`
+  - `JobPriorityDefault` - set by default when the `Job.Priority` is not explicitly set
+  - `JobPriorityLow`
+  - `JobPriorityLowest`
 - `WorkerPool.WorkOne` method, can be useful for testing purpose mostly
 - backoff implementation may return negative value to discard errored job immediately
-    - `gue.BackoffNever` backoff implementation discards the job on the first error
+  - `gue.BackoffNever` backoff implementation discards the job on the first error
 - [OpenTelemetry](https://github.com/open-telemetry/opentelemetry-go) Metrics are available for `Client` -
   use `WithClientMeter()` option to set meter for the client instance. Available metrics:
-    - `gue_client_enqueue` - number of job enqueue tries, exposes `job-type` and `success` attributes
-    - `gue_client_lock_job` - number of job lock tries, exposes `job-type` and `success` attributes
+  - `gue_client_enqueue` - number of job enqueue tries, exposes `job-type` and `success` attributes
+  - `gue_client_lock_job` - number of job lock tries, exposes `job-type` and `success` attributes
 - [OpenTelemetry](https://github.com/open-telemetry/opentelemetry-go) Metrics are available for `Worker` -
   use `WithWorkerMeter()` or `WithPoolMeter()` option to set meter for the worker instance. Available metrics:
-    - `gue_worker_jobs_worked` - number of jobs process tries, exposes `job-type` and `success` attributes
-    - `gue_worker_jobs_duration` - histogram of jobs processing duration, exposes `job-type` attribute
+  - `gue_worker_jobs_worked` - number of jobs process tries, exposes `job-type` and `success` attributes
+  - `gue_worker_jobs_duration` - histogram of jobs processing duration, exposes `job-type` attribute
 - [OpenTelemetry](https://github.com/open-telemetry/opentelemetry-go) Tracing is available for `Worker` -
   use `WithWorkerTracer()` or `WithPoolTracer()` option to set tracer for the worker instance
 - `GetWorkerIdx` function extracts worker index in the pool from the handler context

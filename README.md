@@ -28,125 +28,125 @@ Additionally, you need to apply [DB migration](migrations/schema.sql).
 package main
 
 import (
-    "context"
-    "encoding/json"
-    "fmt"
-    "log"
-    "os"
-    "time"
+  "context"
+  "encoding/json"
+  "fmt"
+  "log"
+  "os"
+  "time"
 
-    "github.com/jackc/pgx/v5/pgxpool"
-    "github.com/jackc/pgx/v5/stdlib"
-    "golang.org/x/sync/errgroup"
+  "github.com/jackc/pgx/v5/pgxpool"
+  "github.com/jackc/pgx/v5/stdlib"
+  "golang.org/x/sync/errgroup"
 
-    "github.com/vgarvardt/gue/v6"
+  "github.com/vgarvardt/gue/v6"
 )
 
 const (
-    printerQueue   = "name_printer"
-    jobTypePrinter = "PrintName"
+  printerQueue   = "name_printer"
+  jobTypePrinter = "PrintName"
 )
 
 type printNameArgs struct {
-    Name string
+  Name string
 }
 
 func main() {
-    printName := func(ctx context.Context, j *gue.Job) error {
-        var args printNameArgs
-        if err := json.Unmarshal(j.Args, &args); err != nil {
-            return err
-        }
-        fmt.Printf("Hello %s!\n", args.Name)
-        return nil
+  printName := func(ctx context.Context, j *gue.Job) error {
+    var args printNameArgs
+    if err := json.Unmarshal(j.Args, &args); err != nil {
+      return err
     }
+    fmt.Printf("Hello %s!\n", args.Name)
+    return nil
+  }
 
-    pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
+  pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  pgxPool, err := pgxpool.NewWithConfig(context.Background(), pgxCfg)
+  if err != nil {
+    log.Fatal(err)
+  }
+  defer pgxPool.Close()
+
+  db := stdlib.OpenDBFromPool(pgxPool)
+
+  gc, err := gue.NewClient(db)
+  if err != nil {
+    log.Fatal(err)
+  }
+  wm := gue.WorkMap{
+    jobTypePrinter: printName,
+  }
+
+  finishedJobsLog := func(ctx context.Context, j *gue.Job, err error) {
     if err != nil {
-        log.Fatal(err)
+      return
     }
 
-    pgxPool, err := pgxpool.NewWithConfig(context.Background(), pgxCfg)
+    j.Tx().Exec(
+      ctx,
+      "INSERT INTO finished_jobs_log (queue, type, run_at) VALUES ($1, $2, now())",
+      j.Queue,
+      j.Type,
+    )
+  }
+
+  // create a pool w/ 2 workers
+  workers, err := gue.NewWorkerPool(gc, wm, 2, gue.WithPoolQueue(printerQueue), gue.WithPoolHooksJobDone(finishedJobsLog))
+  if err != nil {
+    log.Fatal(err)
+  }
+
+  ctx, shutdown := context.WithCancel(context.Background())
+
+  // work jobs in goroutine
+  g, gctx := errgroup.WithContext(ctx)
+  g.Go(func() error {
+    err := workers.Run(gctx)
     if err != nil {
-        log.Fatal(err)
+      // In a real-world applications, use a better way to shut down
+      // application on unrecoverable error. E.g. fx.Shutdowner from
+      // go.uber.org/fx module.
+      log.Fatal(err)
     }
-    defer pgxPool.Close()
+    return err
+  })
 
-    db := stdlib.OpenDBFromPool(pgxPool)
+  args, err := json.Marshal(printNameArgs{Name: "vgarvardt"})
+  if err != nil {
+    log.Fatal(err)
+  }
 
-    gc, err := gue.NewClient(db)
-    if err != nil {
-        log.Fatal(err)
-    }
-    wm := gue.WorkMap{
-        jobTypePrinter: printName,
-    }
+  j := &gue.Job{
+    Type:  jobTypePrinter,
+    Queue: printerQueue,
+    Args:  args,
+  }
+  if err := gc.Enqueue(context.Background(), j); err != nil {
+    log.Fatal(err)
+  }
 
-    finishedJobsLog := func(ctx context.Context, j *gue.Job, err error) {
-        if err != nil {
-            return
-        }
+  j = &gue.Job{
+    Type:  jobTypePrinter,
+    Queue: printerQueue,
+    RunAt: time.Now().UTC().Add(30 * time.Second), // delay 30 seconds
+    Args:  args,
+  }
+  if err := gc.Enqueue(context.Background(), j); err != nil {
+    log.Fatal(err)
+  }
 
-        j.Tx().Exec(
-            ctx,
-            "INSERT INTO finished_jobs_log (queue, type, run_at) VALUES ($1, $2, now())",
-            j.Queue,
-            j.Type,
-        )
-    }
+  time.Sleep(30 * time.Second) // wait for while
 
-    // create a pool w/ 2 workers
-    workers, err := gue.NewWorkerPool(gc, wm, 2, gue.WithPoolQueue(printerQueue), gue.WithPoolHooksJobDone(finishedJobsLog))
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    ctx, shutdown := context.WithCancel(context.Background())
-
-    // work jobs in goroutine
-    g, gctx := errgroup.WithContext(ctx)
-    g.Go(func() error {
-        err := workers.Run(gctx)
-        if err != nil {
-            // In a real-world applications, use a better way to shut down
-            // application on unrecoverable error. E.g. fx.Shutdowner from
-            // go.uber.org/fx module.
-            log.Fatal(err)
-        }
-        return err
-    })
-
-    args, err := json.Marshal(printNameArgs{Name: "vgarvardt"})
-    if err != nil {
-        log.Fatal(err)
-    }
-
-    j := &gue.Job{
-        Type:  jobTypePrinter,
-        Queue: printerQueue,
-        Args:  args,
-    }
-    if err := gc.Enqueue(context.Background(), j); err != nil {
-        log.Fatal(err)
-    }
-
-    j = &gue.Job{
-        Type:  jobTypePrinter,
-        Queue: printerQueue,
-        RunAt: time.Now().UTC().Add(30 * time.Second), // delay 30 seconds
-        Args:  args,
-    }
-    if err := gc.Enqueue(context.Background(), j); err != nil {
-        log.Fatal(err)
-    }
-
-    time.Sleep(30 * time.Second) // wait for while
-
-    // send shutdown signal to worker
-    shutdown()
-    if err := g.Wait(); err != nil {
-        log.Fatal(err)
-    }
+  // send shutdown signal to worker
+  shutdown()
+  if err := g.Wait(); err != nil {
+    log.Fatal(err)
+  }
 }
 
 ```
@@ -164,31 +164,31 @@ Package is using stdlib `database/sql` types internally and is tested with the f
 package main
 
 import (
-    "log"
-    "os"
+  "log"
+  "os"
 
-    "github.com/jackc/pgx/v5/pgxpool"
-    "github.com/jackc/pgx/v5/stdlib"
+  "github.com/jackc/pgx/v5/pgxpool"
+  "github.com/jackc/pgx/v5/stdlib"
 
-    "github.com/vgarvardt/gue/v6"
+  "github.com/vgarvardt/gue/v6"
 )
 
 func main() {
-    pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
-    if err != nil {
-        log.Fatal(err)
-    }
+  pgxCfg, err := pgxpool.ParseConfig(os.Getenv("DATABASE_URL"))
+  if err != nil {
+    log.Fatal(err)
+  }
 
-    pgxPool, err := pgxpool.NewConfig(context.Background(), pgxCfg)
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer pgxPool.Close()
+  pgxPool, err := pgxpool.NewConfig(context.Background(), pgxCfg)
+  if err != nil {
+    log.Fatal(err)
+  }
+  defer pgxPool.Close()
 
-    db := stdlib.OpenDBFromPool(pgxPool)
+  db := stdlib.OpenDBFromPool(pgxPool)
 
-    gc, err := gue.NewClient(db)
-    ...
+  gc, err := gue.NewClient(db)
+  ...
 }
 ```
 
@@ -198,24 +198,24 @@ func main() {
 package main
 
 import (
-    "database/sql"
-    "log"
-    "os"
+  "database/sql"
+  "log"
+  "os"
 
-    _ "github.com/lib/pq" // register postgres driver
+  _ "github.com/lib/pq" // register postgres driver
 
-    "github.com/vgarvardt/gue/v6"
+  "github.com/vgarvardt/gue/v6"
 )
 
 func main() {
-    db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer db.Close()
+  db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+  if err != nil {
+    log.Fatal(err)
+  }
+  defer db.Close()
 
-    gc, err := gue.NewClient(db)
-    ...
+  gc, err := gue.NewClient(db)
+  ...
 }
 ```
 
