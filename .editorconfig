@@ -5,12 +5,13 @@ indent_style = space
 indent_size = 2
 end_of_line = lf
 charset = utf-8
-trim_trailing_whitespace = true
+trim_trailing_whitespace = false
 insert_final_newline = true
 
 [*.go]
 indent_style = tab
 indent_size = 4
+trim_trailing_whitespace = true
 ij_continuation_indent_size = 4
 ij_go_GROUP_CURRENT_PROJECT_IMPORTS = true
 ij_go_add_parentheses_for_single_import = true
@@ -23,3 +24,13 @@ ij_go_move_all_stdlib_imports_in_one_group = true
 [go.mod]
 indent_style = tab
 indent_size = 4
+
+[{Makefile,*.mk}]
+indent_style = tab
+trim_trailing_whitespace = true
+
+[*.md]
+indent_size = 4
+
+[*.{yaml,yml}]
+trim_trailing_whitespace = true
