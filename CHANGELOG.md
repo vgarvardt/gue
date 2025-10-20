@@ -1,7 +1,12 @@
 # Changelog
 
-## Upcoming
+## v6
 
+- DB `adapter` is gone together with all corresponding interfaces and wrapper types, stdlib `database/sql` is used
+  directly everywhere
+- Logger `adapter` is gone together with all corresponding interfaces and wrapper types, stdlib `log/slog` is used
+  everywhere, one can use existing adapters like `go.uber.org/zap/exp/zapslog` to wrap a logger used by your application
+  or implement your own
 - `WithWorkerGracefulShutdown` family of options superseded by the `WithWorkerContextFactory`
   family of options. To migrate to this version, replace:
 
@@ -30,6 +35,10 @@
     return context.Background()
   })
   ```
+
+- OpenTelemetry span attribute names are using snake_case instead of kebab-case to follow OTel naming convention, e.g.
+  `job-type` -> `job_type`, `job-queue` -> `job_queue`, `job-id` -> `job_id`, etc.
+- min supported Golang version is `1.24`
 
 ## v5
 

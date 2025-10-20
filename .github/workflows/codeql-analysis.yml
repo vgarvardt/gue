@@ -22,11 +22,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
 
-      - name: Setup dependencies
-        uses: ./.github/actions/setup-deps
+      - name: Setup Golang
+        uses: actions/setup-go@v5
         with:
-          go-version: "1.23"
-          token: ${{secrets.GITHUB_TOKEN}}
+          go-version-file: "./go.mod"
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4

@@ -22,14 +22,14 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v5
 
-      - name: Setup dependencies
-        uses: ./.github/actions/setup-deps
+      - name: Setup Golang
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Run tests
-        run: task test
+        run: make test
 
       - name: Upload coverage to Codecov
         if: success()

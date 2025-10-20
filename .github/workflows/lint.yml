@@ -39,11 +39,18 @@ jobs:
           VALIDATE_CHECKOV: false
           # it forces all list items to be on a single line in .github/linters/.jscpd.json that is not pretty at all
           VALIDATE_JSON_PRETTIER: false
+          # to see the problems right in the workflow output
+          FIX_MARKDOWN_PRETTIER: true
 
-      - name: Setup dependencies
-        uses: ./.github/actions/setup-deps
+      - name: Check linter fixes
+        if: failure()
+        run: |
+          git --no-pager diff
+
+      - name: Setup Golang
+        uses: actions/setup-go@v5
         with:
-          go-version: "1.24"
+          go-version-file: "./go.mod"
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Lint Golang
