@@ -5,7 +5,8 @@
 - DB `adapter` is gone together with all corresponding interfaces and wrapper types, stdlib `database/sql` is used
   directly everywhere
 - Logger `adapter` is gone together with all corresponding interfaces and wrapper types, stdlib `log/slog` is used
-  everywhere, use existing adapters to wrap a logger used in your application, e.g. `go.uber.org/zap/exp/zapslog`
+  everywhere, one can use existing adapters like `go.uber.org/zap/exp/zapslog` to wrap a logger used by your application
+  or implement your own
 - `WithWorkerGracefulShutdown` family of options superseded by the `WithWorkerContextFactory`
   family of options. To migrate to this version, replace:
 
