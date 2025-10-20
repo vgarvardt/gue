@@ -1,5 +1,4 @@
 ---
-version: "3.9"
 services:
   postgres:
     image: postgres:14
@@ -16,7 +15,7 @@ services:
       retries: 20
 
   redpanda:
-    image: docker.redpanda.com/vectorized/redpanda:v22.2.6
+    image: docker.redpanda.com/redpandadata/redpanda:v22.2.6
     command:
       - redpanda
       - start

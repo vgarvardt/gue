@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"path"
@@ -13,10 +13,9 @@ import (
 
 	"github.com/IBM/sarama"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/stdlib"
 
-	"github.com/vgarvardt/gue/v5"
-	"github.com/vgarvardt/gue/v5/adapter"
-	"github.com/vgarvardt/gue/v5/adapter/pgxv5"
+	"github.com/vgarvardt/gue/v6"
 )
 
 // func init() {
@@ -34,6 +33,13 @@ type outboxMessage struct {
 	Key     []byte                `json:"key"`
 	Value   []byte                `json:"value"`
 	Headers []sarama.RecordHeader `json:"headers"`
+}
+
+func initLogger() {
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		AddSource: true,
+		Level:     slog.LevelDebug,
+	})))
 }
 
 func initQuitCh() chan os.Signal {
@@ -56,7 +62,7 @@ func newGueClient(ctx context.Context) (*gue.Client, error) {
 		return nil, errors.New("DB_DSN env var is not set, should be something like postgres://user:password@host:port/dbname")
 	}
 
-	log.Printf("Connecting to the DB %q\n", dbDSN)
+	slog.Info("Connecting to the DB", slog.String("dsn", dbDSN))
 	connPoolConfig, err := pgxpool.ParseConfig(dbDSN)
 	if err != nil {
 		return nil, fmt.Errorf("could not parse DB DSN to connection config: %w", err)
@@ -71,11 +77,12 @@ func newGueClient(ctx context.Context) (*gue.Client, error) {
 		return nil, err
 	}
 
-	guePool := pgxv5.NewConnPool(connPool)
+	db := stdlib.OpenDBFromPool(connPool)
+
 	gc, err := gue.NewClient(
-		guePool,
+		db,
 		gue.WithClientID("outbox-worker-client-"+gue.RandomStringID()),
-		gue.WithClientLogger(adapter.NewStdLogger()),
+		gue.WithClientLogger(slog.Default()),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("could not instantiate gue client: %w", err)
@@ -109,7 +116,7 @@ func createTestTopic() error {
 		return errors.New("KAFKA_BROKERS env var is not set, should be something like localhost:9092")
 	}
 
-	log.Printf("Initialising test kafka topic at %q\n", kafkaBrokers)
+	slog.Info("Initialising test kafka topic", slog.String("brokers", kafkaBrokers))
 	config := sarama.NewConfig()
 	config.ClientID = "gue-outbox-worker-kafka-example-admin"
 
@@ -123,7 +130,7 @@ func createTestTopic() error {
 		ReplicationFactor: 1,
 	}, false); err != nil {
 		var topicErr *sarama.TopicError
-		if !errors.As(err, &topicErr) || topicErr.Err != sarama.ErrTopicAlreadyExists {
+		if !errors.As(err, &topicErr) || !errors.Is(topicErr.Err, sarama.ErrTopicAlreadyExists) {
 			return fmt.Errorf("could not create test topic: %w", err)
 		}
 	}
@@ -148,7 +155,7 @@ func newSyncProducer() (sarama.SyncProducer, error) {
 	config.Producer.Partitioner = sarama.NewHashPartitioner
 	config.Producer.Return.Successes = true
 
-	log.Printf("Initialising sync kafka producer at %q\n", kafkaBrokers)
+	slog.Info("Initialising sync kafka producer", slog.String("brokers", kafkaBrokers))
 	producer, err := sarama.NewSyncProducer(strings.Split(kafkaBrokers, ","), config)
 	if err != nil {
 		return nil, fmt.Errorf("coulf not instantiate new sync producer: %w", err)

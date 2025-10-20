@@ -4,14 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/IBM/sarama"
 	"github.com/spf13/cobra"
 
-	"github.com/vgarvardt/gue/v5"
-	"github.com/vgarvardt/gue/v5/adapter"
+	"github.com/vgarvardt/gue/v6"
 )
 
 func newWorkerCommand() *cobra.Command {
@@ -24,6 +23,8 @@ func newWorkerCommand() *cobra.Command {
 		Use:   "worker",
 		Short: "Outbox Worker, reads gue messages enqueued by the client and publishes them to Kafka",
 		PreRunE: func(cmd *cobra.Command, args []string) (err error) {
+			initLogger()
+
 			gc, err = newGueClient(cmd.Context())
 			if err != nil {
 				return
@@ -51,7 +52,7 @@ func newWorkerCommand() *cobra.Command {
 			worker, err := gue.NewWorker(
 				gc, wm,
 				gue.WithWorkerQueue(outboxQueue),
-				gue.WithWorkerLogger(adapter.NewStdLogger()),
+				gue.WithWorkerLogger(slog.Default()),
 				gue.WithWorkerPollInterval(500*time.Millisecond),
 				gue.WithWorkerPollStrategy(gue.RunAtPollStrategy),
 				gue.WithWorkerID("outbox-worker-"+gue.RandomStringID()),
@@ -65,14 +66,14 @@ func newWorkerCommand() *cobra.Command {
 
 			go func() {
 				if err := worker.Run(cancelCtx); err != nil {
-					log.Fatalf("Worker finished with error: %s\n", err)
+					slog.Error("Worker finished with error", slog.String("error", err.Error()))
 				}
-				log.Println("Worker finished")
+				slog.Info("Worker finished")
 			}()
 
 			quitCh := initQuitCh()
 			sig := <-quitCh
-			log.Printf("Received interrupt (%s), exiting app\n", sig.String())
+			slog.Info("Received interrupt, exiting app", slog.String("signal", sig.String()))
 			cancel()
 			return nil
 		},
@@ -97,9 +98,12 @@ func outboxMessageHandler(producer sarama.SyncProducer) gue.WorkFunc {
 			return fmt.Errorf("could not publish message to kafka from outbox [job-id: %d]: %w", j.ID, err)
 		}
 
-		log.Printf(
-			"Published message to kafka: topic %q, partition %d, offset %d, key %q, value %q\n",
-			m.Topic, partition, offset, m.Key, m.Value,
+		slog.Info("Published message to kafka",
+			slog.String("topic", m.Topic),
+			slog.Int("partition", int(partition)),
+			slog.Int64("offset", offset),
+			slog.String("key", string(m.Key)),
+			slog.String("value", string(m.Value)),
 		)
 
 		return nil
