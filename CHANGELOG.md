@@ -34,6 +34,7 @@
     return context.Background()
   })
   ```
+
 - OpenTelemetry span attribute names are using snake_case instead of kebab-case to follow OTel naming convention, e.g.
   `job-type` -> `job_type`, `job-queue` -> `job_queue`, `job-id` -> `job_id`, etc.
 - min supported Golang version is `1.24`
