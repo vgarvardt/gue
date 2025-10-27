@@ -48,7 +48,7 @@ jobs:
           git --no-pager diff
 
       - name: Setup Golang
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version-file: "./go.mod"
           token: ${{ secrets.GITHUB_TOKEN }}
