@@ -24,11 +24,13 @@ jobs:
           fetch-depth: 0
 
       - name: Lint Code Base
-        uses: github/super-linter@v7
+        uses: super-linter/super-linter@v8
         env:
           VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' }}
           DEFAULT_BRANCH: master
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VALIDATE_BIOME_FORMAT: false
+          VALIDATE_GITHUB_ACTIONS_ZIZMOR: false
           # go validator works pretty bad in super-linter, we'll use the original one
           VALIDATE_GO: false
           VALIDATE_GO_MODULES: false
