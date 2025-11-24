@@ -1,18 +1,16 @@
 /*
-Package gue implements Golang queues on top of PostgreSQL.
+Package gue implements Go queues on top of PostgreSQL.
 It uses transaction-level locks for concurrent work.
 
 # PostgreSQL drivers
 
-Package supports several PostgreSQL drivers using adapter interface internally.
-Currently, adapters for the following drivers have been implemented:
-  - github.com/jackc/pgx/v4
-  - github.com/jackc/pgx/v5
-  - github.com/lib/pq
+Package is using stdlib [database/sql] types internally and is tested with the following drivers
+  - [github.com/jackc/pgx/v5]
+  - [github.com/lib/pq]
 
 # Usage
 
-Here is a complete example showing worker setup for pgx/v4 and two jobs enqueued, one with a delay:
+Here is a complete example showing worker setup for pgx/v5 and two jobs enqueued, one with a delay:
 
 	package main
 
@@ -25,10 +23,10 @@ Here is a complete example showing worker setup for pgx/v4 and two jobs enqueued
 		"time"
 
 		"github.com/jackc/pgx/v5/pgxpool"
+		"github.com/jackc/pgx/v5/stdlib"
 		"golang.org/x/sync/errgroup"
 
-		"github.com/vgarvardt/gue/v5"
-		"github.com/vgarvardt/gue/v5/adapter/pgxv5"
+		"github.com/vgarvardt/gue/v6"
 	)
 
 	type printNameArgs struct {
@@ -56,9 +54,9 @@ Here is a complete example showing worker setup for pgx/v4 and two jobs enqueued
 		}
 		defer pgxPool.Close()
 
-		poolAdapter := pgxv5.NewConnPool(pgxPool)
+		db := stdlib.OpenDBFromPool(pgxPool)
 
-		gc, err := gue.NewClient(poolAdapter)
+		gc, err := gue.NewClient(db)
 		if err != nil {
 			log.Fatal(err)
 		}

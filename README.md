@@ -5,7 +5,7 @@
 [![ReportCard](https://goreportcard.com/badge/github.com/vgarvardt/gue)](https://goreportcard.com/report/github.com/vgarvardt/gue)
 [![License](https://img.shields.io/npm/l/express.svg)](http://opensource.org/licenses/MIT)
 
-Gue is Golang queue on top of PostgreSQL that uses transaction-level locks.
+Gue is Go queue on top of PostgreSQL that uses transaction-level locks.
 
 Originally this project used to be a fork of [bgentry/que-go](https://github.com/bgentry/que-go)
 but because of some backward-compatibility breaking changes and original library author not being very responsive for
