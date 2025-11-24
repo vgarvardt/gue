@@ -9,7 +9,7 @@ implementation that uses `gue` for messages store/relay processes.
 
 In order to run this example you'll need to have the following tools preinstalled in your system:
 
-- Golang 1.24+
+- Go 1.24+
 - Docker with compose command - run `docker compose version` to ensure it works
 - make
 
