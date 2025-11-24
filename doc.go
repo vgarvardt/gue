@@ -5,8 +5,8 @@ It uses transaction-level locks for concurrent work.
 # PostgreSQL drivers
 
 Package is using stdlib [database/sql] types internally and is tested with the following drivers
-	- [github.com/jackc/pgx/v5]
-	- [github.com/lib/pq]
+  - [github.com/jackc/pgx/v5]
+  - [github.com/lib/pq]
 
 # Usage
 
