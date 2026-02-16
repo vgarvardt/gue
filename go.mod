@@ -1,9 +1,9 @@
 module github.com/vgarvardt/gue/v6
 
-go 1.24.0
+go 1.26
 
 require (
-	github.com/cappuccinotm/slogx v1.4.2
+	github.com/cappuccinotm/slogx v1.5.0
 	github.com/jackc/pgx/v5 v5.8.0
 	github.com/lib/pq v1.11.2
 	github.com/oklog/ulid/v2 v2.1.1
