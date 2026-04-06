@@ -1,10 +1,10 @@
 module github.com/vgarvardt/gue/v6
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/cappuccinotm/slogx v1.4.2
-	github.com/jackc/pgx/v5 v5.8.0
+	github.com/jackc/pgx/v5 v5.9.1
 	github.com/lib/pq v1.12.3
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/stretchr/testify v1.11.1
