@@ -1,6 +1,6 @@
 module github.com/vgarvardt/gue/v6
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/cappuccinotm/slogx v1.4.2
@@ -14,7 +14,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.40.0
 	go.uber.org/zap v1.27.1
 	go.uber.org/zap/exp v0.3.0
-	golang.org/x/sync v0.19.0
+	golang.org/x/sync v0.20.0
 )
 
 require (
