@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: ["1.24", "1.25", "stable"]
+        go-version: ["1.25", "1.26", "1.27", "stable"]
     timeout-minutes: 10
     steps:
       - name: Check out code

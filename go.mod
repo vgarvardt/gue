@@ -1,6 +1,6 @@
 module github.com/vgarvardt/gue/v6
 
-go 1.24.0
+go 1.25.0
 
 require (
 	github.com/cappuccinotm/slogx v1.4.2
