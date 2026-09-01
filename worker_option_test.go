@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cappuccinotm/slogx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/metric/noop"
@@ -60,7 +59,7 @@ func TestWithWorkerID(t *testing.T) {
 func TestWithWorkerLogger(t *testing.T) {
 	workerWithDefaultLogger, err := NewWorker(nil, dummyWM)
 	require.NoError(t, err)
-	assert.IsType(t, slogx.NopHandler(), workerWithDefaultLogger.logger.Handler())
+	assert.IsType(t, slog.DiscardHandler, workerWithDefaultLogger.logger.Handler())
 
 	const logMessage = "hello"
 
@@ -163,7 +162,7 @@ func TestWithPoolID(t *testing.T) {
 func TestWithPoolLogger(t *testing.T) {
 	workerPoolWithDefaultLogger, err := NewWorkerPool(nil, dummyWM, 2)
 	require.NoError(t, err)
-	assert.IsType(t, slogx.NopHandler(), workerPoolWithDefaultLogger.logger.Handler())
+	assert.IsType(t, slog.DiscardHandler, workerPoolWithDefaultLogger.logger.Handler())
 
 	const logMessage = "hello"
 
