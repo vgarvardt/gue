@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cappuccinotm/slogx"
 	"github.com/oklog/ulid/v2"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
@@ -57,7 +56,7 @@ type Client struct {
 func NewClient(pool *sql.DB, options ...ClientOption) (*Client, error) {
 	instance := Client{
 		pool:    pool,
-		logger:  slog.New(slogx.NopHandler()),
+		logger:  slog.New(slog.DiscardHandler),
 		id:      RandomStringID(),
 		backoff: DefaultExponentialBackoff,
 		meter:   noop.NewMeterProvider().Meter("noop"),
@@ -166,7 +165,7 @@ VALUES
 
 	for _, j := range jobs {
 		c.logger.DebugContext(ctx, "Tried to enqueue a job",
-			slogx.Error(err),
+			SlogError(err),
 			slog.String("queue", j.Queue),
 			slog.String("id", j.ID.String()),
 		)

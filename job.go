@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/cappuccinotm/slogx"
 	"github.com/oklog/ulid/v2"
 )
 
@@ -144,7 +143,7 @@ func (j *Job) Error(ctx context.Context, jErr error) (err error) {
 	newRunAt := j.calculateErrorRunAt(jErr, now, errorCount)
 	if newRunAt.IsZero() {
 		j.logger.InfoContext(ctx, "Got empty new run at for the errored job, discarding it",
-			slogx.Error(jErr),
+			SlogError(jErr),
 			slog.String("job-type", j.Type),
 			slog.String("job-queue", j.Queue),
 			slog.Int("job-errors", int(errorCount)),

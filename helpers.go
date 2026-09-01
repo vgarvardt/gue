@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"log/slog"
 	"sync"
 	"time"
 )
@@ -32,4 +33,16 @@ func RunLock(ctx context.Context, f func(ctx context.Context) error, mu *sync.Mu
 	}()
 
 	return f(ctx)
+}
+
+// SlogErrorKey is the package-level key used by the SlogError.
+var SlogErrorKey = "error"
+
+// SlogError returns an attribute with the error key.
+// The key is managed by the package-level SlogErrorKey var.
+func SlogError(err error) slog.Attr {
+	if err == nil {
+		return slog.Attr{}
+	}
+	return slog.Any(SlogErrorKey, err)
 }

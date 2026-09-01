@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cappuccinotm/slogx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/metric/noop"
@@ -31,7 +30,7 @@ func TestWithClientID(t *testing.T) {
 func TestWithClientLogger(t *testing.T) {
 	clientWithDefaultLogger, err := NewClient(nil)
 	require.NoError(t, err)
-	assert.IsType(t, slogx.NopHandler(), clientWithDefaultLogger.logger.Handler())
+	assert.IsType(t, slog.DiscardHandler, clientWithDefaultLogger.logger.Handler())
 
 	const logMessage = "hello"
 
