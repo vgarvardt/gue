@@ -4,9 +4,7 @@ import "context"
 
 type ctxKey struct{}
 
-var (
-	workerIdxKey = ctxKey{}
-)
+var workerIdxKey = ctxKey{}
 
 const (
 	// WorkerIdxUnknown is returned when worker index in the pool is not set for some reason.
