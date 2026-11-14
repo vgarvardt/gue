@@ -41,6 +41,7 @@ jobs:
           # go validator works pretty bad in super-linter, we'll use the original one
           # VALIDATE_GO: true
           VALIDATE_MARKDOWN: true
+          VALIDATE_MARKDOWN_PRETTIER: true
           VALIDATE_SPELL_CODESPELL: true
           # to see the problems right in the workflow output
           FIX_MARKDOWN_PRETTIER: true
