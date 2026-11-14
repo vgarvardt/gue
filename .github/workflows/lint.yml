@@ -29,8 +29,11 @@ jobs:
           VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' }}
           DEFAULT_BRANCH: master
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # - https://github.com/rhysd/actionlint/pull/694
+          # - https://github.com/rhysd/actionlint/pull/732
+          VALIDATE_GITHUB_ACTIONS: false
           VALIDATE_BIOME_FORMAT: false
-          VALIDATE_GITHUB_ACTIONS_ZIZMOR: false
+          VALIDATE_GITHUB_ACTIONS_ZIZMOR: true
           # go validator works pretty bad in super-linter, we'll use the original one
           VALIDATE_GO: false
           VALIDATE_GO_MODULES: false
@@ -64,6 +67,11 @@ jobs:
           args: >
             --config=./.github/linters/.golangci.yml
             --timeout=5m
+
+      # using fork from https://github.com/super-linter/super-linter/issues/8189 because of the issues mentioned above
+      - name: Run actionlint fork
+        background: true
+        uses: kjanat/actionlint@v1.17.0
 
   codespell:
     name: Check spelling

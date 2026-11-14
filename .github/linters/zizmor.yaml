@@ -1,0 +1,12 @@
+---
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        # Action versions are managed by Dependabot.
+        actions/checkout: ref-pin
+        actions/setup-go: ref-pin
+        codecov/codecov-action: ref-pin
+        golangci/golangci-lint-action: ref-pin
+        kjanat/actionlint: ref-pin
+        super-linter/super-linter: ref-pin
