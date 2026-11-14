@@ -7,6 +7,7 @@ rules:
         actions/checkout: ref-pin
         actions/setup-go: ref-pin
         codecov/codecov-action: ref-pin
+        github/codeql-action/*: ref-pin
         golangci/golangci-lint-action: ref-pin
         kjanat/actionlint: ref-pin
         super-linter/super-linter: ref-pin

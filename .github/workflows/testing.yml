@@ -10,10 +10,14 @@ on:
     branches: [master]
   pull_request:
 
+permissions: {}
+
 jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       matrix:
         go-version: ["1.26", "1.27", "stable"]
@@ -21,6 +25,8 @@ jobs:
     steps:
       - name: Check out code
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Setup Golang
         uses: actions/setup-go@v7

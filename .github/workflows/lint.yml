@@ -10,11 +10,18 @@ on:
     branches: [master]
   pull_request:
 
+permissions: {}
+
 jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
 
     steps:
       - name: Check out code
@@ -22,6 +29,7 @@ jobs:
         with:
           # Full git history is needed to get a proper list of changed files within `super-linter`
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Lint Code Base
         uses: super-linter/super-linter@v9
