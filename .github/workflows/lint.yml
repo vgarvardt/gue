@@ -29,23 +29,19 @@ jobs:
           VALIDATE_ALL_CODEBASE: ${{ github.event_name != 'pull_request' }}
           DEFAULT_BRANCH: master
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ENABLE_GITHUB_PULL_REQUEST_SUMMARY_COMMENT: false
+          SAVE_SUPER_LINTER_SUMMARY: true
+          VALIDATE_EDITORCONFIG: true
           # - https://github.com/rhysd/actionlint/pull/694
           # - https://github.com/rhysd/actionlint/pull/732
-          VALIDATE_GITHUB_ACTIONS: false
-          VALIDATE_BIOME_FORMAT: false
+          # VALIDATE_GITHUB_ACTIONS: false
           VALIDATE_GITHUB_ACTIONS_ZIZMOR: true
+          VALIDATE_GITLEAKS: true
+          VALIDATE_GIT_MERGE_CONFLICT_MARKERS: true
           # go validator works pretty bad in super-linter, we'll use the original one
-          VALIDATE_GO: false
-          VALIDATE_GO_MODULES: false
-          # do not validate SQL - linters are pretty useless in case of this library,
-          # and the functionality is tested using integration tests
-          VALIDATE_SQL: false
-          VALIDATE_SQLFLUFF: false
-          VALIDATE_CHECKOV: false
-          # it forces all list items to be on a single line in .github/linters/.jscpd.json that is not pretty at all
-          VALIDATE_JSON_PRETTIER: false
-          # dependabot is enough
-          VALIDATE_TRIVY: false
+          # VALIDATE_GO: true
+          VALIDATE_MARKDOWN: true
+          VALIDATE_SPELL_CODESPELL: true
           # to see the problems right in the workflow output
           FIX_MARKDOWN_PRETTIER: true
 
@@ -72,12 +68,3 @@ jobs:
       - name: Run actionlint fork
         background: true
         uses: kjanat/actionlint@v1.17.0
-
-  codespell:
-    name: Check spelling
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-
-    steps:
-      - uses: actions/checkout@v7
-      - uses: codespell-project/actions-codespell@v2
