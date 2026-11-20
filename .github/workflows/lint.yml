@@ -76,4 +76,4 @@ jobs:
       # using fork from https://github.com/super-linter/super-linter/issues/8189 because of the issues mentioned above
       - name: Run actionlint fork
         background: true
-        uses: kjanat/actionlint@v1.17.0
+        uses: kjanat/actionlint@v1.17.1
